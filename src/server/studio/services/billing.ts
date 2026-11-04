@@ -44,6 +44,7 @@ const OFFERED: Record<string, readonly ApplicationId[]> = {
   FOOD: ['menu', 'cashier'],
   PHARMACY: ['pharmacy'],
   RETAIL: ['retail'],
+  WHOLESALE: ['wholesale'],
 };
 
 function offeredTo(sector: string, applicationId: string): boolean {
@@ -121,11 +122,11 @@ export const paymentInput = z.object({
 });
 
 /**
- * The plan codes an application sells now: the tiers for the Menu and the Cashier, and for the Pharmacy and Retail the
+ * The plan codes an application sells now: the tiers for the Menu and the Cashier, and for the Pharmacy, Retail and Wholesale the
  * `AppPlan` rows that are on sale (a plan taken off sale cannot be subscribed to or priced, but stays on the subscriptions it has).
  */
 export async function sellablePlanCodes(db: AnyDb, application: ApplicationId): Promise<string[]> {
-  if (application !== 'pharmacy' && application !== 'retail') return [...planCodesFor(application)];
+  if (application !== 'pharmacy' && application !== 'retail' && application !== 'wholesale') return [...planCodesFor(application)];
   const plans = await db.appPlan.findMany({
     where: { applicationId: application, active: true },
     orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],

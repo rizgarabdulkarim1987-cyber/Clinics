@@ -44,6 +44,7 @@ describe('the restaurant picker of the Platform space', () => {
       food: { id: 'f1', name: 'Cafe Beta', clientId: 'F-1', city: null },
       pharmacy: { id: 'p1', name: 'Alpha Pharmacy', clientId: 'P-1', city: null },
       retail: { id: 's1', name: 'Shop Gamma', clientId: 'S-1', city: null },
+      wholesale: { id: 'w1', name: 'Company Delta', clientId: 'W-1', city: null },
     };
     searchRestaurants.mockImplementation(async ({ space }: { space: string }) => ({ ok: true, data: { rows: [ROWS[space]] } }));
   });
@@ -51,6 +52,6 @@ describe('the restaurant picker of the Platform space', () => {
   it('finds the businesses of every project, so a new designer can be given work in any', async () => {
     const { findRestaurantOptionsIn } = await import('@/studio/pickers');
     const options = await findRestaurantOptionsIn.platform('a');
-    expect(options.map((option) => option.value).sort()).toEqual(['f1', 'p1', 's1']);
+    expect(options.map((option) => option.value).sort()).toEqual(['f1', 'p1', 's1', 'w1']);
   });
 });

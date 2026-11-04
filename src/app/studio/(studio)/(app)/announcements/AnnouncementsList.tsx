@@ -8,7 +8,7 @@ import { PageHeader } from '@/studio/ui/PageHeader';
 import { AnnouncementsAdmin } from './AnnouncementsAdmin';
 
 /** The Buzzify team's announcements, for Super Admins (anyone else gets the not-found page). */
-export async function AnnouncementsList({ space }: { space: 'food' | 'pharmacy' | 'retail' }) {
+export async function AnnouncementsList({ space }: { space: 'food' | 'pharmacy' | 'retail' | 'wholesale' }) {
   const actor = await getActor();
   if (!actor) redirect(SIGN_IN_PATH);
   const t = spaceT(getStudioTranslator(actor.locale), space);

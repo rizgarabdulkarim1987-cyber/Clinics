@@ -18,7 +18,7 @@ const MAX_TYPED = 80;
  * result opens the restaurant's profile or the menu's page. When it closes, focus goes back where it was (the button, when
  * the shortcut was pressed with nothing focused).
  */
-export function JumpTo({ space }: { space?: 'food' | 'pharmacy' | 'retail' }) {
+export function JumpTo({ space }: { space?: 'food' | 'pharmacy' | 'retail' | 'wholesale' }) {
   // In the words of the space: Retail's Jump to finds shops, never restaurants or menus.
   const t = spaceT(useT(), space);
   const [open, setOpen] = useState(false);

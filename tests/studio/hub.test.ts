@@ -8,13 +8,14 @@ import { SPACES } from '@/studio/spaces';
 const markup = (locale: 'en' | 'ar' | 'ckb' = 'en', spaces = SPACES) => renderToStaticMarkup(createElement(ProjectHub, { t: getStudioTranslator(locale), spaces }));
 
 describe('ProjectHub', () => {
-  it('shows three large project links, Menu and Cashier, Pharmacy and Retail, and a small Platform link', () => {
+  it('shows four large project links, Menu and Cashier, Pharmacy, Retail and Wholesale, and a small Platform link', () => {
     const html = markup();
     expect(html).toContain('href="/studio/overview"');
     expect(html).toContain('href="/studio/pharmacy"');
     expect(html).toContain('href="/studio/retail"');
+    expect(html).toContain('href="/studio/wholesale"');
     expect(html).toContain('href="/studio/team"');
-    expect(html.match(/data-project="large"/g)).toHaveLength(3);
+    expect(html.match(/data-project="large"/g)).toHaveLength(4);
     expect(html.match(/data-project="small"/g)).toHaveLength(1);
   });
 
@@ -27,7 +28,7 @@ describe('ProjectHub', () => {
     for (const locale of ['en', 'ar', 'ckb'] as const) {
       const t = getStudioTranslator(locale);
       const html = markup(locale);
-      for (const key of ['hub.food', 'hub.pharmacy', 'hub.retail', 'hub.platform']) {
+      for (const key of ['hub.food', 'hub.pharmacy', 'hub.retail', 'hub.wholesale', 'hub.platform']) {
         expect(t(key)).not.toBe(key);
         expect(html).toContain(t(key));
       }
@@ -36,6 +37,12 @@ describe('ProjectHub', () => {
 
   it('draws a new project as one more large icon without any other change', () => {
     const extra = { ...SPACES[1]!, id: 'clinic' as never, home: '/studio/clinic', prefix: '/studio/clinic' };
-    expect(markup('en', [...SPACES, extra]).match(/data-project="large"/g)).toHaveLength(4);
+    expect(markup('en', [...SPACES, extra]).match(/data-project="large"/g)).toHaveLength(5);
+  });
+
+  it('draws the Wholesale card with its own icon, after Retail', () => {
+    const html = markup();
+    expect(html.indexOf('href="/studio/wholesale"')).toBeGreaterThan(html.indexOf('href="/studio/retail"'));
+    expect(html).toContain('lucide-warehouse');
   });
 });

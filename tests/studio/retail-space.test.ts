@@ -87,6 +87,6 @@ describe('the restaurant pickers of the Retail space', () => {
     expect(searchRestaurants).toHaveBeenLastCalledWith({ q: 'sh', space: 'retail' });
     searchRestaurants.mockClear();
     await findRestaurantOptionsIn.platform('sh');
-    expect(searchRestaurants.mock.calls.map(([input]) => (input as { space: string }).space).sort()).toEqual(['food', 'pharmacy', 'retail']);
+    expect(searchRestaurants.mock.calls.map(([input]) => (input as { space: string }).space).sort()).toEqual(['food', 'pharmacy', 'retail', 'wholesale']);
   });
 });

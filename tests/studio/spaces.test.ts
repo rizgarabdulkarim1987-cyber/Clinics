@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { bigSpaces, businessBase, businessPath, movedBusinessAddressOf, sectorOfSpace, SPACES, spaceOfPath, type Space } from '@/studio/spaces';
 
 describe('spaceOfPath', () => {
-  it('knows the pharmacy, retail and platform spaces by their prefix', () => {
+  it('knows the pharmacy, retail, wholesale and platform spaces by their prefix', () => {
+    expect(spaceOfPath('/studio/wholesale')).toBe('wholesale');
+    expect(spaceOfPath('/studio/wholesale/abc/wholesale')).toBe('wholesale');
+    expect(spaceOfPath('/studio/wholesale/open/abc')).toBe('wholesale');
     expect(spaceOfPath('/studio/retail')).toBe('retail');
     expect(spaceOfPath('/studio/retail/abc/retail')).toBe('retail');
     expect(spaceOfPath('/studio/pharmacy')).toBe('pharmacy');
@@ -21,6 +24,7 @@ describe('spaceOfPath', () => {
     expect(spaceOfPath('/studio/pharmacyx')).toBe('food');
     expect(spaceOfPath('/studio/teamwork')).toBe('food');
     expect(spaceOfPath('/studio/retailers')).toBe('food');
+    expect(spaceOfPath('/studio/wholesalers')).toBe('food');
   });
 });
 
@@ -41,11 +45,25 @@ describe('businessPath', () => {
   });
 });
 
+describe('businessPath of a wholesale company', () => {
+  it('puts a wholesale company in the Wholesale space', () => {
+    expect(businessPath('WHOLESALE', 'w1')).toBe('/studio/wholesale/w1');
+    expect(businessPath('WHOLESALE', 'w1', 'wholesale')).toBe('/studio/wholesale/w1/wholesale');
+    expect(businessBase('wholesale')).toBe('/studio/wholesale');
+  });
+});
+
 describe('movedBusinessAddressOf', () => {
   it('moves the old Menu and Cashier address of a retail shop into the Retail space, keeping the tab', () => {
     expect(movedBusinessAddressOf('/studio/restaurants/s1', 's1', 'RETAIL')).toBe('/studio/retail/s1');
     expect(movedBusinessAddressOf('/studio/restaurants/s1/retail/', 's1', 'RETAIL')).toBe('/studio/retail/s1/retail');
     expect(movedBusinessAddressOf('/studio/restaurants/s1/billing', 's1', 'PHARMACY')).toBe('/studio/pharmacy/s1/billing');
+  });
+
+  it('moves the old Menu and Cashier address of a wholesale company into the Wholesale space, keeping the tab', () => {
+    expect(movedBusinessAddressOf('/studio/restaurants/w1', 'w1', 'WHOLESALE')).toBe('/studio/wholesale/w1');
+    expect(movedBusinessAddressOf('/studio/restaurants/w1/billing/', 'w1', 'WHOLESALE')).toBe('/studio/wholesale/w1/billing');
+    expect(movedBusinessAddressOf('/studio/restaurants/w10', 'w1', 'WHOLESALE')).toBeNull();
   });
 
   it('names no other address for another business, another prefix or a food business', () => {
@@ -56,7 +74,8 @@ describe('movedBusinessAddressOf', () => {
 });
 
 describe('sectorOfSpace', () => {
-  it('maps the three business spaces to a sector and the platform to none', () => {
+  it('maps the four business spaces to a sector and the platform to none', () => {
+    expect(sectorOfSpace('wholesale')).toBe('WHOLESALE');
     expect(sectorOfSpace('retail')).toBe('RETAIL');
     expect(sectorOfSpace('food')).toBe('FOOD');
     expect(sectorOfSpace('pharmacy')).toBe('PHARMACY');
@@ -65,15 +84,15 @@ describe('sectorOfSpace', () => {
 });
 
 describe('the registry', () => {
-  it('has three big icons and Platform small', () => {
-    expect(bigSpaces().map((space) => space.id)).toEqual(['food', 'pharmacy', 'retail']);
+  it('has four big icons and Platform small', () => {
+    expect(bigSpaces().map((space) => space.id)).toEqual(['food', 'pharmacy', 'retail', 'wholesale']);
     expect(SPACES.find((space) => space.id === 'platform')?.big).toBe(false);
   });
 
   it('gives a new project its own icon and path without touching the others', () => {
     const extra: Space = { id: 'clinic' as never, nameKey: 'hub.clinic', icon: 'pharmacy', home: '/studio/clinic', sectors: [], prefix: '/studio/clinic', big: true };
     const registry = [...SPACES, extra];
-    expect(bigSpaces(registry).map((space) => space.id)).toEqual(['food', 'pharmacy', 'retail', 'clinic']);
+    expect(bigSpaces(registry).map((space) => space.id)).toEqual(['food', 'pharmacy', 'retail', 'wholesale', 'clinic']);
     expect(spaceOfPath('/studio/clinic/x', registry)).toBe('clinic');
     expect(spaceOfPath('/studio/pharmacy/x', registry)).toBe('pharmacy');
     expect(spaceOfPath('/studio/restaurants', registry)).toBe('food');

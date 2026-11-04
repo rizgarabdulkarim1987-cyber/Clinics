@@ -28,7 +28,7 @@ export interface RestaurantActionsProps {
   /** Where the list of this kind of business is: the page to land on after a delete. */
   listHref?: string;
   /** The space of the page, which the actions name so they never touch the other project's businesses. */
-  space?: 'food' | 'pharmacy' | 'retail';
+  space?: 'food' | 'pharmacy' | 'retail' | 'wholesale';
   /** The business's sector, whose project's words the dialogs speak (a retail shop's name no menu or guest). */
   sector?: BusinessSector;
 }

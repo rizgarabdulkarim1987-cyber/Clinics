@@ -127,6 +127,8 @@ export const createRestaurant = defineAction({
       };
       const provisioned =
         sector === 'PHARMACY' ? await provisionPharmacy(tx, provisioning) : sector === 'RETAIL' ? await provisionRetail(tx, provisioning) : null;
+      // A wholesale company's accounting lives in its own system; Studio keeps only the address of that system, empty at first.
+      if (sector === 'WHOLESALE') await tx.wholesaleLink.create({ data: { restaurantId: created.id } });
       // A platform action has no restaurant of its own, so it names the one it made: its Activity tab starts here.
       ctx.audit({
         action: 'restaurant.created',
@@ -136,6 +138,7 @@ export const createRestaurant = defineAction({
         changes: {
           ...addedFields(input),
           plan: { before: null, after: plan },
+          ...(sector === 'WHOLESALE' ? { sector: { before: null, after: sector } } : {}),
           ...(provisioned
             ? {
                 sector: { before: null, after: sector },

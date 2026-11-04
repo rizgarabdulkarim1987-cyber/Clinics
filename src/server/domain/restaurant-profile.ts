@@ -8,7 +8,7 @@ export const RESTAURANT_TYPES = ['CAFE', 'RESTAURANT', 'BAKERY', 'ICE_CREAM', 'F
 export type RestaurantType = (typeof RESTAURANT_TYPES)[number];
 
 /** What kind of business it is: a menu or cashier customer (food), or a pharmacy. */
-export const BUSINESS_SECTORS = ['FOOD', 'PHARMACY', 'RETAIL'] as const;
+export const BUSINESS_SECTORS = ['FOOD', 'PHARMACY', 'RETAIL', 'WHOLESALE'] as const;
 
 /** Retails' own cap on a branch name; a RETAIL business's branches are created there too. */
 export const RETAIL_BRANCH_NAME_MAX = 80;

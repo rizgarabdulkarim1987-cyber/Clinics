@@ -364,7 +364,7 @@ export function CreateRestaurantForm({
   planNames?: Record<PlanTier, string> | null;
   initialSector?: BusinessSector;
   /** The Super Admin's space the form is in: it fixes the sector (no switch) and opens the business in that space. */
-  space?: 'food' | 'pharmacy' | 'retail';
+  space?: 'food' | 'pharmacy' | 'retail' | 'wholesale';
 }) {
   const baseT = useT();
   const router = useRouter();
@@ -377,6 +377,8 @@ export function CreateRestaurantForm({
   const retail = sector === 'RETAIL';
   // A pharmacy and a retail shop share the branches, currencies and owner fields; neither has a restaurant type or a menu plan.
   const pharmacy = sector === 'PHARMACY' || retail;
+  // A wholesale company is kept in its own Wholesale system: Studio holds only its profile, with no branches, currencies, type or menu plan.
+  const wholesale = sector === 'WHOLESALE';
   const form = useActionForm(
     (values) =>
       createRestaurant({
@@ -391,9 +393,11 @@ export function CreateRestaurantForm({
               currencies: PH_CURRENCIES.filter((currency) => currencies.includes(currency)),
               ...(ownerEmail.trim() ? { ownerEmail } : {}),
             }
-          : planNames && values.plan
-            ? { plan: values.plan }
-            : {}),
+          : wholesale
+            ? { type: 'OTHER', sector }
+            : planNames && values.plan
+              ? { plan: values.plan }
+              : {}),
       }),
     {
       keep: KEPT,
@@ -418,13 +422,13 @@ export function CreateRestaurantForm({
           />
         </Field>
         )}
-        {planNames && !pharmacy && (
+        {planNames && !pharmacy && !wholesale && (
           <Field label={t('restaurants.form.plan')} hint={t('restaurants.form.planHint')} error={form.errors.plan} className="sm:col-span-2 sm:max-w-xs">
             <Select name="plan" defaultValue="BASIC" options={PLAN_TIERS.map((tier) => ({ value: tier, label: planNames[tier] }))} />
           </Field>
         )}
       </div>
-      <ProfileFields form={form} initial={BLANK} withNotes showType={!pharmacy} sector={sector} />
+      <ProfileFields form={form} initial={BLANK} withNotes showType={sector === 'FOOD'} sector={sector} />
       {pharmacy && (
         <PharmacyFields
           retail={retail}

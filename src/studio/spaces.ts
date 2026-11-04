@@ -6,7 +6,7 @@ import type { BusinessSector } from '@/server/domain/restaurant-profile';
  * Cashier is the default: every Studio path that no other space claims is its own.
  */
 
-export type SpaceId = 'food' | 'pharmacy' | 'retail' | 'platform';
+export type SpaceId = 'food' | 'pharmacy' | 'retail' | 'wholesale' | 'platform';
 
 /** A space that works on businesses: every one but the platform. */
 export type BusinessSpaceId = Exclude<SpaceId, 'platform'>;
@@ -15,7 +15,7 @@ export interface Space {
   id: SpaceId;
   /** The message that names the space on the hub and in its sidebar. */
   nameKey: string;
-  icon: 'food' | 'pharmacy' | 'retail' | 'platform';
+  icon: 'food' | 'pharmacy' | 'retail' | 'wholesale' | 'platform';
   /** Where the hub's icon leads. */
   home: string;
   /** The business sectors the space reads and writes; none for the platform. */
@@ -32,6 +32,9 @@ export const SPACES: readonly Space[] = [
   // Buzzify Retail's shops. /studio/retail/open/[id], /studio/retail/continue and /studio/retail/choose under the same prefix
   // are the owners' sign-in handoff to Retails, not pages of the space: their static segments win over a shop's id.
   { id: 'retail', nameKey: 'hub.retail', icon: 'retail', home: '/studio/retail', sectors: ['RETAIL'], prefix: '/studio/retail', big: true },
+  // Buzzify Wholesale's companies. Each company's accounting runs in its own separate copy of the Wholesale system; this space
+  // only lists, bills and opens them. /studio/wholesale/open/[id] under the same prefix is the handoff to that copy, not a page.
+  { id: 'wholesale', nameKey: 'hub.wholesale', icon: 'wholesale', home: '/studio/wholesale', sectors: ['WHOLESALE'], prefix: '/studio/wholesale', big: true },
   { id: 'platform', nameKey: 'hub.platform', icon: 'platform', home: '/studio/team', sectors: [], prefix: '/studio/team', big: false },
 ];
 
@@ -51,7 +54,12 @@ export function bigSpaces(spaces: readonly Space[] = SPACES): Space[] {
 }
 
 /** The address base of each sector's businesses: its space's prefix, or Menu and Cashier's restaurants. */
-const BUSINESS_BASE: Record<BusinessSector, string> = { FOOD: '/studio/restaurants', PHARMACY: '/studio/pharmacy', RETAIL: '/studio/retail' };
+const BUSINESS_BASE: Record<BusinessSector, string> = {
+  FOOD: '/studio/restaurants',
+  PHARMACY: '/studio/pharmacy',
+  RETAIL: '/studio/retail',
+  WHOLESALE: '/studio/wholesale',
+};
 
 /** A business's page (and optionally one of its tabs) in the space of its sector. */
 export function businessPath(sector: BusinessSector, id: string, tab?: string): string {

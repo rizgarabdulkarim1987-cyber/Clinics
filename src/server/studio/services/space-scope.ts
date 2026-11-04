@@ -13,16 +13,16 @@ import { StudioError } from '@/server/studio/framework/result';
  * through it. Only a Super Admin (scope `all`) is cut by space; everyone else sees what they always saw.
  */
 
-const BUSINESS_SPACES = ['food', 'pharmacy', 'retail'] as const;
+const BUSINESS_SPACES = ['food', 'pharmacy', 'retail', 'wholesale'] as const;
 
 /** The `space` input of a query: Menu and Cashier unless the page names another space. */
 export const businessSpace = z.enum(BUSINESS_SPACES).default('food');
 export type BusinessSpace = z.infer<typeof businessSpace>;
 
-const SECTORS: Record<BusinessSpace, BusinessSector> = { food: 'FOOD', pharmacy: 'PHARMACY', retail: 'RETAIL' };
+const SECTORS: Record<BusinessSpace, BusinessSector> = { food: 'FOOD', pharmacy: 'PHARMACY', retail: 'RETAIL', wholesale: 'WHOLESALE' };
 
 /** The products (billing applications) each space sells and bills. */
-export const APPLICATIONS_OF: Record<BusinessSpace, readonly string[]> = { food: ['menu', 'cashier'], pharmacy: ['pharmacy'], retail: ['retail'] };
+export const APPLICATIONS_OF: Record<BusinessSpace, readonly string[]> = { food: ['menu', 'cashier'], pharmacy: ['pharmacy'], retail: ['retail'], wholesale: ['wholesale'] };
 
 export const sectorOf = (space: BusinessSpace): BusinessSector => SECTORS[space];
 
@@ -57,14 +57,18 @@ export async function sectorRestaurantIds(db: PrismaClient, space: BusinessSpace
  * exactly one space, so nothing in the log is hidden.
  */
 export async function auditSpaceWhere(db: PrismaClient, space: BusinessSpace): Promise<Prisma.AuditLogWhereInput> {
-  const [pharmacyIds, retailIds, retailPlans, notes] = await Promise.all([
+  const [pharmacyIds, retailIds, wholesaleIds, retailPlans, wholesalePlans, notes] = await Promise.all([
     sectorRestaurantIds(db, 'pharmacy'),
     sectorRestaurantIds(db, 'retail'),
+    sectorRestaurantIds(db, 'wholesale'),
     // Plans are only taken off sale, never deleted, so a plan row's id still names its product.
     db.appPlan.findMany({ where: { applicationId: 'retail' }, select: { id: true } }),
-    db.announcement.findMany({ where: { space: { in: ['pharmacy', 'retail'] } }, select: { id: true, space: true } }),
+    db.appPlan.findMany({ where: { applicationId: 'wholesale' }, select: { id: true } }),
+    db.announcement.findMany({ where: { space: { in: ['pharmacy', 'retail', 'wholesale'] } }, select: { id: true, space: true } }),
   ]);
   const retailPlanIds = retailPlans.map((row) => row.id);
+  const wholesalePlanIds = wholesalePlans.map((row) => row.id);
+  const otherPlanIds = [...retailPlanIds, ...wholesalePlanIds];
   const notesOf = (of: BusinessSpace) => notes.filter((row) => row.space === of).map((row) => row.id);
   // Each exclusion is spelled out because `NOT (x IN ...)` is unknown, not true, for the null restaurant of a platform event.
   const notIn = (ids: string[]): Prisma.AuditLogWhereInput => ({ OR: [{ restaurantId: null }, { restaurantId: { notIn: ids } }] });
@@ -79,24 +83,37 @@ export async function auditSpaceWhere(db: PrismaClient, space: BusinessSpace): P
       ],
     };
   }
+  if (space === 'wholesale') {
+    return {
+      OR: [
+        { restaurantId: { in: wholesaleIds } },
+        { entityType: 'AppPlan', entityId: { in: wholesalePlanIds } },
+        { entityType: 'Announcement', entityId: { in: notesOf('wholesale') } },
+      ],
+    };
+  }
   if (space === 'pharmacy') {
-    // Its businesses, every plan that is not Retail's, and its announcements; never a retail shop's row.
+    // Its businesses, every plan that is not Retail's or Wholesale's, and its announcements; never a retail or wholesale row.
     return {
       AND: [
         {
           OR: [
             { restaurantId: { in: pharmacyIds } },
-            { entityType: 'AppPlan', entityId: { notIn: retailPlanIds } },
+            { entityType: 'AppPlan', entityId: { notIn: otherPlanIds } },
             { entityType: 'Announcement', entityId: { in: notesOf('pharmacy') } },
           ],
         },
-        notIn(retailIds),
+        notIn([...retailIds, ...wholesaleIds]),
       ],
     };
   }
   // Everything else.
   return {
-    AND: [notIn([...pharmacyIds, ...retailIds]), { entityType: { not: 'AppPlan' } }, notNote([...notesOf('pharmacy'), ...notesOf('retail')])],
+    AND: [
+      notIn([...pharmacyIds, ...retailIds, ...wholesaleIds]),
+      { entityType: { not: 'AppPlan' } },
+      notNote([...notesOf('pharmacy'), ...notesOf('retail'), ...notesOf('wholesale')]),
+    ],
   };
 }
 

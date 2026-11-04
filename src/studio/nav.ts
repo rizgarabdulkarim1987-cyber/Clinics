@@ -2,9 +2,9 @@ import type { Actor } from '@/server/studio/auth/actor';
 import type { SpaceId } from '@/studio/spaces';
 
 /** The icon a navigation item shows; the sidebar maps each name to its drawing. */
-export type NavIcon = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'activity' | 'settings' | 'store' | 'pharmacy' | 'retail';
+export type NavIcon = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'activity' | 'settings' | 'store' | 'pharmacy' | 'retail' | 'wholesale';
 
-export type NavKey = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'platformIntro' | 'activity' | 'settings' | 'myRestaurant' | 'myMenu' | 'cashier' | 'cashierOverview' | 'pharmacies' | 'pharmacyOverview' | 'pharmacyBilling' | 'pharmacyPeople' | 'pharmacyAnnouncements' | 'pharmacyActivity' | 'pharmacySettings' | 'team' | 'teamSettings' | 'retail' | 'retailOverview' | 'retailBilling' | 'retailPeople' | 'retailAnnouncements' | 'retailActivity' | 'retailSettings' | 'openRetail' | 'openPharmacy';
+export type NavKey = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'platformIntro' | 'activity' | 'settings' | 'myRestaurant' | 'myMenu' | 'cashier' | 'cashierOverview' | 'pharmacies' | 'pharmacyOverview' | 'pharmacyBilling' | 'pharmacyPeople' | 'pharmacyAnnouncements' | 'pharmacyActivity' | 'pharmacySettings' | 'team' | 'teamSettings' | 'retail' | 'retailOverview' | 'retailBilling' | 'retailPeople' | 'retailAnnouncements' | 'retailActivity' | 'retailSettings' | 'wholesale' | 'wholesaleOverview' | 'wholesaleBilling' | 'wholesalePeople' | 'wholesaleAnnouncements' | 'wholesaleActivity' | 'wholesaleSettings' | 'openRetail' | 'openPharmacy';
 
 export interface NavItem {
   key: NavKey;
@@ -38,6 +38,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: 'pharmacies', href: '/studio/pharmacies', labelKey: 'nav.pharmacies', icon: 'pharmacy' },
   // Every RETAIL-sector business linked to Buzzify Retail, with how far its delivery to Retails has got (the Retail space's list).
   { key: 'retail', href: '/studio/retail', labelKey: 'nav.retail', icon: 'retail' },
+  // Every WHOLESALE-sector company and the address of its own separate Wholesale system (the Wholesale space's list).
+  { key: 'wholesale', href: '/studio/wholesale', labelKey: 'nav.wholesale', icon: 'wholesale' },
   { key: 'menus', href: '/studio/menus', labelKey: 'nav.menus', icon: 'menus' },
   // The libraries a person manages: Super Admins and designers (spec refinement 20); an owner's pictures are picked in the editor.
   { key: 'media', href: '/studio/media', labelKey: 'nav.media', icon: 'media' },
@@ -53,19 +55,22 @@ export const NAV_ITEMS: readonly NavItem[] = [
 /** The owners' sign-in handoff to Buzzify Retail, under the Retail prefix but no page of the space (and never a shop's id). */
 export const RETAIL_HANDOFF = ['open', 'continue', 'choose'] as const;
 
+/** The Super Admin's handoff to a company's own Wholesale system, under the Wholesale prefix but no page of the space (and never a company's id). */
+export const WHOLESALE_HANDOFF = ['open'] as const;
+
 const entry = (key: NavKey, href: string, labelKey: string, icon: NavIcon, extra: Partial<NavItem> = {}): NavItem => ({ key, href, labelKey, icon, ...extra });
 
 /**
  * The navigation of one closed space of a Super Admin (docs/superpowers/specs/2026-10-31-super-admin-project-hub-design.md):
  * only that project's pages, so nothing of another project shows beside them. Menu and Cashier keeps the Studio's own
- * paths; the Pharmacy, Retail and the Platform have their own prefixes (`src/studio/spaces.ts`).
+ * paths; the Pharmacy, Retail, Wholesale and the Platform have their own prefixes (`src/studio/spaces.ts`).
  */
 export function spaceNav(space: SpaceId): NavItem[] {
   switch (space) {
     case 'food':
       return [
         entry('overview', '/studio/overview', 'nav.overview', 'overview', { exact: true }),
-        ...NAV_ITEMS.filter((item) => item.key !== 'overview' && item.key !== 'pharmacies' && item.key !== 'retail').map((item) => ({ ...item })),
+        ...NAV_ITEMS.filter((item) => item.key !== 'overview' && item.key !== 'pharmacies' && item.key !== 'retail' && item.key !== 'wholesale').map((item) => ({ ...item })),
       ];
     case 'pharmacy':
       return [
@@ -94,6 +99,20 @@ export function spaceNav(space: SpaceId): NavItem[] {
         entry('retailActivity', '/studio/retail/activity', 'nav.activity', 'activity'),
         entry('retailSettings', '/studio/retail/settings', 'nav.settings', 'settings'),
       ];
+    case 'wholesale':
+      return [
+        entry('wholesaleOverview', '/studio/wholesale/overview', 'nav.overview', 'overview', { exact: true }),
+        entry('wholesale', '/studio/wholesale', 'nav.wholesale', 'wholesale', {
+          // Its own pages are everything under the prefix that the neighbouring items do not claim: new, and one company's tabs.
+          // The handoff to a company's own system shares the prefix but is no page of the space.
+          exclude: [...['overview', 'billing', 'people', 'announcements', 'activity', 'settings'], ...WHOLESALE_HANDOFF].map((page) => `/studio/wholesale/${page}`),
+        }),
+        entry('wholesaleBilling', '/studio/wholesale/billing', 'nav.billing', 'billing'),
+        entry('wholesalePeople', '/studio/wholesale/people', 'nav.people', 'people'),
+        entry('wholesaleAnnouncements', '/studio/wholesale/announcements', 'nav.announcements', 'announcements'),
+        entry('wholesaleActivity', '/studio/wholesale/activity', 'nav.activity', 'activity'),
+        entry('wholesaleSettings', '/studio/wholesale/settings', 'nav.settings', 'settings'),
+      ];
     case 'platform':
       return [entry('team', '/studio/team', 'nav.team', 'people', { exact: true }), entry('teamSettings', '/studio/team/settings', 'nav.teamSettings', 'settings')];
   }
@@ -104,7 +123,7 @@ export function spaceNav(space: SpaceId): NavItem[] {
  * allowed to invite does that from their restaurant's People tab. Billing, Activity and Settings need `platform.settings`
  * or `audit.view`, which no client policy can grant.
  */
-const SUPER_ADMIN_AREAS: ReadonlySet<NavKey> = new Set<NavKey>(['billing', 'cashierOverview', 'pharmacies', 'retail', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
+const SUPER_ADMIN_AREAS: ReadonlySet<NavKey> = new Set<NavKey>(['billing', 'cashierOverview', 'pharmacies', 'retail', 'wholesale', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
 
 /** What the navigation needs to know about a restaurant an owner holds: its name and its menus. */
 export interface OwnedRestaurant {
@@ -112,7 +131,7 @@ export interface OwnedRestaurant {
   name: string;
   menuIds: string[];
   /** A pharmacy's owner has no menus to manage: the second item opens the pharmacy instead. */
-  sector?: 'FOOD' | 'PHARMACY' | 'RETAIL';
+  sector?: 'FOOD' | 'PHARMACY' | 'RETAIL' | 'WHOLESALE';
 }
 
 /** Whether the person works in the Studio only as the owner of one or more restaurants. */

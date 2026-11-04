@@ -152,6 +152,7 @@ model Restaurant {
   posAiSummaries        PosAiSummary[]
   phSettings            PhSettings?
   retailLink            RetailLink?
+  wholesaleLink         WholesaleLink?
   retailOutbox          RetailOutbox?
   phStaffs              PhStaff[]
   phStaffBranches       PhStaffBranch[]
@@ -2342,6 +2343,7 @@ enum BusinessSector {
   FOOD
   PHARMACY
   RETAIL
+  WHOLESALE
 }
 
 /// What a person may do in a pharmacy.
@@ -4417,6 +4419,17 @@ model RetailLink {
   restaurant       Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@index([reconciledAt])
+}
+
+/// Where a WHOLESALE business's own Wholesale system lives. Wholesale is sold as one separate copy per company (its own
+/// database and domain); it links to Core only to ask whether the company's subscription is active, and Core's business
+/// id for it is this row's `restaurantId`. No accounting data is ever kept here. `adminUrl` is that copy's https address.
+model WholesaleLink {
+  restaurantId String     @id
+  adminUrl     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
 /// What is still to be delivered to Retails for one business: one coalescing row (the snapshot is built at send time).

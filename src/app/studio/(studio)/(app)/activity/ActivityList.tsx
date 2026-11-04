@@ -56,7 +56,7 @@ export async function ActivityList({
   space,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-  space: 'food' | 'pharmacy' | 'retail';
+  space: 'food' | 'pharmacy' | 'retail' | 'wholesale';
 }) {
   const actor = await getActor();
   if (!actor) redirect(SIGN_IN_PATH);

@@ -16,6 +16,7 @@ import {
   UserRound,
   Users,
   UtensilsCrossed,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -47,6 +48,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   store: Store,
   pharmacy: Pill,
   retail: ShoppingBag,
+  wholesale: Warehouse,
 };
 
 /** A navigation item as the layout hands it over: its label already in the person's language. */
@@ -76,7 +78,7 @@ const linkClass = (current: boolean) =>
       : 'text-muted hover:bg-hover hover:text-text',
   );
 
-export function Sidebar({ items, user, space }: { items: readonly SidebarItem[]; user: SidebarUser; space?: { name: string; business?: 'food' | 'pharmacy' | 'retail' } }) {
+export function Sidebar({ items, user, space }: { items: readonly SidebarItem[]; user: SidebarUser; space?: { name: string; business?: 'food' | 'pharmacy' | 'retail' | 'wholesale' } }) {
   const t = useT();
   const pathname = usePathname();
 

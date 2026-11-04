@@ -7,6 +7,7 @@ import posStock from './pos-stock/ckb';
 import posTill from './pos-till/ckb';
 import pharmacy from './pharmacy/ckb';
 import retail from './retail/ckb';
+import wholesale from './wholesale/ckb';
 
 const ckb: Messages = {
   // Shared words of the interface
@@ -3522,6 +3523,8 @@ const ckb: Messages = {
   ...pharmacy,
   // The link to Buzzify Retail (retail/ckb.ts)
   ...retail,
+  // The link to Buzzify Wholesale (wholesale/ckb.ts)
+  ...wholesale,
   'nav.platformIntro': 'ڕیکلامەکانی دەروازە',
   'workspace.tab.intro': 'دەروازە',
   'platformIntro.title': 'ڕیکلامەکانی دەروازە',

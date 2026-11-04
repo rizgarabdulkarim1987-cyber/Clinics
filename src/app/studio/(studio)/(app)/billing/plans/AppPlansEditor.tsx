@@ -1,12 +1,13 @@
 'use client';
 
-import { Pill, ShoppingBag } from 'lucide-react';
+import { Pill, ShoppingBag, Warehouse } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { deactivateAppPlan, upsertAppPlan } from '@/app/studio/_actions/app-plans';
 import { direction, LOCALE_NAMES, LOCALES, type Locale } from '@/lib/locale';
 import type { AppPlanRow, PharmacyLimits, RetailAppPlanRow } from '@/server/domain/pharmacy/limits';
+import type { WholesaleLimits } from '@/server/domain/wholesale/limits';
 import { describeFailure, type DescribedFailure } from '@/studio/errors';
 import { useLocale, useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
@@ -21,13 +22,15 @@ import { Switch } from '@/studio/ui/Switch';
 
 type Names = Record<Locale, string>;
 
-type ApplicationId = 'pharmacy' | 'retail';
-type PlanRow = AppPlanRow<PharmacyLimits> | RetailAppPlanRow;
+type ApplicationId = 'pharmacy' | 'retail' | 'wholesale';
+type PlanRow = AppPlanRow<PharmacyLimits> | RetailAppPlanRow | AppPlanRow<WholesaleLimits>;
 
 /** The limits each product's plans set, in the order the form lists them. */
 const LIMIT_KEYS: Record<ApplicationId, readonly string[]> = {
   pharmacy: ['branches', 'users', 'storageMb', 'aiMonthlyBudgetMinor'],
   retail: ['branches', 'users', 'terminals', 'storageMb', 'aiMonthly'],
+  // A Wholesale plan is a name and a price: Core caps nothing of a company's own system.
+  wholesale: [],
 };
 
 interface Draft {
@@ -70,7 +73,7 @@ export function AppPlansEditor({ applicationId, plans, canEdit }: { applicationI
   return (
     <div className="flex max-w-4xl flex-col gap-10">
       {!canEdit && <Alert>{t('appPlans.readOnly')}</Alert>}
-      {plans.length === 0 && !canEdit && <EmptyState icon={applicationId === 'retail' ? <ShoppingBag aria-hidden /> : <Pill aria-hidden />} title={t(`appPlans.${applicationId}.emptyTitle`)} body={t(`appPlans.${applicationId}.emptyBody`)} />}
+      {plans.length === 0 && !canEdit && <EmptyState icon={applicationId === 'retail' ? <ShoppingBag aria-hidden /> : applicationId === 'wholesale' ? <Warehouse aria-hidden /> : <Pill aria-hidden />} title={t(`appPlans.${applicationId}.emptyTitle`)} body={t(`appPlans.${applicationId}.emptyBody`)} />}
       {plans.length === 0 && canEdit && <p className="max-w-[72ch] text-sm text-muted">{t(`appPlans.${applicationId}.emptyBody`)}</p>}
       {plans.map((plan) => (
         <PlanForm key={`${plan.code}:${plan.version}`} applicationId={applicationId} plan={plan} canEdit={canEdit} />
@@ -172,6 +175,7 @@ function PlanForm({ applicationId, plan, canEdit }: { applicationId: Application
         </Field>
       </div>
 
+      {LIMIT_KEYS[applicationId].length > 0 && (
       <div className="flex flex-col gap-3">
         <p className="max-w-[72ch] text-sm text-muted">{t('appPlans.limitsHint')}</p>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -189,6 +193,7 @@ function PlanForm({ applicationId, plan, canEdit }: { applicationId: Application
           ))}
         </div>
       </div>
+      )}
 
       <label className="flex w-fit items-center gap-3 text-sm text-text">
         <Switch checked={draft.active} disabled={!canEdit || saving} onCheckedChange={(on) => edit({ active: on })} aria-label={t('appPlans.onSale')} />

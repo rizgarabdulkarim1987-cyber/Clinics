@@ -3,6 +3,7 @@ import type { Prisma } from '@/generated/prisma/client';
 import { delegates } from '@/server/data/tenant-db';
 import { pharmacyLimitsSchema } from '@/server/domain/pharmacy/limits';
 import { retailLimitsSchema } from '@/server/domain/retail/limits';
+import { wholesaleLimitsSchema } from '@/server/domain/wholesale/limits';
 import { bumpRetailForPlan } from '@/server/retail/outbox';
 import { defineAction } from '@/server/studio/framework/action';
 import { updateWithVersion } from '@/server/studio/framework/concurrency';
@@ -44,6 +45,7 @@ const appPlanInput = z.preprocess(
   z.discriminatedUnion('applicationId', [
     z.object({ applicationId: z.literal('pharmacy'), limits: pharmacyLimitsSchema, ...planFields }),
     z.object({ applicationId: z.literal('retail'), limits: retailLimitsSchema, ...planFields }),
+    z.object({ applicationId: z.literal('wholesale'), limits: wholesaleLimitsSchema, ...planFields }),
   ]),
 );
 
@@ -107,7 +109,7 @@ export const upsert = defineAction({
       const was = (existing.name ?? {}) as Record<string, unknown>;
       // Compared per language: the stored JSON keeps its keys in its own order.
       if (NAME_LOCALES.some((locale) => was[locale] !== input.name[locale])) changes.name = { before: existing.name, after: input.name };
-      const wasLimits = (input.applicationId === 'retail' ? retailLimitsSchema : pharmacyLimitsSchema).safeParse(existing.limits);
+      const wasLimits = (input.applicationId === 'retail' ? retailLimitsSchema : input.applicationId === 'wholesale' ? wholesaleLimitsSchema : pharmacyLimitsSchema).safeParse(existing.limits);
       if (!wasLimits.success || JSON.stringify(wasLimits.data) !== JSON.stringify(input.limits)) {
         changes.limits = { before: existing.limits, after: input.limits };
       }
@@ -135,7 +137,7 @@ export const deactivate = defineAction({
   permission: 'plans.manage',
   input: z.preprocess(
     withDefaultApplication,
-    z.object({ applicationId: z.enum(['pharmacy', 'retail']), code: z.string().trim().min(1).max(40), version }),
+    z.object({ applicationId: z.enum(['pharmacy', 'retail', 'wholesale']), code: z.string().trim().min(1).max(40), version }),
   ),
   target: () => PLATFORM,
   run: (ctx, input) =>
