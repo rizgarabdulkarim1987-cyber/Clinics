@@ -15,6 +15,7 @@ export async function seedWarehouses(tx: Db, rid: string): Promise<void> {
     ['MAIN', 'Main'],
     ['DAMAGE', 'Damage'],
   ] as const) {
+    // eslint-disable-next-line no-restricted-properties -- the company's own two fixed warehouses: the id bound is the company's
     await tx.$executeRaw`
       INSERT INTO "WhWarehouse" ("id", "restaurantId", "kind", "name")
       VALUES (gen_random_uuid()::text, ${rid}, ${kind}::"WhWarehouseKind", ${name})

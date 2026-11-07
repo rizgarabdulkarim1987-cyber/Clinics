@@ -6,12 +6,15 @@ import en from './en';
 import salesDishesAr from './sales-dishes/ar';
 import salesDishesCkb from './sales-dishes/ckb';
 import salesDishesEn from './sales-dishes/en';
+import wholesaleAr from './wholesale/ar';
+import wholesaleCkb from './wholesale/ckb';
+import wholesaleEn from './wholesale/en';
 
 /** The Studio's own catalog, separate from the public menu's. Later tasks add their groups of keys to all three files. */
 export const STUDIO_MESSAGES: Record<Locale, Messages> = {
-  en: { ...en, ...salesDishesEn },
-  ar: { ...ar, ...salesDishesAr },
-  ckb: { ...ckb, ...salesDishesCkb },
+  en: { ...en, ...salesDishesEn, ...wholesaleEn },
+  ar: { ...ar, ...salesDishesAr, ...wholesaleAr },
+  ckb: { ...ckb, ...salesDishesCkb, ...wholesaleCkb },
 };
 
 export function getStudioTranslator(locale: Locale): Translate {

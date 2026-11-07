@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+/* eslint-disable no-restricted-properties -- row locks and counters of one company's stock: every statement binds "restaurantId" (the company's own id) and the ids named by the caller are only matched inside it */
 import type Decimal from 'decimal.js';
 import type { Prisma } from '@/generated/prisma/client';
 import {
@@ -14,7 +14,6 @@ import {
 } from '@/server/domain/wholesale/costing';
 import { D } from '@/server/domain/wholesale/money';
 import { isIsoDate } from '@/server/domain/wholesale/rates';
-import type { Names, Unit } from '@/server/domain/wholesale/catalog';
 import type { ScopedTx } from '@/server/data/tenant-db';
 
 export { InsufficientStockError, InvalidStockError, NoStockToRecostError } from '@/server/domain/wholesale/costing';
@@ -263,7 +262,7 @@ export async function receiveStock(tx: Db, a: ReceiveArgs): Promise<{ unitCostIq
   await requireWarehouse(tx, a.restaurantId, a.warehouseId)
   await ensureBalanceRow(tx, a.restaurantId, a.itemId, a.warehouseId)
   const bal = (await lockBalances(tx, a.restaurantId, a.itemId, [a.warehouseId])).get(a.warehouseId)!
-  const r = await lockedReceive(tx, { restaurantId: a.restaurantId, itemId: a.itemId, warehouseId: a.warehouseId, qty, cost, batches: [{ expiry, qty }], ref, userId: user.id, type: 'RECEIPT' }, bal)
+  await lockedReceive(tx, { restaurantId: a.restaurantId, itemId: a.itemId, warehouseId: a.warehouseId, qty, cost, batches: [{ expiry, qty }], ref, userId: user.id, type: 'RECEIPT' }, bal)
   return { unitCostIqd: cost }
 }
 
@@ -308,7 +307,7 @@ export async function transferStock(tx: Db, a: TransferArgs): Promise<void> {
   await ensureBalanceRow(tx, a.restaurantId, a.itemId, a.toWarehouseId)
   const locked = await lockBalances(tx, a.restaurantId, a.itemId, [a.fromWarehouseId, a.toWarehouseId])
   const out = await lockedIssue(tx, { restaurantId: a.restaurantId, itemId: a.itemId, warehouseId: a.fromWarehouseId, qty, ref, userId: user.id, type: 'TRANSFER_OUT' }, locked.get(a.fromWarehouseId))
-  const inn = await lockedReceive(
+  await lockedReceive(
     tx,
     { restaurantId: a.restaurantId, itemId: a.itemId, warehouseId: a.toWarehouseId, qty, cost: out.cost, batches: out.batches, ref, userId: user.id, type: 'TRANSFER_IN' },
     locked.get(a.toWarehouseId)!,

@@ -151,6 +151,7 @@ async function hasStock(tx: Db, rid: string, itemId: string): Promise<boolean> {
  * stock writes take FOR SHARE on it, so a receipt cannot slip in between the check and the change.
  */
 export async function updateItem(tx: Db, rid: string, id: string, input: ItemInput): Promise<{ previous: Record<string, unknown>; next: Record<string, unknown> }> {
+  // eslint-disable-next-line no-restricted-properties -- a row lock on one item, matched only inside this company
   const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "WhItem" WHERE id = ${id} AND "restaurantId" = ${rid} FOR UPDATE`;
   if (!locked.length) throw new InvalidCatalogError('item not found');
   const prev = await tx.whItem.findFirstOrThrow({ where: { id, restaurantId: rid }, include: { units: { orderBy: { unit: 'asc' } } } });
