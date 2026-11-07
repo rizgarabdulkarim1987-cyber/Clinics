@@ -20,6 +20,7 @@ import * as searchQueries from '@/server/studio/queries/search';
 import * as wholesaleQueries from '@/server/studio/queries/wholesale';
 import { auditSpaceWhere, type BusinessSpace } from '@/server/studio/services/space-scope';
 import { openRoute } from '@/server/wholesale/handoff-http';
+import { DEFAULT_ADMIN_URL } from '@/server/wholesale/link';
 import { seedApplications } from '../../prisma/seed/applications';
 import { databaseUrl, TEST_DB } from '../../scripts/db-config';
 import { requireTestDb, resetTestData } from '../helpers/db';
@@ -222,7 +223,7 @@ describe('the address of a company’s own Wholesale system', () => {
     expect(dataOf(await ask(admin, wholesaleQueries.wholesaleDetail, { restaurantId: company.id }))).toEqual({
       id: company.id,
       name: 'Company Delta',
-      adminUrl: null,
+      adminUrl: DEFAULT_ADMIN_URL,
       coreBusinessId: company.id,
       coreApplicationId: 'wholesale',
     });
@@ -259,6 +260,18 @@ describe('the address of a company’s own Wholesale system', () => {
   });
 });
 
+describe('the customer links of a wholesale company', () => {
+  it('shows its Wholesale system link without any address saved, and its own once one is saved', async () => {
+    vi.stubEnv('STUDIO_HOST', 'studio.example.test');
+    const first = dataOf(await ask(admin, restaurantQueries.restaurantCustomerLinks, { restaurantId: company.id }));
+    expect(first.links).toEqual([{ kind: 'wholesale', label: null, url: DEFAULT_ADMIN_URL }]);
+    expect(first.message).toContain(DEFAULT_ADMIN_URL);
+    dataOf(await act(admin, wholesaleActions.setLink, { restaurantId: company.id, adminUrl: 'https://al-noor.example.com' }));
+    const second = dataOf(await ask(admin, restaurantQueries.restaurantCustomerLinks, { restaurantId: company.id }));
+    expect(second.links.map((link) => link.url)).toEqual(['https://al-noor.example.com']);
+  });
+});
+
 describe('Open Wholesale', () => {
   it('redirects a Super Admin to the company’s own system, with no token, and never caches it', async () => {
     dataOf(await act(admin, wholesaleActions.setLink, { restaurantId: company.id, adminUrl: 'https://al-noor.example.com' }));
@@ -270,8 +283,13 @@ describe('Open Wholesale', () => {
     expect(response.headers.get('referrer-policy')).toBe('no-referrer');
   });
 
-  it('answers 404 for a company with no address, a business that is no company, and anyone who is not a Super Admin', async () => {
-    expect((await openRoute(company.id)).status).toBe(404);
+  it('sends a company with no address of its own to the default Wholesale address', async () => {
+    const response = await openRoute(company.id);
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe(DEFAULT_ADMIN_URL);
+  });
+
+  it('answers 404 for a business that is no company, and anyone who is not a Super Admin', async () => {
     dataOf(await act(admin, wholesaleActions.setLink, { restaurantId: company.id, adminUrl: 'https://al-noor.example.com' }));
     expect((await openRoute(cafe.id)).status).toBe(404);
     expect((await openRoute('nope')).status).toBe(404);
