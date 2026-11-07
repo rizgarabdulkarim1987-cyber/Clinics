@@ -6,7 +6,11 @@
 import { getPrisma } from '@/server/data/prisma';
 import { scopedClient } from '@/server/data/tenant-db';
 import { D } from '@/server/domain/wholesale/money';
-import { createItem, seedCities, setItemPrices } from '@/server/wholesale/catalog';
+import { baghdadDate } from '@/server/domain/wholesale/rates';
+import { createItem, createSupplier, seedCities, setItemPrices } from '@/server/wholesale/catalog';
+import { seedChartOfAccounts } from '@/server/wholesale/ledger';
+import { addLandedCostTx, postPurchaseTx } from '@/server/wholesale/posting/purchase';
+import { setRate } from '@/server/wholesale/rates';
 import { receiveStock } from '@/server/wholesale/stock';
 import { createRepWarehouse, seedWarehouses, transferMainToRep, warehouseOfKind } from '@/server/wholesale/warehouses';
 
@@ -16,12 +20,29 @@ if (!/@127\.0\.0\.1:\d+\//.test(url)) throw new Error('Refusing to run: DATABASE
 const prisma = getPrisma();
 const OWNER = 'owner@buzzify.test';
 
+/** Rates for today, a foreign supplier and one dollar purchase with shipping, so the purchase screens have something to show. */
+async function seedPurchases(rid: string, ownerId: string) {
+  await scopedClient(prisma, { restaurantId: rid }).$transaction(async (tx) => {
+    await seedChartOfAccounts(tx, rid);
+    const today = baghdadDate();
+    await setRate(tx, rid, today, 'USD', '1500');
+    await setRate(tx, rid, today, 'IRT', '0.04');
+    if ((await tx.whPurchase.count()) > 0) return;
+    const supplier = await createSupplier(tx, rid, { name: 'Gulf Foods (Dubai)', country: 'AE', isForeign: true });
+    const item = await tx.whItem.findFirstOrThrow({ where: { code: 'RICE-5' } });
+    const made = await postPurchaseTx(tx, rid, { id: ownerId }, { supplierId: supplier.id, date: today, currency: 'USD', paymentMode: 'CREDIT', lines: [{ itemId: item.id, unit: 'CARTON', qty: '20', unitPrice: '30' }] });
+    await addLandedCostTx(tx, rid, { id: ownerId }, made.purchaseId, { kind: 'SHIPPING', amount: '90', currency: 'USD', date: today });
+  });
+  console.log('Purchases ready');
+}
+
 async function main() {
   const owner = await prisma.user.findUniqueOrThrow({ where: { email: OWNER } });
   await prisma.application.update({ where: { id: 'wholesale' }, data: { status: 'ACTIVE' } });
   const existing = await prisma.restaurant.findFirst({ where: { name: 'Nare Trading (Demo)' } });
   if (existing) {
     console.log('Already there:', existing.id);
+    await seedPurchases(existing.id, owner.id);
     return;
   }
   const company = await prisma.restaurant.create({ data: { name: 'Nare Trading (Demo)', sector: 'WHOLESALE' } });
@@ -86,6 +107,7 @@ async function main() {
     }
   });
   console.log('Made the demo wholesale company:', rid);
+  await seedPurchases(rid, owner.id);
 }
 
 main()

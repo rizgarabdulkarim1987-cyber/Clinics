@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { suppliersQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
@@ -34,6 +35,9 @@ export default async function SuppliersPage() {
                 <p className="text-sm text-muted" dir="auto">
                   {[s.country, s.phone].filter(Boolean).join(' · ')}
                 </p>
+                <Link href={`/wholesale/suppliers/${s.id}`} className="mt-2 inline-flex min-h-11 items-center text-base underline">
+                  {t('wh.suppliers.statement')}
+                </Link>
                 <details className="mt-3 rounded-md border border-line">
                   <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base">{t('wh.common.edit')}</summary>
                   <div className="border-t border-line p-3">

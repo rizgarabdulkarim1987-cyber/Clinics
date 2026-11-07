@@ -28,7 +28,7 @@ for (const [name, viewport] of [['desktop', { width: 1280, height: 800 }], ['mob
   await page.waitForURL(/\/studio(\/|$)/, { timeout: 60000 });
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(1500);
-  for (const path of ['home', 'catalog', 'stock', 'customers', 'suppliers', 'staff']) {
+  for (const path of (process.env.WH_PAGES ?? 'home,catalog,stock,customers,suppliers,staff').split(',')) {
     const res = await page.goto(`${origin}/wholesale/${path}`, { waitUntil: 'networkidle' });
     log.push(`${name} ${path}: ${res?.status()}`);
     await page.screenshot({ path: `${out}/${name}-${path}.png`, fullPage: true });

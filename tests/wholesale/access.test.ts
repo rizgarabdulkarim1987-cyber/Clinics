@@ -5,6 +5,9 @@ import { runAction, type ActionDef } from '@/server/studio/framework/action';
 import { runQuery, type QueryDef } from '@/server/studio/framework/query';
 import type { ActionResult } from '@/server/studio/framework/result';
 import * as catalogActions from '@/server/wholesale/actions/catalog';
+import * as purchaseActions from '@/server/wholesale/actions/purchase';
+import * as purchaseQueries from '@/server/wholesale/queries/purchase';
+import { baghdadDate } from '@/server/domain/wholesale/rates';
 import * as catalogQueries from '@/server/wholesale/queries/catalog';
 import { seedApplications } from '../../prisma/seed/applications';
 import { databaseUrl, TEST_DB } from '../../scripts/db-config';
@@ -170,6 +173,31 @@ describe('what each role may do', () => {
     dataOf(await act(owner, catalogActions.deactivateStaffAction, { restaurantId: A, userId: 'u-new' }));
     expect((await ask(await loadActor(prisma(), 'u-new') as Actor, catalogQueries.meQuery, { restaurantId: A })).ok).toBe(false);
     expect(codeOf(await act(rep, catalogActions.setStaffAction, { restaurantId: A, email: 'u-new@example.com', role: 'PARTNER' }))).toBe('FORBIDDEN');
+  });
+});
+
+describe('purchases', () => {
+  it('lets a partner buy in dollars and refuses the rep, the other company and a missing rate', async () => {
+    const today = baghdadDate();
+    dataOf(await act(partner, catalogActions.provisionAction, { restaurantId: A }));
+    const item = dataOf(await act(partner, catalogActions.createItemAction, { restaurantId: A, item: rice }));
+    const supplier = dataOf(await act(partner, catalogActions.saveSupplierAction, { restaurantId: A, supplier: { name: 'Gulf Foods', isForeign: true } }));
+    const buy = { restaurantId: A, supplierId: supplier.id, date: today, currency: 'USD', paymentMode: 'CREDIT', lines: [{ itemId: item.id, unit: 'CARTON', qty: '2', unitPrice: '10' }] };
+    // No dollar rate for today yet: refused with the reason, nothing written.
+    expect(codeOf(await act(partner, purchaseActions.postPurchaseAction, buy))).toBe('INVALID');
+    dataOf(await act(partner, purchaseActions.setRateAction, { restaurantId: A, date: today, currency: 'USD', iqdPer: '1500' }));
+    expect(codeOf(await act(rep, purchaseActions.setRateAction, { restaurantId: A, date: today, currency: 'USD', iqdPer: '1' }))).toBe('FORBIDDEN');
+    expect(codeOf(await act(rep, purchaseActions.postPurchaseAction, buy))).toBe('FORBIDDEN');
+    expect(codeOf(await act(ownerOfB, purchaseActions.postPurchaseAction, buy))).toBe('FORBIDDEN');
+    const made = dataOf(await act(partner, purchaseActions.postPurchaseAction, { ...buy, landedCosts: [{ kind: 'SHIPPING', amount: '5', currency: 'USD' }] }));
+    const list = dataOf(await ask(partner, purchaseQueries.purchasesQuery, { restaurantId: A }));
+    expect(list).toHaveLength(1);
+    expect(list[0].totalOriginal).toBe('20');
+    expect(dataOf(await ask(partner, purchaseQueries.purchaseQuery, { restaurantId: A, id: made.purchaseId }))?.open).toBe('20');
+    expect((await ask(rep, purchaseQueries.purchasesQuery, { restaurantId: A })).ok).toBe(false);
+    expect((await ask(ownerOfB, purchaseQueries.purchaseQuery, { restaurantId: B, id: made.purchaseId })).ok ? dataOf(await ask(ownerOfB, purchaseQueries.purchaseQuery, { restaurantId: B, id: made.purchaseId })) : null).toBeNull();
+    // Paying more than is owed is a conflict, not a crash.
+    expect(codeOf(await act(partner, purchaseActions.paySupplierAction, { restaurantId: A, supplierId: supplier.id, amount: '999', currency: 'USD', date: today }))).toBe('CONFLICT');
   });
 });
 

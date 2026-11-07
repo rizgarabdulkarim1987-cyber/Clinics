@@ -12,6 +12,7 @@ import {
   updateItem,
   updateSupplier,
 } from '@/server/wholesale/catalog';
+import { seedChartOfAccounts } from '@/server/wholesale/ledger';
 import { createRepWarehouse, seedWarehouses, transferMainToRep } from '@/server/wholesale/warehouses';
 import { defineAction } from '@/server/studio/framework/action';
 import { StudioError } from '@/server/studio/framework/result';
@@ -240,6 +241,7 @@ export const provisionAction = defineAction({
     ctx.transaction(async (tx) => {
       await seedWarehouses(tx, restaurantId);
       await seedCities(tx, restaurantId);
+      await seedChartOfAccounts(tx, restaurantId);
       return { ok: true as const };
     }),
 });
