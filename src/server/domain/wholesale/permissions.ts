@@ -18,6 +18,8 @@ export const WH_PERMISSIONS = [
   'purchase.manage',
   'sale.create',
   'sale.return',
+  /** Prices other than the list price, approving a rep's held sale, cancelling a sale. */
+  'sale.override',
   'payment.collect',
   'treasury.manage',
   'expense.manage',
@@ -29,6 +31,8 @@ export const WH_PERMISSIONS = [
   'rate.set',
   'import.apply',
   'period.close',
+  /** Confirming what a rep hands over from his custody. */
+  'custody.confirm',
 ] as const;
 export type WhPermission = (typeof WH_PERMISSIONS)[number];
 
@@ -51,4 +55,12 @@ export function whPermissionsOf(role: WhRole): readonly WhPermission[] {
 /** A rep works from his own warehouse only; a partner works across all of them. */
 export function isWarehouseBound(role: WhRole): boolean {
   return role === 'REP';
+}
+
+/** A person asked for something his role does not allow (a rep selling to another rep's customer or from another warehouse). */
+export class ForbiddenError extends Error {
+  constructor(readonly permission: string) {
+    super(`not allowed: ${permission}`);
+    this.name = 'ForbiddenError';
+  }
 }

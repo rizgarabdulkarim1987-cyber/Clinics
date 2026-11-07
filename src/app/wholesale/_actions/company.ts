@@ -2,6 +2,7 @@
 
 import * as catalog from '@/server/wholesale/actions/catalog';
 import * as purchase from '@/server/wholesale/actions/purchase';
+import * as sale from '@/server/wholesale/actions/sale';
 import { invokeWh } from '@/server/wholesale/access';
 
 // The Wholesale screens' Server Actions. `invokeWh` puts in the company the person works in; the browser never names it.
@@ -68,4 +69,28 @@ export async function cancelPurchase(input: unknown) {
 
 export async function returnPurchase(input: unknown) {
   return invokeWh(purchase.returnPurchaseAction, input);
+}
+
+export async function postSale(input: unknown) {
+  return invokeWh(sale.postSaleAction, input);
+}
+
+export async function approveSale(input: unknown) {
+  return invokeWh(sale.approveSaleAction, input);
+}
+
+export async function rejectSale(input: unknown) {
+  return invokeWh(sale.rejectSaleAction, input);
+}
+
+export async function cancelSale(input: unknown) {
+  return invokeWh(sale.cancelSaleAction, input);
+}
+
+export async function collectPayment(input: unknown) {
+  return invokeWh(sale.collectPaymentAction, input);
+}
+
+export async function returnSale(input: unknown) {
+  return invokeWh(sale.returnSaleAction, input);
 }
