@@ -51,7 +51,13 @@ export default async function StockPage() {
                 {rows.map((r) => (
                   <tr key={`${r.warehouseId}:${r.itemId}`} className="border-b border-line last:border-0">
                     <td className="px-4 py-2" dir="auto">
-                      {r.warehouseName} <span className="text-muted">· {t(`wh.stock.kind.${r.warehouseKind}`)}</span>
+                      {r.warehouseKind === 'REP' ? (
+                        <>
+                          {r.warehouseName} <span className="text-muted">· {t('wh.stock.kind.REP')}</span>
+                        </>
+                      ) : (
+                        t(`wh.stock.kind.${r.warehouseKind}`)
+                      )}
                     </td>
                     <td className="px-4 py-2" dir="auto">
                       {nameOf(r.itemNames, actor!.locale)} <span className="text-muted">· {r.itemCode}</span>
