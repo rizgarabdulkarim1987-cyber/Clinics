@@ -1071,6 +1071,10 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
     ),
   ],
   'appPlans.deactivate': [c('a pharmacy plan', () => ({ code: 'planted', version: 1 }), ONLY_FORBIDDEN)],
+  // The keys a separate product (Wholesale) asks Core with: the platform owner's alone (`plans.manage`)
+  'wholesale.clients': [c('the wholesale service keys', () => ({}), ONLY_FORBIDDEN)],
+  'wholesale.createClient': [c('a wholesale service key', () => ({ name: 'Planted' }), ONLY_FORBIDDEN)],
+  'wholesale.revokeClient': [c('a wholesale service key', () => ({ id: 'planted' }), ONLY_FORBIDDEN)],
   // Platform staff recording a pharmacy owner's written consent (`people.manage`), here for B
   'support.recordConsent': [
     c(

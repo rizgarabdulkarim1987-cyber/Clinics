@@ -43,6 +43,9 @@ export const RATE_RULES = {
   'retail-identity:email': { max: 5, windowSec: 3600 },
   /** The set-password mail of one Retail identity: once per window, so a burst of calls for one address mails once. */
   'retail-identity:mail': { max: 1, windowSec: 600 },
+  /** A product's service client asking for an entitlement: 600 a minute per client (the documented ceiling), and a cap per address that also holds guesses at a secret. */
+  'entitlements:client': { max: 600, windowSec: 60 },
+  'entitlements:ip': { max: 300, windowSec: 60 },
 } as const satisfies Record<string, RateRule>;
 
 /** Requests whose address is unknown share one bucket, rather than having no per-address limit at all. */

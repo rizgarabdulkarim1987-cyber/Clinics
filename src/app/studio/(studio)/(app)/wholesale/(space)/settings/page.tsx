@@ -5,11 +5,13 @@ import { query, SIGN_IN_PATH } from '@/server/studio/framework/invoke';
 import { appPlansList } from '@/server/studio/queries/app-plans';
 import { billingOverview } from '@/server/studio/queries/billing';
 import { getPlans } from '@/server/studio/queries/plans';
+import { wholesaleClients } from '@/server/studio/queries/wholesale';
 import { getStudioTranslator } from '@/studio/messages';
 import { requestStudioLocale } from '@/studio/request-locale';
 import { PageHeader } from '@/studio/ui/PageHeader';
 import { AppPlansEditor } from '../../../billing/plans/AppPlansEditor';
 import { BillingSettings } from '../../../settings/billing/BillingSettings';
+import { ServiceClients } from './ServiceClients';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = getStudioTranslator(await requestStudioLocale());
@@ -30,6 +32,8 @@ export default async function WholesaleSettingsPage() {
     query(appPlansList, { applicationId: 'wholesale' }),
   ]);
   const planNames = Object.fromEntries(Object.entries(plans.plans).map(([code, plan]) => [code, plan.names]));
+  // The keys Wholesale asks Core with are the platform owner's alone (`plans.manage`), like the plans.
+  const clients = actor.isPlatformOwner ? (await query(wholesaleClients, {})).clients : null;
 
   return (
     <>
@@ -40,6 +44,7 @@ export default async function WholesaleSettingsPage() {
           <h2 className="text-md font-semibold text-text">{t('appPlans.wholesale.title')}</h2>
           <AppPlansEditor applicationId="wholesale" plans={appPlans.plans} canEdit={appPlans.canEdit} />
         </section>
+        {clients && <ServiceClients clients={clients} />}
       </div>
     </>
   );

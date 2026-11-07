@@ -84,3 +84,18 @@ export const wholesaleDetail = defineQuery({
     return { id: company.id, name: company.name, adminUrl: company.wholesaleLink.adminUrl, coreBusinessId: company.id, coreApplicationId: 'wholesale' };
   },
 });
+
+/** The service clients of the Wholesale application, newest first: never the secret, which is not kept. The platform owner only. */
+export const wholesaleClients = defineQuery({
+  name: 'wholesale.clients',
+  permission: 'plans.manage',
+  input: z.object({}),
+  target: () => ({ kind: 'platform' }) as const,
+  run: async (ctx) => ({
+    clients: await ctx.db.serviceClient.findMany({
+      where: { applicationId: 'wholesale' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, name: true, createdAt: true, lastUsedAt: true, revokedAt: true },
+    }),
+  }),
+});
