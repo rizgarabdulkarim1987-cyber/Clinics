@@ -31,8 +31,9 @@ export const findRestaurantOptionsIn: Record<PickerSpace, (q: string) => Promise
   supermarket: restaurantFinder('supermarket'),
   electronics: restaurantFinder('electronics'),
   clothing: restaurantFinder('clothing'),
+  wholesale: restaurantFinder('wholesale'),
   // The Platform space works on people of every project, so it finds the businesses of each.
-  platform: async (q) => (await Promise.all([restaurantFinder('food')(q), restaurantFinder('pharmacy')(q), ...RETAIL_SPACE_IDS.map((space) => restaurantFinder(space)(q))])).flat(),
+  platform: async (q) => (await Promise.all([restaurantFinder('food')(q), restaurantFinder('pharmacy')(q), ...RETAIL_SPACE_IDS.map((space) => restaurantFinder(space)(q)), restaurantFinder('wholesale')(q)])).flat(),
 };
 
 export async function findMenuOptions(q: string): Promise<PickerOption[]> {

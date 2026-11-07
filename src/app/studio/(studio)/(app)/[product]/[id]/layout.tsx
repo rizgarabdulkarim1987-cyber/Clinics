@@ -17,7 +17,7 @@ export default async function RetailShopLayout({ children, params }: { children:
   if (restaurant.sector !== 'RETAIL') notFound();
   const own = spaceOfBusiness(restaurant.sector, restaurant.retailActivity);
   if (own !== product) {
-    if (own === 'food' || own === 'pharmacy') notFound();
+    if (own === 'food' || own === 'pharmacy' || own === 'wholesale') notFound();
     const target = retailAddressIn((await headers()).get(REQUEST_PATH_HEADER) ?? '', product, own);
     redirect(target ?? businessPath(own, restaurant.id));
   }

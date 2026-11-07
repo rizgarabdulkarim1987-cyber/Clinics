@@ -25,8 +25,11 @@ import retailEn from '@/studio/messages/retail/en';
 import salesDishesAr from '@/studio/messages/sales-dishes/ar';
 import salesDishesCkb from '@/studio/messages/sales-dishes/ckb';
 import salesDishesEn from '@/studio/messages/sales-dishes/en';
+import wholesaleAr from '@/studio/messages/wholesale/ar';
+import wholesaleCkb from '@/studio/messages/wholesale/ckb';
+import wholesaleEn from '@/studio/messages/wholesale/en';
 import { spaceNav } from '@/studio/nav';
-import { PRODUCT_WORDS, productTwin, RETAIL_WORDS, retailTwin, spaceActions, spaceT } from '@/studio/space-words';
+import { PRODUCT_WORDS, productTwin, RETAIL_WORDS, retailTwin, spaceActions, spaceT, wholesaleTwin } from '@/studio/space-words';
 import { RETAIL_SPACE_IDS, type RetailSpaceId, type SpaceId } from '@/studio/spaces';
 
 /**
@@ -150,6 +153,67 @@ describe.each(RETAIL_SPACE_IDS)('the %s space', (product) => {
     expect(actions).toContain('retail.resync');
     expect(actions).toContain('restaurant.status_changed');
     expect(actions.filter((action) => /^(menu|pos|support|design|product|category)./.test(action))).toEqual([]);
+  });
+});
+
+/** Wholesale names no other product, Retail's three included, in any language. */
+const NOT_WHOLESALE = [...NOT_RETAIL, ...NOT_OTHERS, ...RETAIL_SHOP, ...RETAIL_SPACE_IDS.flatMap((product) => PRODUCT_NAMES[product])];
+/** Wholesale, as the Wholesale space names itself: what no other space shows. */
+const NOT_OTHERS_WHOLESALE = [/\bwholesale\b/i, /الجملة(?! الأخيرة)/, /کۆفرۆشی/];
+/** The shared texts the Wholesale space renders as they are: the Retail space's, with its own hub name. */
+const WHOLESALE_SHARED = RETAIL_SHARED.map((key) => key.replace('hub.retail', 'hub.wholesale').replace('restaurants.tabs.retail', 'restaurants.tabs.wholesale').replace('restaurants.sector.RETAIL', 'restaurants.sector.WHOLESALE'));
+
+describe('the Wholesale space', () => {
+  it('has a Wholesale twin of every shared text it swaps, in every language', () => {
+    for (const locale of LOCALES) {
+      const t = getStudioTranslator(locale);
+      for (const key of RETAIL_WORDS) expect(t(wholesaleTwin(key)), `${locale} ${wholesaleTwin(key)}`).not.toBe(wholesaleTwin(key));
+      expect(t('hub.wholesale')).not.toBe('hub.wholesale');
+    }
+  });
+
+  it('reads a shared text as its Wholesale twin there, and leaves every other space its own words', () => {
+    const t = getStudioTranslator('en');
+    expect(spaceT(t, 'wholesale')('billingList.restaurant')).toBe(t(wholesaleTwin('billingList.restaurant')));
+    expect(spaceT(t, 'wholesale')('billingList.restaurant')).toBe('Company');
+    for (const space of ['food', 'pharmacy', 'supermarket', 'platform', null] as const) expect(spaceT(t, space)('billingList.restaurant')).not.toBe('Company');
+    // Already in the Wholesale words: kept.
+    expect(spaceT(spaceT(t, 'wholesale'), 'wholesale')('billingList.restaurant')).toBe('Company');
+  });
+
+  it('names no other product in its own messages, its twins, its navigation, its actions or the shared texts it shows', () => {
+    const keys = [...keysOf(wholesaleEn, wholesaleAr, wholesaleCkb), ...RETAIL_WORDS.map(wholesaleTwin), ...navKeys('wholesale'), ...actionKeys('wholesale'), ...WHOLESALE_SHARED, 'hub.wholesale'];
+    expect(violations('wholesale', keys, NOT_WHOLESALE)).toEqual([]);
+  });
+
+  it('offers only its own actions in the activity filter: no menu, till, branch or retail work', () => {
+    const actions = spaceActions('wholesale');
+    expect(actions).toContain('wholesale.link_changed');
+    expect(actions).toContain('restaurant.status_changed');
+    expect(actions.filter((action) => /^(menu|pos|support|design|product|category|retail|branch)\./.test(action))).toEqual([]);
+  });
+
+  it('is named by no other space: Menu and Cashier, the Pharmacy and the Retail products show no Wholesale', () => {
+    for (const product of RETAIL_SPACE_IDS) {
+      const shown = [...keysOf(retailEn, retailAr, retailCkb).filter((key) => !RETAIL_SPACE_IDS.some((other) => ofProduct(key, other))), ...RETAIL_WORDS, ...navKeys(product), ...actionKeys(product), `hub.${product}`];
+      expect(violations(product, shown, NOT_OTHERS_WHOLESALE), product).toEqual([]);
+    }
+    expect(violations('food', [...navKeys('food'), ...actionKeys('food'), 'hub.food'], NOT_OTHERS_WHOLESALE)).toEqual([]);
+    expect(violations('pharmacy', [...navKeys('pharmacy'), ...actionKeys('pharmacy'), 'hub.pharmacy'], NOT_OTHERS_WHOLESALE)).toEqual([]);
+    for (const space of ['food', 'pharmacy', ...RETAIL_SPACE_IDS] as const) expect(spaceActions(space).filter((action) => action.startsWith('wholesale.'))).toEqual([]);
+  });
+
+  it('wraps every client screen inside the space in SpaceWords, and its server screens translate with spaceT', () => {
+    const read = (relative: string) => readFileSync(path.join(process.cwd(), 'src/app/studio/(studio)/(app)', relative), 'utf8');
+    expect(read('wholesale/(space)/layout.tsx')).toContain('<SpaceWords space="wholesale">{children}</SpaceWords>');
+    expect(read('wholesale/(space)/overview/page.tsx')).toContain('spaceT(');
+    function Probe() {
+      return createElement('span', null, `${useT()('billingList.restaurant')}|${useT()('common.save')}`);
+    }
+    const html = renderToStaticMarkup(
+      createElement(StudioI18nProvider, { locale: 'en', messages: clientMessages('en') } as never, createElement(SpaceWords, { space: 'wholesale' } as never, createElement(Probe))),
+    );
+    expect(html).toContain('Company|Save');
   });
 });
 

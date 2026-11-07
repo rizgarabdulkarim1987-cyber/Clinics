@@ -102,9 +102,14 @@ const FILE_ROUTE_DIRS = ['src/app/studio/style-files/'];
 
 /**
  * The Buzzify Retail sign-in handoff: its routes answer redirects and small pages, never `{ data }`, so they are not
- * definitions. Each must only hand the request to `src/server/retail/handoff-http.ts`, which checks the session itself.
+ * definitions. Each must only hand the request to its product's `handoff-http.ts`, which checks the session itself.
+ * Wholesale's is the Super Admin's "Open Wholesale": a redirect to the company's own system.
  */
-const HANDOFF_ROUTE_DIRS = ['src/app/studio/retail/'];
+const HANDOFF_ROUTES: Record<string, string> = {
+  'src/app/studio/retail/': '@/server/retail/handoff-http',
+  'src/app/studio/wholesale/': '@/server/wholesale/handoff-http',
+};
+const HANDOFF_ROUTE_DIRS = Object.keys(HANDOFF_ROUTES);
 
 /** A route handler the Studio host serves: any `route.*` file in those folders, except the file-serving ones. */
 function isStudioRoute(path: string): boolean {
@@ -414,7 +419,8 @@ describe('Studio enforcement rules', () => {
       expect(routes.length).toBeGreaterThan(0);
       const offenders = routes.filter((path) => {
         const imports = [...read(path).matchAll(/from '([^']+)'/g)].map((m) => m[1]);
-        return imports.length !== 1 || imports[0] !== '@/server/retail/handoff-http';
+        const allowed = Object.entries(HANDOFF_ROUTES).find(([dir]) => path.startsWith(dir))?.[1];
+        return imports.length !== 1 || imports[0] !== allowed;
       });
       expect(offenders).toEqual([]);
     });

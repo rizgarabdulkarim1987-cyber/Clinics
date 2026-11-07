@@ -9,8 +9,8 @@ import { BusinessLayout } from './BusinessLayout';
 import { loadRestaurant } from './load';
 
 /**
- * The frame of one restaurant in Menu and Cashier (see BusinessLayout). A Super Admin who opens a pharmacy or a retail
- * shop here (an old link, a bookmark) lands on the same page in the Pharmacy or in the shop's Retail product's space; everyone else is never moved.
+ * The frame of one restaurant in Menu and Cashier (see BusinessLayout). A Super Admin who opens a pharmacy, a retail
+ * shop or a wholesale company here (an old link, a bookmark) lands on the same page in that project's space; everyone else is never moved.
  */
 export default async function RestaurantLayout({ children, params }: { children: ReactNode; params: Promise<{ id: string }> }) {
   const actor = await getActor();
@@ -25,6 +25,10 @@ export default async function RestaurantLayout({ children, params }: { children:
     const space = spaceOfBusiness(restaurant.sector, restaurant.retailActivity);
     const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, space);
     redirect(target ?? businessPath(space, restaurant.id));
+  }
+  if (actor.isSuperAdmin && restaurant.sector === 'WHOLESALE') {
+    const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, 'wholesale');
+    redirect(target ?? businessPath('wholesale', restaurant.id));
   }
   return (
     <BusinessLayout space="food" params={params}>

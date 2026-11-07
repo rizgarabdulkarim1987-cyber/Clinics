@@ -6,6 +6,7 @@ import posStock from './pos-stock/en';
 import posTill from './pos-till/en';
 import pharmacy from './pharmacy/en';
 import retail from './retail/en';
+import wholesale from './wholesale/en';
 
 const en: Messages = {
   // Shared words of the interface
@@ -3525,6 +3526,8 @@ const en: Messages = {
   ...pharmacy,
   // The link to Buzzify Retail (retail/en.ts)
   ...retail,
+  // The link to Buzzify Wholesale (wholesale/en.ts)
+  ...wholesale,
   'nav.platformIntro': 'Intro adverts',
   'workspace.tab.intro': 'Intro',
   'platformIntro.title': 'Intro adverts',

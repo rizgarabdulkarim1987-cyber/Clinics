@@ -736,6 +736,9 @@ const SWEPT: Record<string, Case[]> = {
   'retail.resync': [c("B's snapshot", (w) => ({ restaurantId: w.b.restaurantId }))],
   // A retail shop's Retail tab, read for B (B is no retail shop; the sweep also checks it is refused to A's people)
   'retail.detail': [c("B's retail tab", (w) => ({ restaurantId: w.b.restaurantId }))],
+  // A wholesale company's own-system address, set or read for B (B is no wholesale company, and the permission is a Super Admin's)
+  'wholesale.setLink': [c("B's wholesale address", (w) => ({ restaurantId: w.b.restaurantId, adminUrl: 'https://planted.example.com' }))],
+  'wholesale.detail': [c("B's wholesale tab", (w) => ({ restaurantId: w.b.restaurantId }))],
   'restaurants.delete': [c('B', (w) => ({ restaurantId: w.b.restaurantId, confirmName: w.b.restaurantName }))],
   'restaurants.createBranch': [c('in B', (w) => ({ restaurantId: w.b.restaurantId, name: 'Planted' }))],
   'restaurants.updateBranch': [
@@ -1022,6 +1025,7 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
   'pharmacies.list': [c('the pharmacy list', () => ({}), ONLY_FORBIDDEN)],
   // The retail list and a shop's Retail tab (`platform.settings`): refused outright to A's people, even naming B.
   'retail.list': [c('the retail list', () => ({ space: 'supermarket' }), ONLY_FORBIDDEN)],
+  'wholesale.list': [c('the wholesale list', () => ({}), ONLY_FORBIDDEN)],
   'pos.setAiPackage': [c("switching on B's AI package", (w) => ({ restaurantId: w.b.restaurantId, enabled: true, monthlyLimit: 1000 }), ONLY_FORBIDDEN)],
   'pos.setCaptainApproval': [c("switching B's captain approval", (w) => ({ restaurantId: w.b.restaurantId, enabled: true }), ONLY_FORBIDDEN)],
   'restaurants.create': [c('a restaurant', () => ({ name: 'Bravo Annex', type: 'CAFE' }), ONLY_FORBIDDEN)],

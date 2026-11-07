@@ -20,7 +20,7 @@ interface MyRestaurant {
   name: string;
   role: MemberRole;
   /** FOOD, PHARMACY or RETAIL: a pharmacy's owner is sent to the pharmacy, not to menus. */
-  sector: 'FOOD' | 'PHARMACY' | 'RETAIL';
+  sector: 'FOOD' | 'PHARMACY' | 'RETAIL' | 'WHOLESALE';
   menus: Array<{ id: string; name: string }>;
 }
 

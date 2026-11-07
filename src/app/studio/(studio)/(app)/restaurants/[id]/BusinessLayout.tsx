@@ -24,6 +24,7 @@ const LIST_LABEL: Record<BusinessSpaceId, string> = {
   supermarket: 'retail.title',
   electronics: 'retail.title',
   clothing: 'retail.title',
+  wholesale: 'wholesale.title',
 };
 
 /**
@@ -55,7 +56,8 @@ export async function BusinessLayout({
   const food = restaurant.sector === 'FOOD';
   const tabs: RouteTab[] = [
     { href: base, label: t('restaurants.tabs.profile'), exact: true },
-    { href: `${base}/branches`, label: t('restaurants.tabs.branches') },
+    // A wholesale company keeps no branches in Studio: its own Wholesale system holds them.
+    ...(restaurant.sector !== 'WHOLESALE' ? [{ href: `${base}/branches`, label: t('restaurants.tabs.branches') }] : []),
     ...(food ? [{ href: `${base}/menus`, label: t('restaurants.tabs.menus') }] : []),
     // What the restaurant has bought: everyone may read it; only the platform owner changes it there.
     ...(food ? [{ href: `${base}/plan`, label: t('restaurants.tabs.plan') }] : []),
@@ -65,6 +67,8 @@ export async function BusinessLayout({
     ...(food ? [{ href: `${base}/feedback`, label: t('restaurants.tabs.feedback') }] : []),
     // A linked retail shop's delivery to Buzzify Retail, its AI switch and Resync: Super Admins (platform.settings).
     ...(restaurant.sector === 'RETAIL' && actor.isSuperAdmin ? [{ href: `${base}/retail`, label: t('restaurants.tabs.retail') }] : []),
+    // A wholesale company's own system: its address, Core's ids to install it with and Open Wholesale: Super Admins (platform.settings).
+    ...(restaurant.sector === 'WHOLESALE' && actor.isSuperAdmin ? [{ href: `${base}/wholesale`, label: t('restaurants.tabs.wholesale') }] : []),
     ...(food && restaurant.can.media ? [{ href: `${base}/media`, label: t('restaurants.tabs.media') }] : []),
     ...(restaurant.can.invite ? [{ href: `${base}/people`, label: t('restaurants.tabs.people') }] : []),
     ...(restaurant.can.audit ? [{ href: `${base}/activity`, label: t('restaurants.tabs.activity') }] : []),

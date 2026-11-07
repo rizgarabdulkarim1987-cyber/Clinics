@@ -4,5 +4,6 @@ import { redirect } from 'next/navigation';
  * three Retail products share them; the Supermarket's settings show them). */
 export default async function AppPlansRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   if ((await searchParams).app === 'retail') redirect('/studio/supermarket/settings');
+  if ((await searchParams).app === 'wholesale') redirect('/studio/wholesale/settings');
   redirect('/studio/pharmacy/settings');
 }

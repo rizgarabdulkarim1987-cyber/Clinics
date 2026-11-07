@@ -86,10 +86,16 @@ export const RETAIL_WORDS = [
   'jump.restaurants',
 ] as const;
 
+/** Wholesale swaps the very same shared texts as Retail, each for its own `wholesale.as.<key>` twin. */
+export const WHOLESALE_WORDS = RETAIL_WORDS;
+
 const RETAIL: ReadonlySet<string> = new Set(RETAIL_WORDS);
 
 /** The Retail twin of a shared key. */
 export const retailTwin = (key: string) => `retail.as.${key}`;
+
+/** The Wholesale twin of a shared key. */
+export const wholesaleTwin = (key: string) => `wholesale.as.${key}`;
 
 /**
  * The texts each Retail product names itself in: its name, its list and its new shop. In a product's space each is read
@@ -125,6 +131,13 @@ export function spaceOfSector(sector: BusinessSector, activity?: RetailActivity 
  * text the product renames (`PRODUCT_WORDS`) as the product's own.
  */
 export function spaceT(t: Translate, space: SpaceId | null | undefined): Translate {
+  if (space === 'wholesale') {
+    // Already in the Wholesale words: kept, like a Retail product's.
+    if (SPACED.has(t)) return t;
+    const spaced: Translate = (key, params) => t(RETAIL.has(key) ? wholesaleTwin(key) : key, params);
+    SPACED.add(spaced);
+    return spaced;
+  }
   if (!isRetailSpace(space)) return t;
   // Already in a Retail product's words (a client screen inside `SpaceWords`, which knows the shop's own product): kept,
   // so a screen that only knows the sector never turns an Electronics shop's words into the Supermarket's.
@@ -143,11 +156,15 @@ const SPACED = new WeakSet<Translate>();
 /** The actions that happen in a Retail product's space: its shops, their people and billing, its plans and announcements. */
 const RETAIL_ACTION = /^(retail|branch|invitation|membership|subscription|payment|app_plan|announcement)\.|^restaurant\.(created|updated|status_changed)$/;
 
+/** The actions that happen in the Wholesale space: its companies and the address of their own system, their people and billing, its plans and announcements. */
+const WHOLESALE_ACTION = /^(wholesale|invitation|membership|subscription|payment|app_plan|announcement)\.|^restaurant\.(created|updated|status_changed)$/;
+
 /**
  * The actions the activity filter of a space offers: only those that can happen there. Retail's are its own; Menu and
- * Cashier and the Pharmacy never list Retail's (`retail.*`).
+ * Cashier and the Pharmacy never list Retail's (`retail.*`) or Wholesale's (`wholesale.*`).
  */
 export function spaceActions(space: SpaceId): string[] {
   if (isRetailSpace(space)) return AUDIT_ACTIONS.filter((action) => RETAIL_ACTION.test(action));
-  return AUDIT_ACTIONS.filter((action) => !action.startsWith('retail.'));
+  if (space === 'wholesale') return AUDIT_ACTIONS.filter((action) => WHOLESALE_ACTION.test(action));
+  return AUDIT_ACTIONS.filter((action) => !action.startsWith('retail.') && !action.startsWith('wholesale.'));
 }

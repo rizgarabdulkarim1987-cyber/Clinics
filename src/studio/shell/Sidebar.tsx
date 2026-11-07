@@ -19,6 +19,7 @@ import {
   UserRound,
   Users,
   UtensilsCrossed,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -54,6 +55,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   supermarket: ShoppingCart,
   electronics: Smartphone,
   clothing: Shirt,
+  wholesale: Warehouse,
 };
 
 /** A navigation item as the layout hands it over: its label already in the person's language. */

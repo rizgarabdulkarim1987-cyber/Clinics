@@ -21,7 +21,7 @@ const keys = (items: ReturnType<typeof visibleNav>) => items.map((item) => item.
 
 describe('NAV_ITEMS', () => {
   it('lists the Studio areas in order, each under /studio', () => {
-    expect(NAV_ITEMS.map((item) => item.key)).toEqual(['overview', 'restaurants', 'billing', 'cashierOverview', 'pharmacies', 'retail', 'menus', 'media', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
+    expect(NAV_ITEMS.map((item) => item.key)).toEqual(['overview', 'restaurants', 'billing', 'cashierOverview', 'pharmacies', 'retail', 'wholesale', 'menus', 'media', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
     expect(NAV_ITEMS.map((item) => item.href)).toEqual([
       '/studio',
       '/studio/restaurants',
@@ -29,6 +29,7 @@ describe('NAV_ITEMS', () => {
       '/studio/cashier',
       '/studio/pharmacies',
       '/studio/retail',
+      '/studio/wholesale',
       '/studio/menus',
       '/studio/media',
       '/studio/people',
@@ -49,12 +50,12 @@ describe('the Menu Styles area', () => {
 
 describe('visibleNav', () => {
   it('gives a Super Admin every area', () => {
-    expect(keys(visibleNav(actor({ isSuperAdmin: true })))).toEqual(['overview', 'restaurants', 'billing', 'cashierOverview', 'pharmacies', 'retail', 'menus', 'media', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
+    expect(keys(visibleNav(actor({ isSuperAdmin: true })))).toEqual(['overview', 'restaurants', 'billing', 'cashierOverview', 'pharmacies', 'retail', 'wholesale', 'menus', 'media', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
   });
 
   it('gives a Super Admin every area even when they also own a restaurant', () => {
     const superAdmin = actor({ isSuperAdmin: true, memberships: [{ restaurantId: 'r1', role: 'OWNER' }] });
-    expect(keys(visibleNav(superAdmin))).toEqual(['overview', 'restaurants', 'billing', 'cashierOverview', 'pharmacies', 'retail', 'menus', 'media', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
+    expect(keys(visibleNav(superAdmin))).toEqual(['overview', 'restaurants', 'billing', 'cashierOverview', 'pharmacies', 'retail', 'wholesale', 'menus', 'media', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
   });
 
   it('gives a Super Admin the Pharmacy area right after the Cashier, with its own pill icon', () => {
@@ -202,7 +203,7 @@ describe('spaceNav', () => {
   it('keeps Menu and Cashier free of pharmacy, retail and platform items', () => {
     const food = keys(spaceNav('food'));
     expect(food).toEqual(['overview', 'restaurants', 'billing', 'cashierOverview', 'menus', 'media', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
-    expect(food.filter((key) => key.startsWith('pharmacy') || key === 'pharmacies' || key.startsWith('retail') || key.startsWith('team'))).toEqual([]);
+    expect(food.filter((key) => key.startsWith('pharmacy') || key === 'pharmacies' || key.startsWith('retail') || key.startsWith('wholesale') || key.startsWith('team'))).toEqual([]);
   });
 
   it('keeps Pharmacy free of the cashier, menus and restaurants', () => {
@@ -247,6 +248,28 @@ describe('spaceNav', () => {
 
 describe('openRetailNavItem', () => {
   const owner = actor({ memberships: [{ restaurantId: 'shop-1', role: 'OWNER' }] });
+
+  it('keeps Wholesale free of the cashier, menus, restaurants, pharmacies and retail, and Retail free of Wholesale', () => {
+    const wholesale = keys(spaceNav('wholesale'));
+    expect(wholesale).toEqual(['wholesaleOverview', 'wholesale', 'wholesaleBilling', 'wholesalePeople', 'wholesaleAnnouncements', 'wholesaleActivity', 'wholesaleSettings']);
+    for (const absent of ['cashierOverview', 'menus', 'restaurants', 'media', 'platformIntro', 'pharmacies', 'retail', 'openRetail']) expect(wholesale).not.toContain(absent);
+    for (const product of ['supermarket', 'electronics', 'clothing'] as const) expect(keys(spaceNav(product)).filter((key) => key.startsWith('wholesale'))).toEqual([]);
+  });
+
+  it('marks the Wholesale list for a company and the new form, never for a neighbour or the handoff to its own system', () => {
+    const list = spaceNav('wholesale').find((item) => item.key === 'wholesale')!;
+    for (const path of ['/studio/wholesale', '/studio/wholesale/new', '/studio/wholesale/co-1', '/studio/wholesale/co-1/wholesale']) expect(isNavItemActive(list, path), path).toBe(true);
+    for (const path of ['/studio/wholesale/overview', '/studio/wholesale/billing', '/studio/wholesale/settings', '/studio/wholesale/open/co-1', '/studio/supermarket']) expect(isNavItemActive(list, path), path).toBe(false);
+  });
+
+  it('gives a Super Admin the Wholesale area right after Retail, and nobody else', () => {
+    const items = visibleNav(actor({ isSuperAdmin: true }));
+    const at = items.findIndex((item) => item.key === 'retail');
+    expect(items[at + 1]).toEqual({ key: 'wholesale', href: '/studio/wholesale', labelKey: 'nav.wholesale', icon: 'wholesale' });
+    for (const memberships of [[{ restaurantId: 'r1', role: 'DESIGNER' as const }], [{ restaurantId: 'r1', role: 'OWNER' as const }], []]) {
+      expect(keys(visibleNav(actor({ memberships })))).not.toContain('wholesale');
+    }
+  });
 
   it('takes an owner of one retail shop straight to it, as a plain link (the target is a redirecting Route Handler)', () => {
     expect(openRetailNavItem(owner, [{ id: 'shop-1' }])).toEqual({

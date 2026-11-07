@@ -23,6 +23,10 @@ describe('spaceOfPath', () => {
     expect(spaceOfPath('/studio/clothing/overview')).toBe('clothing');
     expect(spaceOfPath('/studio/pharmacy')).toBe('pharmacy');
     expect(spaceOfPath('/studio/pharmacy/abc/billing')).toBe('pharmacy');
+    expect(spaceOfPath('/studio/wholesale')).toBe('wholesale');
+    expect(spaceOfPath('/studio/wholesale/abc/wholesale')).toBe('wholesale');
+    expect(spaceOfPath('/studio/wholesale/open/abc')).toBe('wholesale');
+    expect(spaceOfPath('/studio/wholesalers')).toBe('food');
     expect(spaceOfPath('/studio/team')).toBe('platform');
     expect(spaceOfPath('/studio/team/settings')).toBe('platform');
   });
@@ -99,6 +103,22 @@ describe('the old Retail addresses', () => {
   });
 });
 
+describe('a wholesale company', () => {
+  it('lives in the Wholesale space, whatever product activity it is given', () => {
+    expect(spaceOfBusiness('WHOLESALE')).toBe('wholesale');
+    expect(spaceOfBusiness('WHOLESALE', 'ELECTRONICS')).toBe('wholesale');
+    expect(businessPath('wholesale', 'w1')).toBe('/studio/wholesale/w1');
+    expect(businessPath('wholesale', 'w1', 'wholesale')).toBe('/studio/wholesale/w1/wholesale');
+    expect(businessBase('wholesale')).toBe('/studio/wholesale');
+  });
+
+  it('moves the old Menu and Cashier address into the Wholesale space, keeping the tab', () => {
+    expect(movedBusinessAddressOf('/studio/restaurants/w1', 'w1', 'wholesale')).toBe('/studio/wholesale/w1');
+    expect(movedBusinessAddressOf('/studio/restaurants/w1/billing/', 'w1', 'wholesale')).toBe('/studio/wholesale/w1/billing');
+    expect(movedBusinessAddressOf('/studio/restaurants/w10', 'w1', 'wholesale')).toBeNull();
+  });
+});
+
 describe('sectorOfSpace and activityOfSpace', () => {
   it('maps the business spaces to a sector, each Retail product to its activity, and the platform to none', () => {
     for (const space of ['supermarket', 'electronics', 'clothing'] as const) expect(sectorOfSpace(space)).toBe('RETAIL');
@@ -106,6 +126,8 @@ describe('sectorOfSpace and activityOfSpace', () => {
     expect(activityOfSpace('electronics')).toBe('ELECTRONICS');
     expect(activityOfSpace('clothing')).toBe('CLOTHING');
     expect(activityOfSpace('pharmacy')).toBeNull();
+    expect(sectorOfSpace('wholesale')).toBe('WHOLESALE');
+    expect(activityOfSpace('wholesale')).toBeNull();
     expect(sectorOfSpace('food')).toBe('FOOD');
     expect(sectorOfSpace('pharmacy')).toBe('PHARMACY');
     expect(sectorOfSpace('platform')).toBeNull();
@@ -113,8 +135,8 @@ describe('sectorOfSpace and activityOfSpace', () => {
 });
 
 describe('the registry', () => {
-  it('has five big icons, the three Retail products apart, and Platform small', () => {
-    expect(bigSpaces().map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing']);
+  it('has six big icons, the three Retail products and Wholesale apart, and Platform small', () => {
+    expect(bigSpaces().map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'wholesale']);
     expect(SPACES.find((space) => space.id === 'platform')?.big).toBe(false);
     expect(new Set(SPACES.map((space) => space.icon)).size).toBe(SPACES.length);
   });
@@ -122,7 +144,7 @@ describe('the registry', () => {
   it('gives a new project its own icon and path without touching the others', () => {
     const extra: Space = { id: 'clinic' as never, nameKey: 'hub.clinic', icon: 'pharmacy', home: '/studio/clinic', sectors: [], prefix: '/studio/clinic', big: true };
     const registry = [...SPACES, extra];
-    expect(bigSpaces(registry).map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'clinic']);
+    expect(bigSpaces(registry).map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'wholesale', 'clinic']);
     expect(spaceOfPath('/studio/clinic/x', registry)).toBe('clinic');
     expect(spaceOfPath('/studio/pharmacy/x', registry)).toBe('pharmacy');
     expect(spaceOfPath('/studio/restaurants', registry)).toBe('food');
