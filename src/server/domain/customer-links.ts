@@ -5,7 +5,7 @@ export interface LinkHosts {
   publicOrigin: string;
 }
 
-export type CustomerLinkKind = 'signIn' | 'cashier' | 'pharmacy' | 'menu';
+export type CustomerLinkKind = 'signIn' | 'cashier' | 'pharmacy' | 'menu' | 'wholesale';
 
 /** One address to send to a new customer. `label` names the menu of a menu link, otherwise null. */
 export interface CustomerLink {
@@ -19,6 +19,8 @@ export interface CustomerLinksInput {
   hasCashier: boolean;
   menus: ReadonlyArray<{ name: string; slug: string }>;
   hosts: LinkHosts;
+  /** A wholesale company's own system address (`WholesaleLink.adminUrl`); null until it is set. */
+  wholesaleUrl?: string | null;
 }
 
 /**
@@ -26,7 +28,9 @@ export interface CustomerLinksInput {
  * pharmacy gets the pharmacy page only; a restaurant gets the till when it subscribes to the Cashier, and one link per
  * menu. The super admin's own host is never among them. Empty while no Studio host is configured (development).
  */
-export function customerLinks({ sector, hasCashier, menus, hosts }: CustomerLinksInput): CustomerLink[] {
+export function customerLinks({ sector, hasCashier, menus, hosts, wholesaleUrl = null }: CustomerLinksInput): CustomerLink[] {
+  // A wholesale company signs in to its own Wholesale system, never to the Studio: its address alone, and none until it is set.
+  if (sector === 'WHOLESALE') return wholesaleUrl ? [{ kind: 'wholesale', label: null, url: wholesaleUrl }] : [];
   const studio = hosts.studioHost ? `https://${hosts.studioHost}` : null;
   if (!studio) return [];
   if (sector === 'PHARMACY') {
@@ -45,6 +49,7 @@ const HEADINGS: Record<CustomerLinkKind, string> = {
   signIn: 'لوحة التحكم (المنيو):',
   cashier: 'الكاشير:',
   pharmacy: 'رابط الصيدلية:',
+  wholesale: 'رابط نظام الجملة:',
   menu: 'رابط المنيو للزبائن (للـ QR):',
 };
 
@@ -54,6 +59,8 @@ const HEADINGS: Record<CustomerLinkKind, string> = {
  */
 export function customerMessage(links: readonly CustomerLink[], email: string): string {
   if (links.length === 0) return '';
+  // A wholesale company's accounts are made in its own system: the link only, no Studio sign-in or password text.
+  if (links.every((link) => link.kind === 'wholesale')) return ['أهلاً بك في Buzzify 👋', ...links.map((link) => `${HEADINGS.wholesale}\n${link.url}`)].join('\n\n');
   const blocks = links.map((link) => `${link.kind === 'menu' && link.label ? `${HEADINGS.menu} (${link.label})` : HEADINGS[link.kind]}\n${link.url}`);
   return [
     'أهلاً بك في Buzzify 👋',

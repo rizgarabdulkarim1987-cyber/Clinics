@@ -3241,6 +3241,7 @@ const en: Messages = {
   'restaurants.links.signIn': 'Sign in (menu admin)',
   'restaurants.links.cashier': 'Cashier',
   'restaurants.links.pharmacy': 'Pharmacy',
+  'restaurants.links.wholesale': 'Wholesale system',
   'restaurants.links.menu': 'Menu: {name}',
   'restaurants.links.copyMessage': 'Copy full message',
   'restaurants.column.plan': 'Plan',

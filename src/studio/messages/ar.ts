@@ -3272,6 +3272,7 @@ const ar: Messages = {
   'restaurants.links.signIn': 'تسجيل الدخول (لوحة المنيو)',
   'restaurants.links.cashier': 'الكاشير',
   'restaurants.links.pharmacy': 'الصيدلية',
+  'restaurants.links.wholesale': 'نظام الجملة',
   'restaurants.links.menu': 'المنيو: {name}',
   'restaurants.links.copyMessage': 'نسخ الرسالة كاملة',
   'restaurants.column.plan': 'الباقة',

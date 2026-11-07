@@ -3246,6 +3246,7 @@ const ckb: Messages = {
   'restaurants.links.signIn': 'چوونەژوورەوە (بەڕێوەبردنی مینیو)',
   'restaurants.links.cashier': 'کاشێر',
   'restaurants.links.pharmacy': 'دەرمانخانە',
+  'restaurants.links.wholesale': 'سیستەمی کۆفرۆشی',
   'restaurants.links.menu': 'مینیو: {name}',
   'restaurants.links.copyMessage': 'کۆپیکردنی تەواوی نامەکە',
   'restaurants.column.plan': 'پاکێج',
