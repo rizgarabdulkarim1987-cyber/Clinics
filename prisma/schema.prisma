@@ -1177,6 +1177,7 @@ model Application {
   prices        PlanPrice[]
   subscriptions Subscription[]
   appPlans      AppPlan[]
+  serviceClients ServiceClient[]
 }
 
 model PlanPrice {
@@ -4491,4 +4492,20 @@ model RetailOutbox {
   restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@index([failedAt, nextAttemptAt])
+}
+
+/// A separate product's key for asking Core one question: is this business's subscription to my application live?
+/// (`GET /api/v1/entitlements/{businessId}/{applicationId}`.) A client belongs to ONE application and reads only that
+/// application's entitlements. Only the SHA-256 of the secret (`bzc_...`) is kept; the secret is shown once, at creation.
+model ServiceClient {
+  id            String      @id @default(cuid())
+  applicationId String
+  name          String
+  secretHash    String      @unique
+  createdAt     DateTime    @default(now())
+  lastUsedAt    DateTime?
+  revokedAt     DateTime?
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  @@index([applicationId])
 }

@@ -35,8 +35,8 @@ export type HostDecision =
 const NEXT: HostDecision = { action: 'next' };
 const NOT_FOUND: HostDecision = { action: 'notFound' };
 
-/** Paths that exist only on the Studio host. `/api/retail` is what Buzzify Retail calls (signed, server to server). */
-const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail'];
+/** Paths that exist only on the Studio host. `/api/retail` is what Buzzify Retail calls (signed, server to server); `/api/v1` is what separate products call (a service secret). */
+const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail', '/api/v1'];
 /** What the Studio host serves besides `/`. */
 const STUDIO_SERVES = [...STUDIO_ONLY, '/_next'];
 /** What belongs to the pharmacy host once it is set (sign-in is `/api/auth`, shared by every product host). */
