@@ -28,6 +28,13 @@ describe('customerLinks', () => {
     expect(links[0]?.url).toBe('https://hive.example.test/pharmacy');
   });
 
+  it('sends a wholesale company to its own system and nowhere else, and gives nothing before that address is set', () => {
+    const url = 'https://wholesales.example.test';
+    expect(customerLinks({ sector: 'WHOLESALE', hasCashier: true, menus: [{ name: 'x', slug: 'x' }], hosts, wholesaleUrl: url })).toEqual([{ kind: 'wholesale', label: null, url }]);
+    expect(customerLinks({ sector: 'WHOLESALE', hasCashier: false, menus: [], hosts, wholesaleUrl: null })).toEqual([]);
+    expect(customerLinks({ sector: 'WHOLESALE', hasCashier: false, menus: [], hosts: { ...hosts, studioHost: null }, wholesaleUrl: url })).toHaveLength(1);
+  });
+
   it('gives nothing when no studio host is configured', () => {
     expect(customerLinks({ sector: 'RESTAURANT', hasCashier: true, menus: [], hosts: { ...hosts, studioHost: null } })).toEqual([]);
   });
@@ -46,6 +53,13 @@ describe('customerMessage', () => {
     for (const link of links) expect(text).toContain(link.url);
     expect(text).toContain('owner@example.test');
     expect(text.toLowerCase()).not.toContain('password:');
+  });
+
+  it('gives a wholesale company its system link only: no sign-in email or password text', () => {
+    const text = customerMessage(customerLinks({ sector: 'WHOLESALE', hasCashier: false, menus: [], hosts, wholesaleUrl: 'https://wholesales.example.test' }), 'owner@example.test');
+    expect(text).toContain('https://wholesales.example.test');
+    expect(text).not.toContain('owner@example.test');
+    expect(text).not.toContain('hive.example.test');
   });
 
   it('is empty when there is nothing to send', () => {

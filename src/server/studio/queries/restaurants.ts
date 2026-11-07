@@ -209,7 +209,7 @@ export const restaurantCustomerLinks = defineQuery({
     if (!ctx.actor.isSuperAdmin) return { links: [] as CustomerLink[], message: '' };
     const restaurantId = restaurantOf(ctx);
     const [restaurant, menus, cashier, owner, invitation] = await Promise.all([
-      ctx.db.restaurant.findUnique({ where: { id: restaurantId }, select: { sector: true } }),
+      ctx.db.restaurant.findUnique({ where: { id: restaurantId }, select: { sector: true, wholesaleLink: { select: { adminUrl: true } } } }),
       ctx.db.menu.findMany({ where: { restaurantId, status: { not: 'ARCHIVED' } }, orderBy: { createdAt: 'asc' }, select: { name: true, slug: true } }),
       cashierSubscriptionOf(ctx.db, restaurantId),
       ctx.db.membership.findFirst({ where: { restaurantId, role: 'OWNER' }, orderBy: { createdAt: 'asc' }, select: { user: { select: { email: true } } } }),
@@ -222,6 +222,7 @@ export const restaurantCustomerLinks = defineQuery({
       hasCashier: cashier !== null && cashier.state !== 'EXPIRED' && cashier.state !== 'CANCELLED',
       menus,
       hosts: { studioHost, pharmacyHost, publicOrigin },
+      wholesaleUrl: restaurant.wholesaleLink?.adminUrl ?? null,
     });
     return { links, message: customerMessage(links, owner?.user.email ?? invitation?.email ?? '') };
   },
