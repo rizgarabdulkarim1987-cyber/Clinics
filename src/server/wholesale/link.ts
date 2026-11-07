@@ -26,3 +26,17 @@ export function normalizeAdminUrl(input: string): string | null | undefined {
   const path = url.pathname.replace(/\/+$/, '');
   return `${url.origin}${path}`;
 }
+
+/** Where a wholesale company's system is when no address of its own is saved: the shared Wholesale host. */
+export const DEFAULT_ADMIN_URL = 'https://wholesales.buzzify.tech';
+
+/**
+ * The address the Studio uses for a company: the one saved for it, else the default (`WHOLESALE_URL` when it is a valid
+ * address, otherwise `DEFAULT_ADMIN_URL`). So the company's link shows up without anyone saving it first; saving an address
+ * of its own replaces it, which is what a second company on its own domain does.
+ */
+export function effectiveAdminUrl(saved: string | null, env: Record<string, string | undefined> = process.env): string {
+  if (saved) return saved;
+  const fromEnv = normalizeAdminUrl(env.WHOLESALE_URL ?? '');
+  return fromEnv ?? DEFAULT_ADMIN_URL;
+}

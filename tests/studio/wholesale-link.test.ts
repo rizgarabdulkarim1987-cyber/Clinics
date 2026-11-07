@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADMIN_URL_MAX, normalizeAdminUrl } from '@/server/wholesale/link';
+import { ADMIN_URL_MAX, DEFAULT_ADMIN_URL, effectiveAdminUrl, normalizeAdminUrl } from '@/server/wholesale/link';
 
 describe('normalizeAdminUrl', () => {
   it('keeps the origin and path of an https address, with no trailing slash, query or fragment', () => {
@@ -18,5 +18,15 @@ describe('normalizeAdminUrl', () => {
       expect(normalizeAdminUrl(bad), bad).toBeUndefined();
     }
     expect(normalizeAdminUrl(`https://a.example.com/${'x'.repeat(ADMIN_URL_MAX)}`)).toBeUndefined();
+  });
+});
+
+describe('effectiveAdminUrl', () => {
+  it('uses the saved address, else WHOLESALE_URL when it is a good address, else the default', () => {
+    expect(effectiveAdminUrl('https://al-noor.example.com', { WHOLESALE_URL: 'https://other.example.com' })).toBe('https://al-noor.example.com');
+    expect(effectiveAdminUrl(null, { WHOLESALE_URL: 'https://other.example.com/' })).toBe('https://other.example.com');
+    expect(effectiveAdminUrl(null, {})).toBe(DEFAULT_ADMIN_URL);
+    expect(effectiveAdminUrl(null, { WHOLESALE_URL: 'http://insecure.example.com' })).toBe(DEFAULT_ADMIN_URL);
+    expect(effectiveAdminUrl(null, { WHOLESALE_URL: '' })).toBe(DEFAULT_ADMIN_URL);
   });
 });

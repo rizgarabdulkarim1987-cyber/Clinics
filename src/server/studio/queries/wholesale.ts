@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { effectiveStatus, isLive } from '@/server/domain/billing/subscriptions';
 import { defineQuery, type QueryContext } from '@/server/studio/framework/query';
 import { StudioError } from '@/server/studio/framework/result';
+import { effectiveAdminUrl } from '@/server/wholesale/link';
 
 type Names = { en: string; ar: string; ckb: string };
 
@@ -81,7 +82,7 @@ export const wholesaleDetail = defineQuery({
     const restaurantId = restaurantOf(ctx);
     const company = await ctx.db.restaurant.findUnique({ where: { id: restaurantId }, select: { id: true, name: true, sector: true, wholesaleLink: true } });
     if (!company || company.sector !== 'WHOLESALE' || !company.wholesaleLink) throw new StudioError('NOT_FOUND');
-    return { id: company.id, name: company.name, adminUrl: company.wholesaleLink.adminUrl, coreBusinessId: company.id, coreApplicationId: 'wholesale' };
+    return { id: company.id, name: company.name, adminUrl: effectiveAdminUrl(company.wholesaleLink.adminUrl), coreBusinessId: company.id, coreApplicationId: 'wholesale' };
   },
 });
 

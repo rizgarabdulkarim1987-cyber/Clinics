@@ -16,6 +16,7 @@ import { profileOf, seesAgencyNotes } from '@/server/studio/services/restaurants
 import { createdBetween, dateField, literal } from '@/server/studio/services/list-filters';
 import type { AssetVariants } from '@/server/media/process';
 import { getStorage } from '@/server/storage/storage';
+import { effectiveAdminUrl } from '@/server/wholesale/link';
 import { thumbKey } from '@/server/studio/services/media';
 
 /**
@@ -222,7 +223,7 @@ export const restaurantCustomerLinks = defineQuery({
       hasCashier: cashier !== null && cashier.state !== 'EXPIRED' && cashier.state !== 'CANCELLED',
       menus,
       hosts: { studioHost, pharmacyHost, publicOrigin },
-      wholesaleUrl: restaurant.wholesaleLink?.adminUrl ?? null,
+      wholesaleUrl: restaurant.wholesaleLink ? effectiveAdminUrl(restaurant.wholesaleLink.adminUrl) : null,
     });
     return { links, message: customerMessage(links, owner?.user.email ?? invitation?.email ?? '') };
   },
