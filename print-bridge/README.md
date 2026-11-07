@@ -2,7 +2,13 @@
 
 A web page cannot talk to a printer directly. This program runs on the till PC and forwards the till's print jobs to the printer. It works with any ESC/POS thermal printer (Epson, Star, Xprinter, Rongta, Bixolon and others) because it passes raw bytes through.
 
-## Install
+## Quick install (recommended)
+
+On each till PC, once: copy this folder to the PC and double-click **install.cmd**. It installs Node.js if it is missing (through Windows' own package manager), copies the bridge to `%LOCALAPPDATA%\BuzzifyPrintBridge`, starts it with Windows and starts it now. No administrator rights are needed.
+
+The bridge already knows the Buzzify hosts (`*.buzzify.tech` and `*.buzzify-menu.online`), so there is no address to type. Another address can still be added with `--origin https://...`. The pharmacy's Print settings then lists the printers it finds on the PC. A printer must be shared in Windows (Printer properties, Sharing) to be used: the list tells you when it is not.
+
+## Install by hand
 
 1. Install Node.js 20 or newer on the till PC.
 2. Copy this folder to the PC.
@@ -17,3 +23,11 @@ The bridge listens on `http://127.0.0.1:9101` (this PC only) and accepts jobs on
 - **USB printer:** install the printer in Windows, then share it (Printer properties, Sharing) with a short name such as `XP80`. In the till's Settings, add a printer with type File and address `\\localhost\XP80`.
 
 Use the Test print button in Settings to check each printer.
+
+## The pharmacy uses the same bridge
+
+The Buzzify Pharmacy prints its receipts and opens its cash drawer through this same program, the same way the restaurant till does. Nothing else to install on a PC that already runs it.
+
+1. In `start-bridge.cmd` the `--origin` must be the address the pharmacy is opened at. If it is a different address than the till's, add a second `--origin https://...` to the same line.
+2. In the pharmacy, open Print settings, name this workstation, and fill in "Receipt printer": the printer address (same forms as above: `192.168.1.50:9100`, or the share name of a USB printer such as `XP80`), the paper width, whether to cut, and the drawer pin (2 or 5; most drawers use 2).
+3. Press "Print a test receipt" and "Open the drawer". When a cash sale is paid, the receipt prints by itself and the drawer opens; a reprint is marked COPY and never opens the drawer.

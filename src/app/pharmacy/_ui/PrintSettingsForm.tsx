@@ -1,10 +1,11 @@
 'use client';
 
-import { CircleAlert, CircleCheck, FileText, Lock, Printer, Save, Tag } from 'lucide-react';
+import { CircleAlert, CircleCheck, FileText, Lock, Printer, Receipt, Save, Tag, Unlock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { setPrintSettings } from '@/app/pharmacy/_actions/print';
+import { bridgeAlive } from '@/app/pos/_ui/print/print-client';
 import {
   DEFAULT_WORKSTATION,
   LABEL_SIZES,
@@ -22,6 +23,7 @@ import { settle } from '@/studio/settle';
 import { Field } from '@/studio/ui/Field';
 import { LabelView } from './LabelView';
 import { labelCss, pageCss } from './print-logic';
+import { draftOfPrinter, listBridgePrinters, openThermalDrawer, printerOfDraft, printThermalTest, type BridgePrinter, type PrinterDraft } from './thermal-print';
 import { phDate } from './ph-date';
 import { phMessage } from './ph-failure';
 import { FIELD, FieldInput, FieldSelect, Note, TOUCH_BTN, TOUCH_PRIMARY } from './sell-parts';
@@ -29,14 +31,16 @@ import { useWorkstation } from './use-workstation';
 import type { Writable } from './WriteBlocked';
 
 const SIDES = ['top', 'right', 'bottom', 'left'] as const;
-type Draft = { paper: WorkstationSettings['paper']; labelSize: WorkstationSettings['labelSize']; showPrice: boolean; margins: Record<(typeof SIDES)[number], string> };
+type Draft = { paper: WorkstationSettings['paper']; labelSize: WorkstationSettings['labelSize']; showPrice: boolean; printer: PrinterDraft; margins: Record<(typeof SIDES)[number], string> };
 
-const draftOf = (s: WorkstationSettings): Draft => ({ paper: s.paper, labelSize: s.labelSize, showPrice: s.showPrice, margins: { top: String(s.marginMm.top), right: String(s.marginMm.right), bottom: String(s.marginMm.bottom), left: String(s.marginMm.left) } });
+const draftOf = (s: WorkstationSettings): Draft => ({ paper: s.paper, labelSize: s.labelSize, showPrice: s.showPrice, printer: draftOfPrinter(s.receiptPrinter), margins: { top: String(s.marginMm.top), right: String(s.marginMm.right), bottom: String(s.marginMm.bottom), left: String(s.marginMm.left) } });
 
 /** The draft as the settings shape, or null while a margin is not a whole number from 0 to 40. */
 function settingsOf(draft: Draft): WorkstationSettings | null {
   const n = (text: string) => (/^\d{1,2}$/.test(text.trim()) ? Number(text.trim()) : Number.NaN);
-  const parsed = workstationSettings.safeParse({ paper: draft.paper, labelSize: draft.labelSize, showPrice: draft.showPrice, marginMm: { top: n(draft.margins.top), right: n(draft.margins.right), bottom: n(draft.margins.bottom), left: n(draft.margins.left) } });
+  const printer = printerOfDraft(draft.printer);
+  if (!printer.ok) return null;
+  const parsed = workstationSettings.safeParse({ paper: draft.paper, labelSize: draft.labelSize, showPrice: draft.showPrice, ...(printer.value ? { receiptPrinter: printer.value } : {}), marginMm: { top: n(draft.margins.top), right: n(draft.margins.right), bottom: n(draft.margins.bottom), left: n(draft.margins.left) } });
   return parsed.success ? parsed.data : null;
 }
 
@@ -62,6 +66,10 @@ export function PrintSettingsForm({ print, version: startVersion, editable, writ
   const [saved, setSaved] = useState(false);
   const [what, setWhat] = useState<'a4' | 'label' | null>(null);
   const [printFailed, setPrintFailed] = useState(false);
+  const [bridge, setBridge] = useState<'unknown' | 'up' | 'down'>('unknown');
+  const [found, setFound] = useState<BridgePrinter[]>([]);
+  const [pickedUnshared, setPickedUnshared] = useState<string | null>(null);
+  const [thermalNote, setThermalNote] = useState<'idle' | 'printing' | 'ok' | 'bridge' | 'printer' | 'drawer'>('idle');
 
   const current = settingsOf(draft);
   const nameOk = workstationName.safeParse(name).success;
@@ -95,6 +103,49 @@ export function PrintSettingsForm({ print, version: startVersion, editable, writ
       setPrintFailed(true);
     }
   };
+
+  const checkBridge = () => {
+    setBridge('unknown');
+    void bridgeAlive().then((up) => {
+      setBridge(up ? 'up' : 'down');
+      if (up) void listBridgePrinters().then(setFound);
+      else setFound([]);
+    });
+  };
+  useEffect(() => {
+    let cancelled = false;
+    void bridgeAlive().then((up) => {
+      if (cancelled) return;
+      setBridge(up ? 'up' : 'down');
+      if (up) {
+        void listBridgePrinters().then((list) => {
+          if (!cancelled) setFound(list);
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const printerNow = printerOfDraft(draft.printer);
+  const thermalSettings: WorkstationSettings | null = current && printerNow.ok && printerNow.value ? { ...current, receiptPrinter: printerNow.value } : null;
+  const thermalBad = draft.printer.address.trim() !== '' && !printerNow.ok;
+  const runThermal = async (what: 'test' | 'drawer') => {
+    if (!thermalSettings) return;
+    setThermalNote('printing');
+    const result = what === 'test' ? await printThermalTest(thermalSettings) : await openThermalDrawer(thermalSettings);
+    setThermalNote(result.ok ? (what === 'drawer' ? 'drawer' : 'ok') : result.reason === 'printer' ? 'printer' : 'bridge');
+  };
+  const chosen = found.find((p) => p.shared && p.shareName === draft.printer.address.trim());
+  const pickFound = (name: string) => {
+    const printer = found.find((p) => p.name === name);
+    if (!printer) return;
+    setPickedUnshared(printer.shared ? null : printer.name);
+    changePrinter({ transport: 'FILE', address: printer.shared ? printer.shareName : '' });
+  };
+  const changePrinter = (patch: Partial<PrinterDraft>) => change({ printer: { ...draft.printer, ...patch } });
+  const thermalDone = thermalNote === 'ok' || thermalNote === 'drawer';
 
   const shown = current ?? DEFAULT_WORKSTATION;
   // A role that only reads is told so by the owner-only note; the lock sentence here is for a lapsed pharmacy and support.
@@ -168,6 +219,83 @@ export function PrintSettingsForm({ print, version: startVersion, editable, writ
             {t('pharmacy.print.labels.showPrice')}
           </label>
         </fieldset>
+
+        <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-2" disabled={!editable || !writable.ok} data-testid="thermal-settings">
+          <legend className="mb-1 text-md font-semibold text-text">{t('pharmacy.print.thermal.title')}</legend>
+          <p className="text-sm text-muted sm:col-span-2">{t('pharmacy.print.thermal.intro')}</p>
+          <Field label={t('pharmacy.print.thermal.connection')}>
+            <FieldSelect className={`${FIELD} pe-8`} value={draft.printer.transport} onChange={(event) => changePrinter({ transport: event.target.value as PrinterDraft['transport'], address: '' })} data-testid="thermal-transport">
+              <option value="NETWORK">{t('pharmacy.print.thermal.network')}</option>
+              <option value="FILE">{t('pharmacy.print.thermal.shared')}</option>
+            </FieldSelect>
+          </Field>
+          {found.length > 0 && (
+            <Field label={t('pharmacy.print.thermal.found')} className="sm:col-span-2" {...(pickedUnshared ? { error: t('pharmacy.print.thermal.notShared') } : {})}>
+              <FieldSelect className={`${FIELD} pe-8`} value={pickedUnshared ?? chosen?.name ?? ''} onChange={(event) => pickFound(event.target.value)} data-testid="thermal-found">
+                <option value="" disabled>
+                  {t('pharmacy.print.thermal.pick')}
+                </option>
+                {found.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </FieldSelect>
+            </Field>
+          )}
+          <Field label={t('pharmacy.print.thermal.address')} hint={t(draft.printer.transport === 'NETWORK' ? 'pharmacy.print.thermal.addressNetwork' : 'pharmacy.print.thermal.addressShared')} {...(thermalBad ? { error: t('pharmacy.print.thermal.addressBad') } : {})}>
+            <FieldInput dir="ltr" className={FIELD} value={draft.printer.address} onChange={(event) => changePrinter({ address: event.target.value })} autoComplete="off" placeholder={draft.printer.transport === 'NETWORK' ? '192.168.1.50:9100' : 'XP80'} data-testid="thermal-address" />
+          </Field>
+          <Field label={t('pharmacy.print.thermal.paper')}>
+            <FieldSelect className={`${FIELD} pe-8`} value={draft.printer.paperWidth} onChange={(event) => changePrinter({ paperWidth: event.target.value as PrinterDraft['paperWidth'] })} data-testid="thermal-paper">
+              <option value="80">{'\u206880 mm\u2069'}</option>
+              <option value="58">{'\u206858 mm\u2069'}</option>
+            </FieldSelect>
+          </Field>
+          <Field label={t('pharmacy.print.thermal.drawer')}>
+            <FieldSelect className={`${FIELD} pe-8`} value={draft.printer.drawerPin} onChange={(event) => changePrinter({ drawerPin: event.target.value as PrinterDraft['drawerPin'] })} data-testid="thermal-drawer-pin">
+              <option value="none">{t('pharmacy.print.thermal.drawerNone')}</option>
+              <option value="2">{t('pharmacy.print.thermal.drawerPin2')}</option>
+              <option value="5">{t('pharmacy.print.thermal.drawerPin5')}</option>
+            </FieldSelect>
+          </Field>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-text">
+            <input type="checkbox" className="size-5" checked={draft.printer.cut} onChange={(event) => changePrinter({ cut: event.target.checked })} data-testid="thermal-cut" />
+            {t('pharmacy.print.thermal.cut')}
+          </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-text sm:col-span-2">
+            <input type="checkbox" className="size-5" checked={draft.printer.drawerOnCash} disabled={draft.printer.drawerPin === 'none'} onChange={(event) => changePrinter({ drawerOnCash: event.target.checked })} data-testid="thermal-drawer-cash" />
+            {t('pharmacy.print.thermal.drawerOnCash')}
+          </label>
+        </fieldset>
+        <div className="flex flex-wrap items-center gap-2" data-testid="thermal-actions">
+          <button type="button" className={TOUCH_BTN} onClick={() => void runThermal('test')} disabled={!thermalSettings || thermalNote === 'printing'} data-testid="thermal-test">
+            <Receipt aria-hidden className="size-4" />
+            {t('pharmacy.print.thermal.test')}
+          </button>
+          <button type="button" className={TOUCH_BTN} onClick={() => void runThermal('drawer')} disabled={!thermalSettings || draft.printer.drawerPin === 'none' || thermalNote === 'printing'} data-testid="thermal-open-drawer">
+            <Unlock aria-hidden className="size-4" />
+            {t('pharmacy.print.thermal.openDrawer')}
+          </button>
+          <button type="button" className={TOUCH_BTN} onClick={checkBridge} data-testid="thermal-check">
+            {t('pharmacy.print.thermal.check')}
+          </button>
+        </div>
+        {bridge !== 'unknown' && (
+          <Note icon={bridge === 'up' ? <CircleCheck aria-hidden /> : <CircleAlert aria-hidden />} tone={bridge === 'up' ? 'success' : 'danger'} role="status" testId={`thermal-bridge-${bridge}`}>
+            {t(bridge === 'up' ? 'pharmacy.print.thermal.bridgeUp' : 'pharmacy.print.thermal.bridgeDown')}
+          </Note>
+        )}
+        {thermalNote !== 'idle' && (
+          <Note
+            icon={thermalDone ? <CircleCheck aria-hidden /> : thermalNote === 'printing' ? <Printer aria-hidden /> : <CircleAlert aria-hidden />}
+            tone={thermalDone ? 'success' : thermalNote === 'printing' ? 'plain' : 'danger'}
+            role="status"
+            testId={`thermal-result-${thermalNote}`}
+          >
+            {t(thermalNote === 'printing' ? 'pharmacy.print.thermal.printing' : thermalNote === 'ok' ? 'pharmacy.print.thermal.printed' : thermalNote === 'drawer' ? 'pharmacy.print.thermal.drawerSent' : thermalNote === 'printer' ? 'pharmacy.print.thermal.failedPrinter' : 'pharmacy.print.thermal.failedBridge')}
+          </Note>
+        )}
 
         {problem && (
           <Note icon={<CircleAlert aria-hidden />} tone="danger" role="alert" testId="print-settings-problem">

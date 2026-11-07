@@ -212,40 +212,19 @@ describe('spaceNav', () => {
     for (const absent of ['cashierOverview', 'menus', 'restaurants', 'media', 'platformIntro']) expect(pharmacy).not.toContain(absent);
   });
 
-  it('keeps Retail free of the cashier, menus, restaurants and pharmacies', () => {
-    const retail = keys(spaceNav('retail'));
-    expect(retail).toEqual(['retailOverview', 'retail', 'retailBilling', 'retailPeople', 'retailAnnouncements', 'retailActivity', 'retailSettings']);
-    for (const absent of ['cashierOverview', 'menus', 'restaurants', 'media', 'platformIntro', 'pharmacies', 'openRetail']) expect(retail).not.toContain(absent);
-  });
-
-  it('keeps Wholesale free of the cashier, menus, restaurants, pharmacies and retail', () => {
-    const wholesale = keys(spaceNav('wholesale'));
-    expect(wholesale).toEqual(['wholesaleOverview', 'wholesale', 'wholesaleBilling', 'wholesalePeople', 'wholesaleAnnouncements', 'wholesaleActivity', 'wholesaleSettings']);
-    for (const absent of ['cashierOverview', 'menus', 'restaurants', 'media', 'platformIntro', 'pharmacies', 'retail', 'openRetail']) expect(wholesale).not.toContain(absent);
-    expect(keys(spaceNav('retail')).filter((key) => key.startsWith('wholesale'))).toEqual([]);
-  });
-
-  it('marks the Wholesale list for a company and the new form, never for a neighbour or the handoff to its own system', () => {
-    const list = spaceNav('wholesale').find((item) => item.key === 'wholesale')!;
-    for (const path of ['/studio/wholesale', '/studio/wholesale/new', '/studio/wholesale/co-1', '/studio/wholesale/co-1/wholesale']) expect(isNavItemActive(list, path), path).toBe(true);
-    for (const path of ['/studio/wholesale/overview', '/studio/wholesale/billing', '/studio/wholesale/settings', '/studio/wholesale/open/co-1']) {
-      expect(isNavItemActive(list, path), path).toBe(false);
+  it('keeps each Retail product free of the cashier, menus, restaurants, pharmacies and the other products', () => {
+    for (const product of ['supermarket', 'electronics', 'clothing'] as const) {
+      const nav = spaceNav(product);
+      expect(keys(nav)).toEqual(['retailOverview', 'retail', 'retailBilling', 'retailPeople', 'retailAnnouncements', 'retailActivity', 'retailSettings']);
+      for (const absent of ['cashierOverview', 'menus', 'restaurants', 'media', 'platformIntro', 'pharmacies', 'openRetail']) expect(keys(nav)).not.toContain(absent);
+      for (const item of nav) expect(item.href.startsWith(`/studio/${product}`), item.href).toBe(true);
     }
   });
 
-  it('gives a Super Admin the Wholesale area right after Retail, and nobody else', () => {
-    const items = visibleNav(actor({ isSuperAdmin: true }));
-    const at = items.findIndex((item) => item.key === 'retail');
-    expect(items[at + 1]).toEqual({ key: 'wholesale', href: '/studio/wholesale', labelKey: 'nav.wholesale', icon: 'wholesale' });
-    for (const memberships of [[{ restaurantId: 'r1', role: 'DESIGNER' as const }], [{ restaurantId: 'r1', role: 'OWNER' as const }], []]) {
-      expect(keys(visibleNav(actor({ memberships })))).not.toContain('wholesale');
-    }
-  });
-
-  it("marks the Retail list for a shop and the new form, never for a neighbour or the owners' handoff", () => {
-    const list = spaceNav('retail').find((item) => item.key === 'retail')!;
-    for (const path of ['/studio/retail', '/studio/retail/new', '/studio/retail/shop-1', '/studio/retail/shop-1/retail']) expect(isNavItemActive(list, path), path).toBe(true);
-    for (const path of ['/studio/retail/overview', '/studio/retail/billing', '/studio/retail/settings', '/studio/retail/choose', '/studio/retail/open/shop-1', '/studio/retail/continue']) {
+  it("marks a product's list for a shop and the new form, never for a neighbour, another product or the owners' handoff", () => {
+    const list = spaceNav('electronics').find((item) => item.key === 'retail')!;
+    for (const path of ['/studio/electronics', '/studio/electronics/new', '/studio/electronics/shop-1', '/studio/electronics/shop-1/retail']) expect(isNavItemActive(list, path), path).toBe(true);
+    for (const path of ['/studio/electronics/overview', '/studio/electronics/billing', '/studio/electronics/settings', '/studio/supermarket', '/studio/clothing/shop-1', '/studio/retail/choose', '/studio/retail/open/shop-1', '/studio/retail/continue']) {
       expect(isNavItemActive(list, path), path).toBe(false);
     }
   });
@@ -255,7 +234,7 @@ describe('spaceNav', () => {
   });
 
   it('puts every item of a space under that space', () => {
-    for (const space of ['food', 'pharmacy', 'retail', 'wholesale', 'platform'] as SpaceId[]) {
+    for (const space of ['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'platform'] as SpaceId[]) {
       for (const item of spaceNav(space)) expect(spaceOfPath(item.href)).toBe(space);
     }
   });
@@ -269,6 +248,28 @@ describe('spaceNav', () => {
 
 describe('openRetailNavItem', () => {
   const owner = actor({ memberships: [{ restaurantId: 'shop-1', role: 'OWNER' }] });
+
+  it('keeps Wholesale free of the cashier, menus, restaurants, pharmacies and retail, and Retail free of Wholesale', () => {
+    const wholesale = keys(spaceNav('wholesale'));
+    expect(wholesale).toEqual(['wholesaleOverview', 'wholesale', 'wholesaleBilling', 'wholesalePeople', 'wholesaleAnnouncements', 'wholesaleActivity', 'wholesaleSettings']);
+    for (const absent of ['cashierOverview', 'menus', 'restaurants', 'media', 'platformIntro', 'pharmacies', 'retail', 'openRetail']) expect(wholesale).not.toContain(absent);
+    for (const product of ['supermarket', 'electronics', 'clothing'] as const) expect(keys(spaceNav(product)).filter((key) => key.startsWith('wholesale'))).toEqual([]);
+  });
+
+  it('marks the Wholesale list for a company and the new form, never for a neighbour or the handoff to its own system', () => {
+    const list = spaceNav('wholesale').find((item) => item.key === 'wholesale')!;
+    for (const path of ['/studio/wholesale', '/studio/wholesale/new', '/studio/wholesale/co-1', '/studio/wholesale/co-1/wholesale']) expect(isNavItemActive(list, path), path).toBe(true);
+    for (const path of ['/studio/wholesale/overview', '/studio/wholesale/billing', '/studio/wholesale/settings', '/studio/wholesale/open/co-1', '/studio/supermarket']) expect(isNavItemActive(list, path), path).toBe(false);
+  });
+
+  it('gives a Super Admin the Wholesale area right after Retail, and nobody else', () => {
+    const items = visibleNav(actor({ isSuperAdmin: true }));
+    const at = items.findIndex((item) => item.key === 'retail');
+    expect(items[at + 1]).toEqual({ key: 'wholesale', href: '/studio/wholesale', labelKey: 'nav.wholesale', icon: 'wholesale' });
+    for (const memberships of [[{ restaurantId: 'r1', role: 'DESIGNER' as const }], [{ restaurantId: 'r1', role: 'OWNER' as const }], []]) {
+      expect(keys(visibleNav(actor({ memberships })))).not.toContain('wholesale');
+    }
+  });
 
   it('takes an owner of one retail shop straight to it, as a plain link (the target is a redirecting Route Handler)', () => {
     expect(openRetailNavItem(owner, [{ id: 'shop-1' }])).toEqual({

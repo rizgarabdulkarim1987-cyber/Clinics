@@ -84,7 +84,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <td className="px-4 py-3">
-                      <Link href={businessPath('WHOLESALE', row.id, 'wholesale')} className="font-medium text-text underline-offset-2 hover:underline">
+                      <Link href={businessPath('wholesale', row.id, 'wholesale')} className="font-medium text-text underline-offset-2 hover:underline">
                         {row.name}
                       </Link>
                       <p className="text-xs text-muted">{formatDate(row.createdAt.toISOString(), actor.locale)}</p>

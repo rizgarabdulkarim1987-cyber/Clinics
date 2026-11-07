@@ -7,7 +7,9 @@ import { searchTextOf } from '@/server/domain/pharmacy/product-identity';
 import { applyMovement } from '@/server/pharmacy/stock';
 import { DEV_DB, databaseUrl } from '../../scripts/db-config';
 import { seriousViolations } from './helpers/axe';
+import { openCashier, stockNoteOf } from './helpers/cashier';
 import { assignMember, createStudioUser, hideDevTools, removeRestaurants, removeStudioUsers, setUserLocale, uniqueClientAddress, type StudioUser } from './helpers/studio';
+import { openRailMore } from './helpers/pharmacy-nav';
 
 /**
  * The transfer screens, end to end: A requests 30 units for B, sends them first-expiry-first across two batches (a double
@@ -152,15 +154,8 @@ async function request(page: Page, otherName: string, productName: string, qty: 
   return idOf(page);
 }
 
-async function openShift(page: Page): Promise<void> {
-  await page.goto('/pharmacy/sell');
-  await expect(page.getByTestId('open-shift').or(page.getByTestId('sell-workspace'))).toBeVisible();
-  if (await page.getByTestId('open-shift').isVisible()) {
-    await page.getByTestId('shift-float').fill('10,000');
-    await page.getByTestId('shift-open').click();
-  }
-  await expect(page.getByTestId('sell-search')).toBeVisible();
-}
+/** Opens the cashier with a shift (opened with 10,000 in the drawer when none is open). */
+const openShift = (page: Page): Promise<void> => openCashier(page);
 
 test.describe.configure({ mode: 'serial' });
 
@@ -282,8 +277,8 @@ test.describe('Pharmacy transfers @desktop', () => {
     await expect(rowA.getByTestId('stock-in-transit')).toContainText('30');
     await expect(rowA.getByTestId('stock-in-transit')).toContainText(B);
     await openShift(a);
-    await a.getByTestId('sell-search').fill(productName);
-    await expect(a.getByTestId('result').filter({ hasText: productName }).getByTestId('sellable-qty')).toContainText('48');
+    // The cashier's suggestion for it says what is sellable here.
+    await expect(await stockNoteOf(a, productName)).toContainText('48');
     await a.context().close();
 
     // B: its turn; nothing of it is sellable at B yet.
@@ -291,9 +286,8 @@ test.describe('Pharmacy transfers @desktop', () => {
     await b.goto('/pharmacy/stock/transfers');
     await expect(b.getByTestId('transfer-row').first()).toContainText('Your turn: receive');
     await openShift(b);
-    await b.getByTestId('sell-search').fill(productName);
-    // Nothing of it is sellable at B yet: the result says out of stock (the 30 on the road are not counted).
-    await expect(b.getByTestId('result').filter({ hasText: productName })).toContainText('Out of stock');
+    // Nothing of it is sellable at B yet: its suggestion says out of stock (the 30 on the road are not counted).
+    await expect(await stockNoteOf(b, productName)).toContainText('Out of stock');
     await b.goto(`/pharmacy/stock/transfers/${id}`);
     await expect(b.getByTestId('transfer-in-transit')).toContainText('30');
     await b.getByTestId('transfer-receive').click();
@@ -327,8 +321,7 @@ test.describe('Pharmacy transfers @desktop', () => {
     await b.goto('/pharmacy/stock');
     await expect(b.getByTestId('stock-row').filter({ hasText: productName })).toContainText('25');
     await openShift(b);
-    await b.getByTestId('sell-search').fill(productName);
-    await expect(b.getByTestId('result').filter({ hasText: productName }).getByTestId('sellable-qty')).toContainText('25');
+    await expect(await stockNoteOf(b, productName)).toContainText('25');
     await b.context().close();
     const a2 = await session(browser, mgrA, shop, A);
     await a2.goto('/pharmacy/stock');
@@ -530,6 +523,8 @@ test.describe('Pharmacy transfers @desktop', () => {
     await till.goto('/pharmacy/stock/transfers');
     await expect(till.getByTestId('transfers-forbidden')).toBeVisible();
     await expect(till.getByTestId('transfer-row')).toHaveCount(0);
+    await openRailMore(till);
+
     await expect(till.getByRole('navigation').getByRole('link', { name: 'Transfers', exact: true })).toHaveCount(0);
     await till.goto(`/pharmacy/stock/transfers/${ids.partial}`);
     await expect(till.getByTestId('transfers-forbidden')).toBeVisible();
@@ -829,7 +824,13 @@ test.describe('Pharmacy transfers @desktop', () => {
     await expect(page.getByTestId('transfer-view')).toBeVisible();
     await expect(page.getByTestId('transfer-sent-line')).toHaveCount(500);
     expect(await scrollsSideways(page)).toBe(false);
-    await page.getByTestId('transfer-receive').click();
+    // 500 lines take a while to hydrate: a click before React attaches its handler is lost, so retry
+    // until the button reports the panel open (it toggles, so click only while it is still closed).
+    const receive = page.getByTestId('transfer-receive');
+    await expect(async () => {
+      if ((await receive.getAttribute('aria-expanded')) !== 'true') await receive.click();
+      await expect(receive).toHaveAttribute('aria-expanded', 'true', { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(page.getByTestId('receive-line')).toHaveCount(500);
     expect(await scrollsSideways(page)).toBe(false);
     await expect(page.getByTestId('receive-summary')).toContainText('5');

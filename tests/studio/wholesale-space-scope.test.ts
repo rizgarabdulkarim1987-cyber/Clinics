@@ -45,7 +45,7 @@ const dataOf = <T>(result: ActionResult<T>): T => {
 const ask = <I, O>(actor: Actor, def: QueryDef<I, O>, input: unknown = {}) => runQuery(prisma(), actor, def, input);
 const act = <I, O>(actor: Actor, def: ActionDef<I, O>, input: unknown) => runAction(prisma(), actor, def, input, { ip: '203.0.113.9', userAgent: 'vitest wholesale' });
 const codeOf = (result: ActionResult<unknown>) => (result.ok ? 'OK' : result.error.code);
-const ALL_SPACES: BusinessSpace[] = ['food', 'pharmacy', 'retail', 'wholesale'];
+const ALL_SPACES: BusinessSpace[] = ['food', 'pharmacy', 'supermarket', 'wholesale'];
 
 let admin: Actor;
 let staff: Actor;
@@ -105,7 +105,7 @@ describe('the Wholesale space', () => {
     const wholesale = dataOf(await ask(admin, billingQueries.billingRestaurants, { space: 'wholesale' }));
     expect(wholesale.rows.map((row) => row.name)).toEqual(['Company Delta']);
     expect(wholesale.applications.map((app) => app.id)).toEqual(['wholesale']);
-    for (const space of ['food', 'pharmacy', 'retail'] as const) {
+    for (const space of ['food', 'pharmacy', 'supermarket'] as const) {
       const other = dataOf(await ask(admin, billingQueries.billingRestaurants, { space }));
       expect(other.rows.map((row) => row.name)).not.toContain('Company Delta');
       expect(other.applications.map((app) => app.id)).not.toContain('wholesale');
@@ -126,7 +126,7 @@ describe('the Wholesale space', () => {
   it('counts, searches, picks and lists the people of its companies only', async () => {
     expect(dataOf(await ask(admin, overviewQueries.overview, { space: 'wholesale' })).restaurants.ACTIVE).toBe(1);
     expect(dataOf(await ask(admin, searchQueries.jump, { q: 'a', space: 'wholesale' })).restaurants.map((row) => row.name)).toEqual(['Company Delta']);
-    for (const space of ['food', 'pharmacy', 'retail'] as const) {
+    for (const space of ['food', 'pharmacy', 'supermarket'] as const) {
       expect(dataOf(await ask(admin, searchQueries.jump, { q: 'a', space })).restaurants.map((row) => row.name)).not.toContain('Company Delta');
       expect(dataOf(await ask(admin, peopleQueries.listPeople, { space })).rows.map((row) => row.userId)).not.toContain('company-owner');
     }
@@ -142,7 +142,7 @@ describe('the Wholesale space', () => {
   });
 
   it('refuses a write through the wrong space as not found, and writes nothing', async () => {
-    for (const space of ['food', 'pharmacy', 'retail'] as const) {
+    for (const space of ['food', 'pharmacy', 'supermarket'] as const) {
       expect(codeOf(await act(admin, restaurantActions.setRestaurantStatus, { restaurantId: company.id, status: 'SUSPENDED', space }))).toBe('NOT_FOUND');
     }
     for (const other of [cafe, clinic, shop]) {
@@ -182,9 +182,9 @@ describe('every audit row is in exactly one space, Wholesale included', () => {
     const all = (await prisma().auditLog.findMany({ select: { id: true } })).map((row) => row.id).sort();
     const bySpace = await Promise.all(ALL_SPACES.map(async (space) => prisma().auditLog.findMany({ where: await auditSpaceWhere(prisma(), space), select: { id: true, entityId: true } })));
     expect(bySpace.flat().map((row) => row.id).sort()).toEqual(all);
-    const [food, pharmacy, retail, wholesale] = bySpace.map((rows) => rows.map((row) => row.entityId).sort());
+    const [food, pharmacy, supermarket, wholesale] = bySpace.map((rows) => rows.map((row) => row.entityId).sort());
     expect(wholesale).toEqual([notes[3]!.id, wholesalePlan.id, company.id, company.id].sort());
-    expect(retail).toEqual([notes[2]!.id, retailPlan.id, shop.id].sort());
+    expect(supermarket).toEqual([notes[2]!.id, retailPlan.id, shop.id].sort());
     expect(pharmacy).toEqual([notes[1]!.id, pharmacyPlan.id].sort());
     expect(food).toEqual([notes[0]!.id, cafe.id, 'gone'].sort());
   });

@@ -29,8 +29,8 @@ import wholesaleAr from '@/studio/messages/wholesale/ar';
 import wholesaleCkb from '@/studio/messages/wholesale/ckb';
 import wholesaleEn from '@/studio/messages/wholesale/en';
 import { spaceNav } from '@/studio/nav';
-import { RETAIL_WORDS, retailTwin, spaceActions, spaceT, WHOLESALE_WORDS, wholesaleTwin } from '@/studio/space-words';
-import type { SpaceId } from '@/studio/spaces';
+import { PRODUCT_WORDS, productTwin, RETAIL_WORDS, retailTwin, spaceActions, spaceT, wholesaleTwin } from '@/studio/space-words';
+import { RETAIL_SPACE_IDS, type RetailSpaceId, type SpaceId } from '@/studio/spaces';
 
 /**
  * The word guard: inside a space of the Super Admin hub nothing may name another product. Retail shows no restaurant,
@@ -47,16 +47,19 @@ const NOT_RETAIL = [
   /مطعم|مطاعم|القوائم|منيو|كاشير|الصندوق|مطبخ|ضيوف|الضيف|صيدل|الوصفات|وصفة/,
   /ڕێستۆران|مینیو|مێنو|کاشێر|قاسە|چێشتخانە|میوان|دەرمانخانە|ڕیسێت/,
 ];
+/** Each Retail product, as it names itself in each language: no product's space may name another. */
+const PRODUCT_NAMES: Record<RetailSpaceId, readonly RegExp[]> = {
+  supermarket: [/supers?markets?/i, /سوبر ?ماركت/, /سوپەرمارکێت/],
+  electronics: [/electronics?/i, /إلكترونيات|الإلكترونيات/, /ئەلیکترۆنیات/],
+  clothing: [/cloth(es|ing)/i, /ملابس|الملابس/, /جلوبەرگ/],
+};
+const otherProducts = (space: RetailSpaceId) => RETAIL_SPACE_IDS.filter((other) => other !== space).flatMap((other) => PRODUCT_NAMES[other]);
+/** A product's own keys and another's: `hub.<product>` and `<product>.as.*`. */
+const ofProduct = (key: string, product: RetailSpaceId) => key === `hub.${product}` || key.startsWith(`${product}.as.`);
+/** "Retail shop", the old single product's name for a shop: a product calls its shops by its own name. */
+const RETAIL_SHOP = [/retail shops?/i, /محلات? تجزئة|محل التجزئة/, /دوکانی تاکە فرۆشی|دوکانێکی تاکە فرۆشی/];
 /** Retail, as the Retail space names itself. */
-// "الجملة" is also the Arabic word for "the sentence" (the pharmacy's intake text says "the sentence written on the file"), so it
-// only counts as Wholesale when it is not that.
-const WHOLESALE_AR = /الجملة(?!\s*المكتوبة)|شركات? جملة|باقات? جملة/;
-const NOT_OTHERS = [/\bretails?\b/i, /تجزئة|التجزئة/, /تاکە فرۆشی/, /\bwholesale\b/i, WHOLESALE_AR, /کۆفرۆشی/];
-
-/** What the Wholesale space may not name: another product (Retail too), as each language says it. */
-const NOT_WHOLESALE = [...NOT_RETAIL, /\bretails?\b/i, /تجزئة|التجزئة/, /تاکە فرۆشی/];
-/** Wholesale, as the Wholesale space names itself: what Retail, Menu and Cashier and the Pharmacy never show. */
-const NOT_WHOLESALE_OTHERS = [/\bwholesale\b/i, WHOLESALE_AR, /کۆفرۆشی/];
+const NOT_OTHERS = [/\bretails?\b/i, /تجزئة|التجزئة/, /تاکە فرۆشی/];
 
 const offending = (text: string, words: readonly RegExp[]) => words.find((word) => word.test(text))?.source ?? null;
 
@@ -106,54 +109,80 @@ const RETAIL_SHARED = [
   'billingSettings.emptyTitle',
 ];
 
-describe('the Retail space', () => {
-  it('has a Retail twin of every shared text it swaps, in every language', () => {
+describe.each(RETAIL_SPACE_IDS)('the %s space', (product) => {
+  const retailKeys = keysOf(retailEn, retailAr, retailCkb).filter((key) => !RETAIL_SPACE_IDS.some((other) => ofProduct(key, other)));
+  const shown = [...retailKeys, ...RETAIL_WORDS, ...navKeys(product), ...actionKeys(product), ...RETAIL_SHARED, `hub.${product}`];
+
+  it('has a Retail twin of every shared text it swaps, and its own text of every text it renames, in every language', () => {
     for (const locale of LOCALES) {
       const t = getStudioTranslator(locale);
       for (const key of RETAIL_WORDS) expect(t(retailTwin(key)), `${locale} ${retailTwin(key)}`).not.toBe(retailTwin(key));
+      for (const key of PRODUCT_WORDS) expect(t(productTwin(product, key)), `${locale} ${productTwin(product, key)}`).not.toBe(productTwin(product, key));
+      expect(t(`hub.${product}`)).not.toBe(`hub.${product}`);
     }
   });
 
-  it('reads a shared text as its twin, and leaves the other spaces their own words', () => {
+  it('reads a shared text as its twin, a renamed text as its own, and leaves the other spaces their own words', () => {
     const t = getStudioTranslator('en');
-    expect(spaceT(t, 'retail')('billingList.restaurant')).toBe(t(retailTwin('billingList.restaurant')));
+    expect(spaceT(t, product)('billingList.restaurant')).toBe(t(retailTwin('billingList.restaurant')));
+    expect(spaceT(t, product)('retail.new')).toBe(t(productTwin(product, 'retail.new')));
+    expect(spaceT(t, product)('announcements.description')).toBe(t(productTwin(product, retailTwin('announcements.description'))));
     for (const space of ['food', 'pharmacy', 'platform', null] as const) expect(spaceT(t, space)('billingList.restaurant')).toBe(t('billingList.restaurant'));
   });
 
   it('names no other product in its own messages, its twins, its navigation, its actions or the shared texts it shows', () => {
-    const keys = [...keysOf(retailEn, retailAr, retailCkb), ...RETAIL_WORDS, ...navKeys('retail'), ...actionKeys('retail'), ...RETAIL_SHARED];
-    expect(violations('retail', keys, NOT_RETAIL)).toEqual([]);
+    expect(violations(product, shown, NOT_RETAIL)).toEqual([]);
+  });
+
+  it('never shows another Retail product’s words, nor calls its shops “retail shops”', () => {
+    expect(violations(product, shown, otherProducts(product))).toEqual([]);
+    expect(violations(product, [...PRODUCT_WORDS, ...navKeys(product), 'restaurants.sector.RETAIL'], RETAIL_SHOP)).toEqual([]);
+  });
+
+  it('names itself in its list, its new shop and its businesses’ sector', () => {
+    for (const locale of LOCALES) {
+      const t = spaceT(getStudioTranslator(locale), product);
+      for (const key of ['retail.title', 'retail.new', 'restaurants.sector.RETAIL', 'nav.retail']) {
+        expect(PRODUCT_NAMES[product].some((name) => name.test(t(key))), `${locale} ${key}: ${t(key)}`).toBe(true);
+      }
+    }
   });
 
   it('offers only its own actions in the activity filter: no menu, till or pharmacy work', () => {
-    const actions = spaceActions('retail');
+    const actions = spaceActions(product);
     expect(actions).toContain('retail.resync');
     expect(actions).toContain('restaurant.status_changed');
-    expect(actions.filter((action) => /^(menu|pos|support|design|product|category)\./.test(action))).toEqual([]);
+    expect(actions.filter((action) => /^(menu|pos|support|design|product|category)./.test(action))).toEqual([]);
   });
 });
 
-/** The shared texts the Wholesale space renders as they are (audited: they name no other product). */
-const WHOLESALE_SHARED = RETAIL_SHARED.map((key) => key.replace('retail', 'wholesale').replace('RETAIL', 'WHOLESALE'));
+/** Wholesale names no other product, Retail's three included, in any language. */
+const NOT_WHOLESALE = [...NOT_RETAIL, ...NOT_OTHERS, ...RETAIL_SHOP, ...RETAIL_SPACE_IDS.flatMap((product) => PRODUCT_NAMES[product])];
+/** Wholesale, as the Wholesale space names itself: what no other space shows. */
+const NOT_OTHERS_WHOLESALE = [/\bwholesale\b/i, /الجملة(?! الأخيرة)/, /کۆفرۆشی/];
+/** The shared texts the Wholesale space renders as they are: the Retail space's, with its own hub name. */
+const WHOLESALE_SHARED = RETAIL_SHARED.map((key) => key.replace('hub.retail', 'hub.wholesale').replace('restaurants.tabs.retail', 'restaurants.tabs.wholesale').replace('restaurants.sector.RETAIL', 'restaurants.sector.WHOLESALE'));
 
 describe('the Wholesale space', () => {
   it('has a Wholesale twin of every shared text it swaps, in every language', () => {
     for (const locale of LOCALES) {
       const t = getStudioTranslator(locale);
-      for (const key of WHOLESALE_WORDS) expect(t(wholesaleTwin(key)), `${locale} ${wholesaleTwin(key)}`).not.toBe(wholesaleTwin(key));
+      for (const key of RETAIL_WORDS) expect(t(wholesaleTwin(key)), `${locale} ${wholesaleTwin(key)}`).not.toBe(wholesaleTwin(key));
+      expect(t('hub.wholesale')).not.toBe('hub.wholesale');
     }
   });
 
-  it('reads a shared text as its Wholesale twin there, as its Retail twin in Retail, and leaves the others their own words', () => {
+  it('reads a shared text as its Wholesale twin there, and leaves every other space its own words', () => {
     const t = getStudioTranslator('en');
     expect(spaceT(t, 'wholesale')('billingList.restaurant')).toBe(t(wholesaleTwin('billingList.restaurant')));
     expect(spaceT(t, 'wholesale')('billingList.restaurant')).toBe('Company');
-    expect(spaceT(t, 'retail')('billingList.restaurant')).toBe(t(retailTwin('billingList.restaurant')));
-    for (const space of ['food', 'pharmacy', 'platform', null] as const) expect(spaceT(t, space)('billingList.restaurant')).toBe(t('billingList.restaurant'));
+    for (const space of ['food', 'pharmacy', 'supermarket', 'platform', null] as const) expect(spaceT(t, space)('billingList.restaurant')).not.toBe('Company');
+    // Already in the Wholesale words: kept.
+    expect(spaceT(spaceT(t, 'wholesale'), 'wholesale')('billingList.restaurant')).toBe('Company');
   });
 
   it('names no other product in its own messages, its twins, its navigation, its actions or the shared texts it shows', () => {
-    const keys = [...keysOf(wholesaleEn, wholesaleAr, wholesaleCkb), ...WHOLESALE_WORDS, ...navKeys('wholesale'), ...actionKeys('wholesale'), ...WHOLESALE_SHARED];
+    const keys = [...keysOf(wholesaleEn, wholesaleAr, wholesaleCkb), ...RETAIL_WORDS.map(wholesaleTwin), ...navKeys('wholesale'), ...actionKeys('wholesale'), ...WHOLESALE_SHARED, 'hub.wholesale'];
     expect(violations('wholesale', keys, NOT_WHOLESALE)).toEqual([]);
   });
 
@@ -164,11 +193,27 @@ describe('the Wholesale space', () => {
     expect(actions.filter((action) => /^(menu|pos|support|design|product|category|retail|branch)\./.test(action))).toEqual([]);
   });
 
-  it('is named by no other space: Retail, Menu and Cashier and the Pharmacy show no Wholesale', () => {
-    const retail = [...keysOf(retailEn, retailAr, retailCkb), ...RETAIL_WORDS, ...navKeys('retail'), ...actionKeys('retail'), 'hub.retail'];
-    expect(violations('retail', retail, NOT_WHOLESALE_OTHERS)).toEqual([]);
-    for (const space of ['food', 'pharmacy'] as const) expect(spaceActions(space).filter((action) => action.startsWith('wholesale.'))).toEqual([]);
-    expect(spaceActions('retail').filter((action) => action.startsWith('wholesale.'))).toEqual([]);
+  it('is named by no other space: Menu and Cashier, the Pharmacy and the Retail products show no Wholesale', () => {
+    for (const product of RETAIL_SPACE_IDS) {
+      const shown = [...keysOf(retailEn, retailAr, retailCkb).filter((key) => !RETAIL_SPACE_IDS.some((other) => ofProduct(key, other))), ...RETAIL_WORDS, ...navKeys(product), ...actionKeys(product), `hub.${product}`];
+      expect(violations(product, shown, NOT_OTHERS_WHOLESALE), product).toEqual([]);
+    }
+    expect(violations('food', [...navKeys('food'), ...actionKeys('food'), 'hub.food'], NOT_OTHERS_WHOLESALE)).toEqual([]);
+    expect(violations('pharmacy', [...navKeys('pharmacy'), ...actionKeys('pharmacy'), 'hub.pharmacy'], NOT_OTHERS_WHOLESALE)).toEqual([]);
+    for (const space of ['food', 'pharmacy', ...RETAIL_SPACE_IDS] as const) expect(spaceActions(space).filter((action) => action.startsWith('wholesale.'))).toEqual([]);
+  });
+
+  it('wraps every client screen inside the space in SpaceWords, and its server screens translate with spaceT', () => {
+    const read = (relative: string) => readFileSync(path.join(process.cwd(), 'src/app/studio/(studio)/(app)', relative), 'utf8');
+    expect(read('wholesale/(space)/layout.tsx')).toContain('<SpaceWords space="wholesale">{children}</SpaceWords>');
+    expect(read('wholesale/(space)/overview/page.tsx')).toContain('spaceT(');
+    function Probe() {
+      return createElement('span', null, `${useT()('billingList.restaurant')}|${useT()('common.save')}`);
+    }
+    const html = renderToStaticMarkup(
+      createElement(StudioI18nProvider, { locale: 'en', messages: clientMessages('en') } as never, createElement(SpaceWords, { space: 'wholesale' } as never, createElement(Probe))),
+    );
+    expect(html).toContain('Company|Save');
   });
 });
 
@@ -180,8 +225,6 @@ describe('Menu and Cashier and the Pharmacy', () => {
   it('name no Retail in their navigation, their actions or their own messages', () => {
     const food = [...navKeys('food'), ...actionKeys('food'), ...keysOf(posTillEn, posTillAr, posTillCkb, posStockEn, posStockAr, posStockCkb, posAiEn, posAiAr, posAiCkb, salesDishesEn, salesDishesAr, salesDishesCkb), 'hub.food'];
     expect(violations('food', food, NOT_OTHERS)).toEqual([]);
-    const pharmacyAndFood = [...navKeys('food'), ...actionKeys('food'), 'hub.food'];
-    expect(violations('food', pharmacyAndFood, NOT_WHOLESALE_OTHERS)).toEqual([]);
     const pharmacy = [...navKeys('pharmacy'), ...actionKeys('pharmacy'), ...keysOf(pharmacyEn, pharmacyAr, pharmacyCkb), 'hub.pharmacy'];
     expect(violations('pharmacy', pharmacy, NOT_OTHERS)).toEqual([]);
   });
@@ -200,21 +243,19 @@ describe('the screens shared by the spaces', () => {
       'activity/ActivityFilters.tsx',
       'announcements/AnnouncementsList.tsx',
       'billing/BillingList.tsx',
-      'retail/(space)/overview/page.tsx',
-      'wholesale/(space)/overview/page.tsx',
+      '[product]/overview/page.tsx',
+      '[product]/page.tsx',
+      '[product]/new/page.tsx',
+      '[product]/settings/page.tsx',
     ]) {
       expect(read(file), file).toContain('spaceT(');
     }
   });
 
   it('and every client screen inside the Retail space, or inside a retail shop, through SpaceWords', () => {
-    expect(read('retail/(space)/layout.tsx')).toContain('<SpaceWords space="retail">{children}</SpaceWords>');
-    expect(read('restaurants/[id]/BusinessLayout.tsx')).toContain('<SpaceWords space={spaceOfSector(restaurant.sector)}>{children}</SpaceWords>');
+    expect(read('[product]/layout.tsx')).toContain('<SpaceWords space={product}>{children}</SpaceWords>');
+    expect(read('restaurants/[id]/BusinessLayout.tsx')).toContain('<SpaceWords space={spaceOfSector(restaurant.sector, restaurant.retailActivity)}>{children}</SpaceWords>');
     expect(readFileSync(path.join(process.cwd(), 'src/studio/shell/JumpTo.tsx'), 'utf8')).toContain('<SpaceWords space=');
-  });
-
-  it('and every client screen inside the Wholesale space through SpaceWords', () => {
-    expect(read('wholesale/(space)/layout.tsx')).toContain('<SpaceWords space="wholesale">{children}</SpaceWords>');
   });
 
   it('SpaceWords swaps a shared key for its Retail twin for the client components inside, and nothing else', () => {
@@ -223,9 +264,15 @@ describe('the screens shared by the spaces', () => {
     }
     const html = (space: SpaceId) =>
       renderToStaticMarkup(createElement(StudioI18nProvider, { locale: 'en', messages: clientMessages('en') } as never, createElement(SpaceWords, { space } as never, createElement(Probe))));
-    expect(html('retail')).toContain('Shop|Save');
-    expect(html('wholesale')).toContain('Company|Save');
+    for (const product of RETAIL_SPACE_IDS) expect(html(product)).toContain('Shop|Save');
     expect(html('food')).toContain('Restaurant|Save');
+  });
+
+  it("keeps a product's words when a screen inside it only knows the sector (an Electronics shop is never a supermarket)", () => {
+    const t = getStudioTranslator('en');
+    const electronics = spaceT(t, 'electronics');
+    expect(spaceT(electronics, 'supermarket')('restaurants.sector.RETAIL')).toBe('Electronics shop');
+    expect(spaceT(electronics, 'supermarket')('billingList.restaurant')).toBe(t(retailTwin('billingList.restaurant')));
   });
 
   it('show a retail shop no till staff and no menu permissions', () => {
@@ -238,8 +285,8 @@ describe('the screens shared by the spaces', () => {
   it("show a retail shop's profile no restaurant type, and the Retail space's activity no menu column or filter", () => {
     expect(read('restaurants/[id]/page.tsx')).toContain('sector={restaurant.sector}');
     expect(read('restaurants/RestaurantForm.tsx')).toMatch(/showType=\{sector === 'FOOD'\}/);
-    expect(read('activity/ActivityList.tsx')).toContain("space !== 'retail'");
-    expect(read('activity/ActivityFilters.tsx')).toContain("space !== 'retail'");
+    expect(read('activity/ActivityList.tsx')).toContain('const withMenu = !isRetailSpace(space);');
+    expect(read('activity/ActivityFilters.tsx')).toContain('{!isRetailSpace(space) && (');
     expect(read('activity/ActivityFilters.tsx')).toContain('spaceActions(space)');
   });
 });

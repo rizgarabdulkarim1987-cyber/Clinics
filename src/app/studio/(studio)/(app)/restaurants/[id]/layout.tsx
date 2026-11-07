@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { REQUEST_PATH_HEADER } from '@/server/http/request-path';
 import { getActor } from '@/server/studio/auth/actor';
 import { SIGN_IN_PATH } from '@/server/studio/framework/invoke';
-import { businessPath, movedBusinessAddressOf, pharmacyAddressOf } from '@/studio/spaces';
+import { businessPath, movedBusinessAddressOf, pharmacyAddressOf, spaceOfBusiness } from '@/studio/spaces';
 import { BusinessLayout } from './BusinessLayout';
 import { loadRestaurant } from './load';
 
@@ -21,12 +21,14 @@ export default async function RestaurantLayout({ children, params }: { children:
     redirect(target ?? `/studio/pharmacy/${restaurant.id}`);
   }
   if (actor.isSuperAdmin && restaurant.sector === 'RETAIL') {
-    const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, 'RETAIL');
-    redirect(target ?? businessPath('RETAIL', restaurant.id));
+    // In the space of the shop's own Retail product.
+    const space = spaceOfBusiness(restaurant.sector, restaurant.retailActivity);
+    const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, space);
+    redirect(target ?? businessPath(space, restaurant.id));
   }
   if (actor.isSuperAdmin && restaurant.sector === 'WHOLESALE') {
-    const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, 'WHOLESALE');
-    redirect(target ?? businessPath('WHOLESALE', restaurant.id));
+    const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, 'wholesale');
+    redirect(target ?? businessPath('wholesale', restaurant.id));
   }
   return (
     <BusinessLayout space="food" params={params}>
