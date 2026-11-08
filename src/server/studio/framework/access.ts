@@ -5,6 +5,8 @@ import { effectivePermissions, parsePolicy, PERMISSIONS, type Permission } from 
 import { canPh, PH_PERMISSIONS, type PhPermission } from '@/server/domain/pharmacy/permissions';
 import { supportReadScope } from '@/server/domain/pharmacy/support-grant';
 import { canPos, POS_PERMISSIONS, type PosPermission } from '@/server/domain/pos/permissions';
+import { canWh, WH_PERMISSIONS, type WhPermission } from '@/server/domain/wholesale/permissions';
+import { resolveWhActor, whGate, type WhActor, type WhGate } from '@/server/wholesale/actor';
 import { phGate, resolvePhActor, type PhActor, type PhGate } from '@/server/pharmacy/actor';
 import { posGate, resolvePosActor, type PosActor } from '@/server/pos/actor';
 import type { Actor } from '@/server/studio/auth/actor';
@@ -31,16 +33,20 @@ export type Target =
   | { kind: 'menu'; menuId: string }
   | { kind: 'self' }
   | { kind: 'pos'; catalog?: boolean }
-  | { kind: 'ph'; restaurantId: string; branchId?: string };
+  | { kind: 'ph'; restaurantId: string; branchId?: string }
+  | { kind: 'wh'; restaurantId: string };
 
 export type PosTarget = Extract<Target, { kind: 'pos' }>;
 
 export type PhTarget = Extract<Target, { kind: 'ph' }>;
 
+/** One wholesale company: the person's identity there comes from their membership or staff row for that company alone. */
+export type WhTarget = Extract<Target, { kind: 'wh' }>;
+
 export type SelfTarget = Extract<Target, { kind: 'self' }>;
 
 /** Every target whose Studio permission is checked: all of them but `self`, `pos` and `ph`. */
-export type CheckedTarget = Exclude<Target, SelfTarget | PosTarget | PhTarget>;
+export type CheckedTarget = Exclude<Target, SelfTarget | PosTarget | PhTarget | WhTarget>;
 
 /** What a definition requires: a permission key, `'view'` (queries: Super Admin or member), or nothing (`self` only). */
 export type Requirement = Permission | 'view' | null;
@@ -56,6 +62,8 @@ export interface Access {
   pos?: PosActor | null;
   /** Who works in the pharmacy, on a `ph` target; null otherwise. */
   ph?: PhActor | null;
+  /** Who works in the wholesale company, on a `wh` target; null otherwise. */
+  wh?: WhActor | null;
 }
 
 /** The parts of an action or query definition the checks read. */
@@ -70,7 +78,9 @@ export interface Guarded<I> {
   allowLapsed?: true;
   /** A pharmacy permission instead of a Studio one: the target is then `ph`, and `permission` is null. */
   ph?: PhPermission;
-  /** A pharmacy action that still runs while the pharmacy is read-only (a lapsed subscription); queries always do. */
+  /** A wholesale permission instead of a Studio one: the target is then `wh`, and `permission` is null. */
+  wh?: WhPermission;
+  /** A pharmacy or wholesale action that still runs while the business is read-only (a lapsed subscription); queries always do. */
   allowReadOnly?: true;
   /** A feature the target restaurant's plan must include, checked after the permission. */
   feature?: FeatureKey;
@@ -109,6 +119,7 @@ export function checkDefinition(
     pos?: unknown;
     allowLapsed?: unknown;
     ph?: unknown;
+    wh?: unknown;
     allowReadOnly?: unknown;
     allowWithoutTwoFactor?: unknown;
     feature?: unknown;
@@ -128,9 +139,23 @@ export function checkDefinition(
   if (def.allowLapsed !== undefined && (def.allowLapsed !== true || def.pos === undefined)) {
     throw new Error(`${label} allows a lapsed subscription, which only a till definition (pos) can`);
   }
-  if (def.allowReadOnly !== undefined && (def.allowReadOnly !== true || def.ph === undefined)) {
-    throw new Error(`${label} sets allowReadOnly, which only a pharmacy definition (ph) can`);
+  if (def.allowReadOnly !== undefined && (def.allowReadOnly !== true || (def.ph === undefined && def.wh === undefined))) {
+    throw new Error(`${label} sets allowReadOnly, which only a pharmacy (ph) or wholesale (wh) definition can`);
   }
+  if (def.wh !== undefined) {
+    if (def.pos !== undefined || def.ph !== undefined) throw new Error(`${label} names a wholesale permission with another kind`);
+    if (typeof def.wh !== 'string' || !(WH_PERMISSIONS as readonly string[]).includes(def.wh)) {
+      throw new Error(`${label} names an unknown wholesale permission: ${String(def.wh)}`);
+    }
+    if (def.permission !== null) throw new Error(`${label} names a wholesale permission, so its Studio permission is null`);
+    if (def.feature !== undefined) throw new Error(`${label} needs a feature, which a wholesale target has no plan for`);
+    if (def.allowWithoutTwoFactor !== undefined && def.allowWithoutTwoFactor !== false) {
+      throw new Error(`${label} sets allowWithoutTwoFactor, which a wholesale definition never may`);
+    }
+    if (probeKind(def.target) !== 'wh') throw new Error(`${label} names a wholesale permission, which is only allowed with a wh target`);
+    return;
+  }
+  if (probeKind(def.target) === 'wh') throw new Error(`${label} names the wh target, which needs a wholesale permission (wh)`);
   if (def.ph !== undefined) {
     if (def.pos !== undefined) throw new Error(`${label} names both a till and a pharmacy permission`);
     if (typeof def.ph !== 'string' || !(PH_PERMISSIONS as readonly string[]).includes(def.ph)) {
@@ -380,6 +405,38 @@ export async function resolvePhAccess(
   return { restaurantId: phActor.restaurantId, menuId: null, permissions: new Set(), plan: null, ph: phActor };
 }
 
+/** The client a `wh` definition works through: confined to the actor's company. */
+export function whScopedClient(prisma: PrismaClient, wh: WhActor): ScopedClient {
+  return scopedClient(prisma, { restaurantId: wh.restaurantId });
+}
+
+/**
+ * The wholesale check, for a `wh` target. The person's role in the target's company comes from the database (`resolveWhActor` for
+ * that `restaurantId` only), and the company must not be closed (`whGate`); while it is read-only only work that `allowReadOnly` passes
+ * runs. Every refusal answers `FORBIDDEN` alike, so the answer never tells what exists. A Super Admin has no wholesale identity.
+ */
+export async function resolveWhAccess(
+  prisma: PrismaClient,
+  actor: Actor,
+  required: WhPermission,
+  target: WhTarget,
+  allowReadOnly: boolean,
+): Promise<Access | { ok: false; error: StudioFailure }> {
+  if ((target as { kind?: unknown } | null)?.kind !== 'wh') throw new Error('resolveWhAccess: the target is not wh');
+  const restaurantId: unknown = (target as { restaurantId?: unknown }).restaurantId;
+  if (typeof restaurantId !== 'string' || restaurantId === '') return failure('FORBIDDEN');
+  const now = new Date();
+  const whActor = await resolveWhActor(prisma, actor.userId, restaurantId);
+  if (!whActor) return failure('FORBIDDEN');
+  const gate = await whGate(prisma, whActor.restaurantId, now);
+  if (gate.state === 'closed') return failure('FORBIDDEN');
+  if (gate.state === 'readOnly' && !allowReadOnly) return failure('FORBIDDEN');
+  if (!canWh(whActor.role, required)) return failure('FORBIDDEN');
+  return { restaurantId: whActor.restaurantId, menuId: null, permissions: new Set(), plan: null, wh: whActor };
+}
+
+export type { WhGate };
+
 /**
  * The client a `ph` definition works through: confined to the actor's pharmacy, and its branch-scoped models to the
  * actor's branches (every branch of it for an all-branches actor). `ctx.transaction` of a ph action runs on this client,
@@ -411,7 +468,9 @@ export async function admit<I>(
 
   const isQuery = def.kind === 'query';
   const access =
-    def.ph !== undefined
+    def.wh !== undefined
+      ? await resolveWhAccess(prisma, actor, def.wh, def.target(parsed.data) as WhTarget, isQuery || def.allowReadOnly === true)
+      : def.ph !== undefined
       ? await resolvePhAccess(
           prisma,
           actor,

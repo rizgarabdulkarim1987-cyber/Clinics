@@ -36,7 +36,7 @@ export const MENU_SCOPED_MODELS = [
 ] as const;
 
 /** Rows that belong to one restaurant and carry a required `restaurantId`. */
-export const RESTAURANT_SCOPED_MODELS = ['Branch', 'PosSettings', 'PosStaff', 'PosKitchenSection', 'PosPrinter', 'PosCategorySetting', 'PosProductSetting', 'PosArea', 'PosTable', 'PosOrder', 'PosOrderLine', 'PosPayment', 'PosShift', 'PosCashExpense', 'PosCustomerOrder', 'PosCustomerOrderLine', 'PosBillCall', 'PosLoyaltyCard', 'PosLoyaltyStamp', 'PosDeliveryZone', 'PosDriver', 'PosSyncOperation', 'PosPaymentReversal', 'PosCounter', 'PosPaymentLeg', 'PosSharedDevice', 'PosPinAttempt', 'PosInventoryItem', 'PosSupplier', 'PosPurchaseInvoice', 'PosPurchaseLine', 'PosStockCount', 'PosStockMovement', 'PosRecipeLine', 'PosComplaint', 'PosComplaintNote', 'PosAiPackage', 'PosAiUsageMonth', 'PosAiCall', 'PosAiSummary', 'PhSettings', 'PhStaff', 'PhStaffBranch', 'PhCategory', 'PhProduct', 'PhProductUnit', 'PhBarcode', 'PhProductBranch', 'PhPrice', 'PhPriceChangeBatch', 'PhImportBatch', 'PhImportRow', 'SupportAccessGrant', 'PhBatch', 'PhStockBalance', 'PhStockMovement', 'PhReceipt', 'PhReceiptLine', 'PhStockCount', 'PhStockCountLine', 'PhExpiryAction', 'PhShift', 'PhCashMovement', 'PhSale', 'PhSaleLine', 'PhSaleLineAllocation', 'PhPayment', 'PhReturn', 'PhReturnLine', 'PhReceiptReprint', 'PhSupplier', 'PhPurchaseOrder', 'PhPurchaseOrderLine', 'PhSupplierInvoice', 'PhSupplierInvoiceLine', 'PhSupplierPayment', 'PhSupplierPaymentAllocation', 'PhSupplierReturn', 'PhSupplierReturnLine', 'PhCreditNote', 'PhCreditAllocation', 'PhIntakeBatch', 'PhIntakeFile', 'PhIntakeRow', 'PhAiUsageMonth', 'PhAiCall', 'PhAiReservation', 'PhTransfer', 'PhTransferLine', 'PhPrescription', 'PhRxAttachment', 'PhControlledEntry', 'PhCustomer', 'PhCustomerLedger', 'PhCustomerPayment', 'PhAiProposal', 'PhDoctorLog'] as const;
+export const RESTAURANT_SCOPED_MODELS = ['Branch', 'PosSettings', 'PosStaff', 'PosKitchenSection', 'PosPrinter', 'PosCategorySetting', 'PosProductSetting', 'PosArea', 'PosTable', 'PosOrder', 'PosOrderLine', 'PosPayment', 'PosShift', 'PosCashExpense', 'PosCustomerOrder', 'PosCustomerOrderLine', 'PosBillCall', 'PosLoyaltyCard', 'PosLoyaltyStamp', 'PosDeliveryZone', 'PosDriver', 'PosSyncOperation', 'PosPaymentReversal', 'PosCounter', 'PosPaymentLeg', 'PosSharedDevice', 'PosPinAttempt', 'PosInventoryItem', 'PosSupplier', 'PosPurchaseInvoice', 'PosPurchaseLine', 'PosStockCount', 'PosStockMovement', 'PosRecipeLine', 'PosComplaint', 'PosComplaintNote', 'PosAiPackage', 'PosAiUsageMonth', 'PosAiCall', 'PosAiSummary', 'PhSettings', 'PhStaff', 'PhStaffBranch', 'PhCategory', 'PhProduct', 'PhProductUnit', 'PhBarcode', 'PhProductBranch', 'PhPrice', 'PhPriceChangeBatch', 'PhImportBatch', 'PhImportRow', 'SupportAccessGrant', 'PhBatch', 'PhStockBalance', 'PhStockMovement', 'PhReceipt', 'PhReceiptLine', 'PhStockCount', 'PhStockCountLine', 'PhExpiryAction', 'PhShift', 'PhCashMovement', 'PhSale', 'PhSaleLine', 'PhSaleLineAllocation', 'PhPayment', 'PhReturn', 'PhReturnLine', 'PhReceiptReprint', 'PhSupplier', 'PhPurchaseOrder', 'PhPurchaseOrderLine', 'PhSupplierInvoice', 'PhSupplierInvoiceLine', 'PhSupplierPayment', 'PhSupplierPaymentAllocation', 'PhSupplierReturn', 'PhSupplierReturnLine', 'PhCreditNote', 'PhCreditAllocation', 'PhIntakeBatch', 'PhIntakeFile', 'PhIntakeRow', 'PhAiUsageMonth', 'PhAiCall', 'PhAiReservation', 'PhTransfer', 'PhTransferLine', 'PhPrescription', 'PhRxAttachment', 'PhControlledEntry', 'PhCustomer', 'PhCustomerLedger', 'PhCustomerPayment', 'PhAiProposal', 'PhDoctorLog', 'WhExchangeRate', 'WhLedgerAccount', 'WhJournalEntry', 'WhJournalLine', 'WhPeriodEvent', 'WhItem', 'WhItemUnit', 'WhPriceListEntry', 'WhCity', 'WhCustomer', 'WhSupplier', 'WhWarehouse', 'WhStockBalance', 'WhStockMovement', 'WhBatch', 'WhPurchase', 'WhPurchaseLine', 'WhLandedCost', 'WhLandedCostAllocation', 'WhSupplierPayment', 'WhSetting', 'WhSale', 'WhSaleLine', 'WhSaleLineBatch', 'WhCustomerPayment', 'WhSaleReturn', 'WhSaleReturnLine', 'WhSaleReturnLineBatch', 'WhSaleReturnOffset', 'WhCurrencyConversion', 'WhCustodyHandover', 'WhCustodyHandoverLine', 'WhExpense', 'WhOpeningImport', 'WhOpeningDebt', 'WhStockCount', 'WhStockCountLine', 'WhPurchaseReturn', 'WhPurchaseReturnLine', 'WhStaff'] as const;
 
 /**
  * Rows that belong to one restaurant or, with a null `restaurantId`, to the platform's shared library: the media library.
@@ -57,7 +57,7 @@ export const UNSCOPED_LOOKUP_MODELS = ['Menu', 'MenuSlug', 'MenuDomain'] as cons
  * restaurants by the platform owner. A client scoped to a
  * restaurant confines them to it (`RESTAURANT_CONFINED_MODELS`).
  */
-export const CROSS_RESTAURANT_MODELS = ['Membership', 'Subscription', 'Payment', 'RetailLink', 'RetailOutbox'] as const;
+export const CROSS_RESTAURANT_MODELS = ['Membership', 'Subscription', 'Payment', 'RetailLink', 'RetailOutbox', 'WholesaleLink'] as const;
 
 /**
  * Better Auth's tables (accounts, sessions, tokens, its own HTTP rate limits), the Studio's rate-limit counters, the
@@ -77,6 +77,8 @@ export const GLOBAL_MODELS = [
   'AuditLog',
   'Invitation',
   'PlatformSetting',
+  // A Wholesale system's key for the entitlements endpoint: tied to an application, not to a company.
+  'ServiceClient',
   // The platform's own intro background and adverts, shown on every (or the listed) restaurants' intro pages.
   'PlatformAdvert',
   'PlatformIntro',
@@ -112,6 +114,7 @@ export const RESTAURANT_CONFINED_MODELS: Readonly<Record<string, 'id' | 'restaur
   Payment: 'restaurantId',
   RetailLink: 'restaurantId',
   RetailOutbox: 'restaurantId',
+  WholesaleLink: 'restaurantId',
 };
 
 /**

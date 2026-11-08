@@ -3,6 +3,8 @@ import type { z } from 'zod';
 import type { PrismaClient } from '@/generated/prisma/client';
 import type { FeatureKey } from '@/server/domain/entitlements';
 import type { PhPermission } from '@/server/domain/pharmacy/permissions';
+import type { WhPermission } from '@/server/domain/wholesale/permissions';
+import type { WhActor } from '@/server/wholesale/actor';
 import type { Permission } from '@/server/domain/permissions';
 import type { PosPermission } from '@/server/domain/pos/permissions';
 import type { PhActor } from '@/server/pharmacy/actor';
@@ -10,7 +12,7 @@ import { auditSupportRead } from '@/server/pharmacy/support';
 import type { PosActor } from '@/server/pos/actor';
 import type { Actor } from '@/server/studio/auth/actor';
 import type { ScopedClient } from '@/server/data/tenant-db';
-import { admit, checkDefinition, type KnownPhAccess, phScopedClient, type CheckedTarget, type PhTarget, type PosTarget, type SelfTarget, type Target } from './access';
+import { admit, checkDefinition, type KnownPhAccess, phScopedClient, whScopedClient, type CheckedTarget, type PhTarget, type PosTarget, type SelfTarget, type Target, type WhTarget } from './access';
 import type { PlanAccess } from './plan';
 import { describeError, expectedFailure, failure, UNEXPECTED_MESSAGE, type ActionResult } from './result';
 
@@ -41,8 +43,10 @@ export interface QueryContext {
   pos: PosActor | null;
   /** Who works in the pharmacy, for a query with a `ph` permission; null for every other. */
   ph: PhActor | null;
+  /** Who works in the wholesale company, for a query with a `wh` permission; null for every other. */
+  wh: WhActor | null;
   /**
-   * For a `ph` query, a client confined to the actor's pharmacy and branches; null for every other. A ph query reads Ph
+   * For a `ph` or `wh` query, a client confined to the actor's pharmacy and branches; null for every other. A ph query reads Ph
    * models only through this, never `db` (the enforcement test refuses it).
    */
   scoped: ScopedClient | null;
@@ -69,10 +73,11 @@ interface QueryFields<I, O> {
  */
 export type QuerySpec<I, O> = QueryFields<I, O> &
   (
-    | { permission: Permission | 'view'; pos?: undefined; ph?: undefined; target(input: NoInfer<I>): CheckedTarget }
-    | { permission: null; pos?: undefined; ph?: undefined; target(input: NoInfer<I>): SelfTarget }
-    | { permission: null; pos: PosPermission; ph?: undefined; target(input: NoInfer<I>): PosTarget }
-    | { permission: null; pos?: undefined; ph: PhPermission; target(input: NoInfer<I>): PhTarget }
+    | { permission: Permission | 'view'; pos?: undefined; ph?: undefined; wh?: undefined; target(input: NoInfer<I>): CheckedTarget }
+    | { permission: null; pos?: undefined; ph?: undefined; wh?: undefined; target(input: NoInfer<I>): SelfTarget }
+    | { permission: null; pos: PosPermission; ph?: undefined; wh?: undefined; target(input: NoInfer<I>): PosTarget }
+    | { permission: null; pos?: undefined; ph: PhPermission; wh?: undefined; target(input: NoInfer<I>): PhTarget }
+    | { permission: null; pos?: undefined; ph?: undefined; wh: WhPermission; target(input: NoInfer<I>): WhTarget }
   );
 
 export interface QueryDef<I, O> {
@@ -84,6 +89,7 @@ export interface QueryDef<I, O> {
   readonly allowLapsed?: true;
   /** A pharmacy permission instead of a Studio one; the target is then the person's own pharmacy. */
   readonly ph?: PhPermission;
+  readonly wh?: WhPermission;
   readonly allowReadOnly?: true;
   readonly feature?: FeatureKey;
   readonly input: z.ZodType<I>;
@@ -102,6 +108,7 @@ export function defineQuery<I, O>(spec: QuerySpec<I, O>): QueryDef<I, O> {
     ...(spec.pos === undefined ? {} : { pos: spec.pos }),
     ...(spec.allowLapsed === undefined ? {} : { allowLapsed: spec.allowLapsed }),
     ...(spec.ph === undefined ? {} : { ph: spec.ph }),
+    ...(spec.wh === undefined ? {} : { wh: spec.wh }),
     ...(spec.allowReadOnly === undefined ? {} : { allowReadOnly: spec.allowReadOnly }),
     ...(spec.feature === undefined ? {} : { feature: spec.feature }),
     input: spec.input,
@@ -140,7 +147,8 @@ export async function runQueryForPage<I, O>(
         menuId: access.menuId,
         pos: access.pos ?? null,
         ph: access.ph ?? null,
-        scoped: access.ph ? phScopedClient(prisma, access.ph) : null,
+        wh: access.wh ?? null,
+        scoped: access.ph ? phScopedClient(prisma, access.ph) : access.wh ? whScopedClient(prisma, access.wh) : null,
       },
       admitted.input,
     );

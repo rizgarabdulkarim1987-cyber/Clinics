@@ -5,6 +5,7 @@ const cfg: HostConfig = {
   publicHost: 'menu.buzzify.tech',
   studioHost: 'hive.example.test',
   pharmacyHost: 'leaf.example.test',
+  wholesaleHost: 'wholesales.example.test',
   coreHost: 'core.example.test',
   apexHost: 'buzzify.tech',
   legacyHosts: ['buzzify-menu.online', 'studio.buzzify-menu.online'],
@@ -16,6 +17,7 @@ const NOT_FOUND = { action: 'notFound' } as const;
 const STUDIO = 'hive.example.test';
 const PHARMACY = 'leaf.example.test';
 const CORE = 'core.example.test';
+const WHOLESALE = 'wholesales.example.test';
 
 describe('studio host once the pharmacy and core hosts are set', () => {
   it.each(['/studio', '/studio/menus', '/pos', '/pos/settings', '/api/auth/sign-in/email', '/api/studio/export', '/api/pos/sync', '/api/retail/v1/handoff', '/studio/retail/continue', '/_next/static/a.js', '/api/cron/retail-sync'])(
@@ -137,4 +139,21 @@ describe('apex and legacy hosts', () => {
 
   it('answers 404 for a host that is not configured', () =>
     expect(routeHost({ host: '203.0.113.9', pathname: '/studio' }, cfg)).toEqual(NOT_FOUND));
+});
+
+describe('wholesale host', () => {
+  it.each(['/wholesale', '/wholesale/sales', '/studio/sign-in', '/studio/account', '/api/auth/sign-in/email', '/_next/static/a.js'])('serves %s', (pathname) =>
+    expect(routeHost({ host: WHOLESALE, pathname }, cfg)).toEqual(NEXT),
+  );
+
+  it.each(['/studio', '/studio/menus', '/pos', '/pharmacy', '/api/studio/export', '/atelier'])('answers 404 for %s', (pathname) =>
+    expect(routeHost({ host: WHOLESALE, pathname }, cfg)).toEqual(NOT_FOUND),
+  );
+
+  it('sends / to /wholesale', () => expect(routeHost({ host: WHOLESALE, pathname: '/' }, cfg)).toEqual({ action: 'redirect', to: '/wholesale' }));
+
+  it('is no longer served by the studio host once it is set, and still is while it is not', () => {
+    expect(routeHost({ host: STUDIO, pathname: '/wholesale/sales' }, cfg)).toEqual(NOT_FOUND);
+    expect(routeHost({ host: STUDIO, pathname: '/wholesale/sales' }, { ...cfg, wholesaleHost: null })).toEqual(NEXT);
+  });
 });

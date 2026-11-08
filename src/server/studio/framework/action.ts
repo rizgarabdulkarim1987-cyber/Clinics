@@ -5,6 +5,8 @@ import { globalDb, scopedClient, type ScopedClient, type ScopedTx } from '@/serv
 import type { FeatureKey } from '@/server/domain/entitlements';
 import { assertAuditSafe } from '@/server/domain/pharmacy/audit-fields';
 import type { PhPermission } from '@/server/domain/pharmacy/permissions';
+import type { WhPermission } from '@/server/domain/wholesale/permissions';
+import type { WhActor } from '@/server/wholesale/actor';
 import type { Permission } from '@/server/domain/permissions';
 import type { PosPermission } from '@/server/domain/pos/permissions';
 import type { PhActor } from '@/server/pharmacy/actor';
@@ -14,10 +16,12 @@ import {
   admit,
   checkDefinition,
   phScopedClient,
+  whScopedClient,
   type Access,
   type CheckedTarget,
   type KnownPhAccess,
   type PhTarget,
+  type WhTarget,
   type PosTarget,
   type SelfTarget,
   type Target,
@@ -28,7 +32,7 @@ import { DuplicateOperationError, type OperationClaim } from './operation';
 import type { PlanAccess } from './plan';
 import { describeError, expectedFailure, failure, StudioError, UNEXPECTED_MESSAGE, type ActionResult } from './result';
 
-export type { CheckedTarget, PhTarget, PosTarget, SelfTarget, Target } from './access';
+export type { CheckedTarget, PhTarget, PosTarget, SelfTarget, Target, WhTarget } from './access';
 export { DuplicateOperationError, type OperationClaim } from './operation';
 
 /** One audit row, as the action describes it. Who, where, when and from which address are added by the framework. */
@@ -90,6 +94,8 @@ export interface ActionContext {
   pos: PosActor | null;
   /** Who works in the pharmacy, for an action with a `ph` permission; null for every other. */
   ph: PhActor | null;
+  /** Who works in the wholesale company, for an action with a `wh` permission; null for every other. */
+  wh: WhActor | null;
   /** The application's client, for reads before the transaction and for calling other services. */
   db: PrismaClient;
   /**
@@ -178,10 +184,11 @@ interface ActionFields<I, O> {
  */
 export type ActionSpec<I, O> = ActionFields<I, O> &
   (
-    | { permission: Permission; pos?: undefined; ph?: undefined; target(input: NoInfer<I>): CheckedTarget }
-    | { permission: null; pos?: undefined; ph?: undefined; target(input: NoInfer<I>): SelfTarget }
-    | { permission: null; pos: PosPermission; ph?: undefined; target(input: NoInfer<I>): PosTarget }
-    | { permission: null; pos?: undefined; ph: PhPermission; target(input: NoInfer<I>): PhTarget }
+    | { permission: Permission; pos?: undefined; ph?: undefined; wh?: undefined; target(input: NoInfer<I>): CheckedTarget }
+    | { permission: null; pos?: undefined; ph?: undefined; wh?: undefined; target(input: NoInfer<I>): SelfTarget }
+    | { permission: null; pos: PosPermission; ph?: undefined; wh?: undefined; target(input: NoInfer<I>): PosTarget }
+    | { permission: null; pos?: undefined; ph: PhPermission; wh?: undefined; target(input: NoInfer<I>): PhTarget }
+    | { permission: null; pos?: undefined; ph?: undefined; wh: WhPermission; target(input: NoInfer<I>): WhTarget }
   );
 
 export interface ActionDef<I, O> {
@@ -193,6 +200,7 @@ export interface ActionDef<I, O> {
   readonly allowLapsed?: true;
   /** A pharmacy permission instead of a Studio one; the target is then the person's own pharmacy. */
   readonly ph?: PhPermission;
+  readonly wh?: WhPermission;
   readonly allowReadOnly?: true;
   readonly feature?: FeatureKey;
   readonly input: z.ZodType<I>;
@@ -211,6 +219,7 @@ export function defineAction<I, O>(spec: ActionSpec<I, O>): ActionDef<I, O> {
     ...(spec.pos === undefined ? {} : { pos: spec.pos }),
     ...(spec.allowLapsed === undefined ? {} : { allowLapsed: spec.allowLapsed }),
     ...(spec.ph === undefined ? {} : { ph: spec.ph }),
+    ...(spec.wh === undefined ? {} : { wh: spec.wh }),
     ...(spec.allowReadOnly === undefined ? {} : { allowReadOnly: spec.allowReadOnly }),
     ...(spec.feature === undefined ? {} : { feature: spec.feature }),
     input: spec.input,
@@ -270,13 +279,15 @@ class Work {
       plan: this.access.plan,
       pos: this.access.pos ?? null,
       ph: this.access.ph ?? null,
+      wh: this.access.wh ?? null,
       db: this.prisma,
-      scoped: this.access.ph ? phScopedClient(this.prisma, this.access.ph) : null,
+      scoped: this.access.ph ? phScopedClient(this.prisma, this.access.ph) : this.access.wh ? whScopedClient(this.prisma, this.access.wh) : null,
       meta: this.meta,
       transaction: (fn, options) => this.targetTransaction(fn, options),
       transactionIn: (scope, fn) => {
         if (this.claim) throw new Error(`${this.name} runs an operation, which takes the target's one transaction`);
         if (this.access.ph) throw new Error(`${this.name} is a pharmacy action, which works in its own pharmacy: use transaction`);
+        if (this.access.wh) throw new Error(`${this.name} is a wholesale action, which works in its own company: use transaction`);
         return this.transactionIn(scope, fn);
       },
       newId: () => {
@@ -309,8 +320,9 @@ class Work {
 
   /** The target's client: a menu and its restaurant, a restaurant alone, a pharmacy's branches, or global rows only. */
   private client(): ScopedClient {
-    const { restaurantId, menuId, ph } = this.access;
+    const { restaurantId, menuId, ph, wh } = this.access;
     if (ph) return phScopedClient(this.prisma, ph);
+    if (wh) return whScopedClient(this.prisma, wh);
     if (restaurantId === null) return globalDb(this.prisma);
     return scopedClient(this.prisma, menuId === null ? { restaurantId } : { menuId, restaurantId });
   }

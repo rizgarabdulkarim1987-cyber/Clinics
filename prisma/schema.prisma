@@ -153,6 +153,46 @@ model Restaurant {
   phSettings            PhSettings?
   retailLink            RetailLink?
   wholesaleLink         WholesaleLink?
+  whExchangeRates WhExchangeRate[]
+  whLedgerAccounts WhLedgerAccount[]
+  whJournalEntrys WhJournalEntry[]
+  whJournalLines WhJournalLine[]
+  whPeriodEvents WhPeriodEvent[]
+  whItems WhItem[]
+  whItemUnits WhItemUnit[]
+  whPriceListEntrys WhPriceListEntry[]
+  whCitys WhCity[]
+  whCustomers WhCustomer[]
+  whSuppliers WhSupplier[]
+  whWarehouses WhWarehouse[]
+  whStockBalances WhStockBalance[]
+  whStockMovements WhStockMovement[]
+  whBatchs WhBatch[]
+  whPurchases WhPurchase[]
+  whPurchaseLines WhPurchaseLine[]
+  whLandedCosts WhLandedCost[]
+  whLandedCostAllocations WhLandedCostAllocation[]
+  whSupplierPayments WhSupplierPayment[]
+  whSettings WhSetting[]
+  whSales WhSale[]
+  whSaleLines WhSaleLine[]
+  whSaleLineBatchs WhSaleLineBatch[]
+  whCustomerPayments WhCustomerPayment[]
+  whSaleReturns WhSaleReturn[]
+  whSaleReturnLines WhSaleReturnLine[]
+  whSaleReturnLineBatchs WhSaleReturnLineBatch[]
+  whSaleReturnOffsets WhSaleReturnOffset[]
+  whCurrencyConversions WhCurrencyConversion[]
+  whCustodyHandovers WhCustodyHandover[]
+  whCustodyHandoverLines WhCustodyHandoverLine[]
+  whExpenses WhExpense[]
+  whOpeningImports WhOpeningImport[]
+  whOpeningDebts WhOpeningDebt[]
+  whStockCounts WhStockCount[]
+  whStockCountLines WhStockCountLine[]
+  whPurchaseReturns WhPurchaseReturn[]
+  whPurchaseReturnLines WhPurchaseReturnLine[]
+  whStaffs WhStaff[]
   retailOutbox          RetailOutbox?
   phStaffs              PhStaff[]
   phStaffBranches       PhStaffBranch[]
@@ -807,6 +847,7 @@ enum MemberRole {
 
 /// A person who signs in to the Studio (Better Auth's table). Accounts are created by invitation only.
 model User {
+  whStaffs WhStaff[]
   id                  String               @id
   name                String
   /// Lower case and trimmed, unique.
@@ -4508,4 +4549,1191 @@ model ServiceClient {
   application   Application @relation(fields: [applicationId], references: [id])
 
   @@index([applicationId])
+}
+
+// ---- Wholesale (project: Wholesale inside Core). Every table is a tenant table: restaurantId. ----
+
+enum WhCurrency {
+  IQD
+  USD
+  IRT
+}
+
+enum WhAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+  CONTRA
+}
+
+enum WhSide {
+  DR
+  CR
+}
+
+enum WhPeriodEventKind {
+  CLOSE
+  REOPEN
+}
+
+enum WhUnit {
+  PIECE
+  CARTON
+  TON
+}
+
+enum WhWarehouseKind {
+  MAIN
+  REP
+  DAMAGE
+}
+
+enum WhStockMovementType {
+  RECEIPT
+  ISSUE
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUST
+  RECOST
+}
+
+enum WhPaymentMode {
+  CASH
+  CREDIT
+}
+
+enum WhPurchaseStatus {
+  POSTED
+  CANCELLED
+}
+
+enum WhLandedCostKind {
+  SHIPPING
+  CUSTOMS
+  CLEARANCE
+  TRANSPORT
+  OTHER
+}
+
+enum WhSaleStatus {
+  POSTED
+  PENDING_APPROVAL
+  REJECTED
+  CANCELLED
+}
+
+enum WhPriceMode {
+  OFFICIAL
+  PERCENT
+  MANUAL
+}
+
+enum WhReturnCondition {
+  GOOD
+  DAMAGED
+}
+
+enum WhReturnRefund {
+  CASH
+  DEBT_OFFSET
+}
+
+enum WhSettlementDirection {
+  CUSTOMER_PAYS
+  COMPANY_PAYS
+  NONE
+}
+
+enum WhHandoverStatus {
+  PENDING
+  CONFIRMED
+  CONFIRMED_SHORT
+  REJECTED
+}
+
+enum WhExpenseCategory {
+  RENT
+  SALARIES
+  FUEL
+  TRANSPORT
+  UTILITIES
+  OTHER
+}
+
+enum WhExpenseStatus {
+  PENDING
+  POSTED
+  REJECTED
+}
+
+enum WhExpensePaidFrom {
+  CASH
+  CUSTODY
+}
+
+enum WhOpeningKind {
+  STOCK
+  CUSTOMERS
+  SUPPLIERS
+  CASH
+}
+
+enum WhRole {
+  OWNER
+  PARTNER
+  REP
+}
+
+/// IQD per 1 unit of `currency` on one calendar day (Asia/Baghdad). `date` is a Postgres DATE, stored as UTC
+/// midnight and exposed to code as the string 'YYYY-MM-DD'. IQD is implicit (always 1) and never stored.
+model WhExchangeRate {
+  id String   @id @default(uuid())
+  restaurantId String
+  date DateTime @db.Date
+  currency WhCurrency
+  iqdPer Decimal  @db.Decimal(18, 8)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, date, currency])
+  @@index([restaurantId])
+}
+
+/// Chart of accounts. Named LedgerAccount because `Account` is the Better-Auth login-provider table.
+/// `name` is JSON {ckb, ar, en}. Group accounts (postable = false) only organise the tree.
+model WhLedgerAccount {
+  id String          @id @default(uuid())
+  restaurantId String
+  code String
+  type WhAccountType
+  /// The side that increases the balance (DR for assets/expenses/contra-income, CR otherwise).
+  normalSide WhSide
+  name Json
+  postable Boolean         @default(true)
+  /// Set for single-currency accounts (CASH_IQD/USD/IRT): lines in another currency are refused. Null = any.
+  currency WhCurrency?
+  parentId String?
+  parent WhLedgerAccount?  @relation("AccountTree", fields: [parentId], references: [id])
+  children WhLedgerAccount[] @relation("AccountTree")
+  lines WhJournalLine[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+}
+
+/// Append-only (DB trigger rejects UPDATE/DELETE). Corrections are new entries with `reversesId` set.
+/// `date` is the accounting date (Postgres DATE); `createdAt` the real time it was posted.
+model WhJournalEntry {
+  id String              @id @default(uuid())
+  restaurantId String
+  /// Human-facing entry number from a Postgres sequence (safe under concurrent posting).
+  number BigInt              @unique @default(autoincrement())
+  date DateTime            @db.Date
+  memo String
+  sourceType String
+  sourceId String
+  userId String
+  /// Set on a reversal; unique, so an entry can be reversed at most once.
+  reversesId String?             @unique
+  reverses WhJournalEntry?       @relation("Reversal", fields: [reversesId], references: [id])
+  reversedBy WhJournalEntry?       @relation("Reversal")
+  lines WhJournalLine[]
+  createdAt DateTime            @default(now())
+  purchase WhPurchase?           @relation("PurchaseEntry")
+  purchaseCancel WhPurchase?           @relation("PurchaseCancelEntry")
+  landedCost WhLandedCost?         @relation("LandedCostEntry")
+  supplierPayments WhSupplierPayment[]   @relation("SupplierPaymentEntry")
+  sale WhSale?               @relation("SaleEntry")
+  saleCancel WhSale?               @relation("SaleCancelEntry")
+  customerPayments WhCustomerPayment[]   @relation("CustomerPaymentEntry")
+  saleReturn WhSaleReturn?         @relation("SaleReturnEntry")
+  conversion WhCurrencyConversion? @relation("ConversionEntry")
+  handover WhCustodyHandover?    @relation("HandoverEntry")
+  expense WhExpense?            @relation("ExpenseEntry")
+  openingImport WhOpeningImport?      @relation("OpeningEntry")
+  stockCount WhStockCount?         @relation("StockCountEntry")
+  purchaseReturn WhPurchaseReturn?     @relation("PurchaseReturnEntry")
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([sourceType, sourceId])
+  @@index([date])
+  @@index([restaurantId])
+}
+
+/// Append-only. `amount` is positive in `currency`; `side` carries the sign. `rateIqd` = IQD per 1 unit used
+/// (1 for IQD); `baseIqd` = amount * rateIqd rounded once to 4 dp half-up. Entries balance on baseIqd.
+model WhJournalLine {
+  id String        @id @default(uuid())
+  restaurantId String
+  entryId String
+  entry WhJournalEntry  @relation(fields: [entryId], references: [id])
+  lineNo Int
+  accountId String
+  account WhLedgerAccount @relation(fields: [accountId], references: [id])
+  side WhSide
+  amount Decimal       @db.Decimal(24, 4)
+  currency WhCurrency
+  rateIqd Decimal       @db.Decimal(18, 8)
+  baseIqd Decimal       @db.Decimal(24, 4)
+  /// Customer/supplier/rep; no FK until parties exist (Task 5).
+  partyId String?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, entryId, lineNo])
+  @@index([accountId])
+  @@index([partyId])
+  @@index([restaurantId])
+}
+
+/// Month close/reopen history, append-only. A month ('YYYY-MM') is closed when its latest event (highest id) is CLOSE.
+model WhPeriodEvent {
+  id BigInt          @id @default(autoincrement())
+  restaurantId String
+  month String
+  kind WhPeriodEventKind
+  userId String
+  createdAt DateTime        @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([month, id])
+  @@index([restaurantId])
+}
+
+/// `names` is JSON {ckb, ar, en} (at least one non-empty; display falls back ckb, ar, en). Archived with active=false, never deleted.
+model WhItem {
+  id String           @id @default(uuid())
+  restaurantId String
+  code String
+  names Json
+  category String?
+  /// The smallest unit stock is counted in. Its ItemUnit row always has factorToBase = 1.
+  baseUnit WhUnit
+  /// In base units; used later by stock alerts.
+  reorderPoint Decimal?         @db.Decimal(24, 8)
+  active Boolean          @default(true)
+  units WhItemUnit[]
+  prices WhPriceListEntry[]
+  balances WhStockBalance[]
+  movements WhStockMovement[]
+  batches WhBatch[]
+  purchaseLines WhPurchaseLine[]
+  saleLines WhSaleLine[]
+  countLines WhStockCountLine[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+}
+
+/// 1 `unit` = `factorToBase` base units (fractions allowed). `barcode` is unique when present (column only, no UI in Phase 1).
+model WhItemUnit {
+  id String  @id @default(uuid())
+  restaurantId String
+  itemId String
+  item WhItem    @relation(fields: [itemId], references: [id])
+  unit WhUnit
+  factorToBase Decimal @db.Decimal(24, 8)
+  barcode String?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, itemId, unit])
+  @@unique([restaurantId, barcode])
+  @@index([restaurantId])
+}
+
+/// One price per item per unit, in IQD. Other currencies are converted at the day's rate when selling.
+model WhPriceListEntry {
+  id String  @id @default(uuid())
+  restaurantId String
+  itemId String
+  item WhItem    @relation(fields: [itemId], references: [id])
+  unit WhUnit
+  priceIqd Decimal @db.Decimal(24, 4)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, itemId, unit])
+  @@index([restaurantId])
+}
+
+/// Fixed list of cities (seeded). `name` is JSON {ckb, ar, en}.
+model WhCity {
+  id String     @id @default(uuid())
+  restaurantId String
+  code String
+  name Json
+  customers WhCustomer[]
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+}
+
+model WhCustomer {
+  id String            @id @default(uuid())
+  restaurantId String
+  name String
+  phone String?
+  cityId String
+  city WhCity              @relation(fields: [cityId], references: [id])
+  /// The sales rep this customer belongs to; a REP only ever sees customers whose repId is their own user id.
+  repId String?
+  creditLimitIqd Decimal?          @db.Decimal(24, 4)
+  active Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  sales WhSale[]
+  payments WhCustomerPayment[]
+  openingDebts WhOpeningDebt[]
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([repId])
+  @@index([cityId])
+  @@index([restaurantId])
+}
+
+model WhSupplier {
+  id String            @id @default(uuid())
+  restaurantId String
+  name String
+  phone String?
+  country String?
+  isForeign Boolean           @default(false)
+  active Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  purchases WhPurchase[]
+  landedCosts WhLandedCost[]
+  payments WhSupplierPayment[]
+  openingDebts WhOpeningDebt[]
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+/// Exactly one MAIN and one DAMAGE warehouse (partial unique index, seeded); one REP warehouse per rep user
+/// (repUserId unique). CHECK: kind = REP exactly when repUserId is set. Warehouses are never deleted.
+model WhWarehouse {
+  id String           @id @default(uuid())
+  restaurantId String
+  kind WhWarehouseKind
+  name String
+  repUserId String?
+  balances WhStockBalance[]
+  movements WhStockMovement[]
+  batches WhBatch[]
+  expenses WhExpense[]
+  purchases WhPurchase[]
+  sales WhSale[]
+  returnLines WhSaleReturnLine[]
+  stockCounts WhStockCount[]
+  staff WhStaff[]
+  createdAt DateTime         @default(now())
+
+  /// Target of User's composite FK (warehouseId, id).
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, id, repUserId])
+  @@unique([restaurantId, repUserId])
+  @@index([restaurantId])
+}
+
+/// Current quantity (base units) and weighted-average unit cost (IQD per base unit, 8 dp) of one item in one
+/// warehouse. Written only by src/server/stock.ts under a row lock. CHECK qtyBase >= 0, avgCostIqd >= 0.
+model WhStockBalance {
+  id String    @id @default(uuid())
+  restaurantId String
+  itemId String
+  item WhItem      @relation(fields: [itemId], references: [id])
+  warehouseId String
+  warehouse WhWarehouse @relation(fields: [warehouseId], references: [id])
+  qtyBase Decimal   @db.Decimal(24, 8)
+  avgCostIqd Decimal   @db.Decimal(24, 8)
+  updatedAt DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, itemId, warehouseId])
+  @@index([warehouseId])
+  @@index([restaurantId])
+}
+
+/// Append-only (DB trigger rejects UPDATE/DELETE). `qtyBase` is signed (+ in, - out, 0 for RECOST); `unitCostIqd` is
+/// the cost per base unit the movement used (RECOST: the increase in the average). `qtyAfterBase`/`avgCostAfterIqd`
+/// are the balance after this movement. `addedCostIqd` is the total landed cost of a RECOST. `seq` (sequence) breaks
+/// ties in `createdAt`, which is the transaction start time and so equal for every movement of one transaction:
+/// read movements ordered by (createdAt, seq) (see movementsOf).
+model WhStockMovement {
+  id String            @id @default(uuid())
+  restaurantId String
+  seq BigInt            @unique @default(autoincrement())
+  type WhStockMovementType
+  itemId String
+  item WhItem              @relation(fields: [itemId], references: [id])
+  warehouseId String
+  warehouse WhWarehouse         @relation(fields: [warehouseId], references: [id])
+  qtyBase Decimal           @db.Decimal(24, 8)
+  unitCostIqd Decimal           @db.Decimal(24, 8)
+  qtyAfterBase Decimal           @db.Decimal(24, 8)
+  avgCostAfterIqd Decimal           @db.Decimal(24, 8)
+  addedCostIqd Decimal?          @db.Decimal(24, 4)
+  refType String
+  refId String
+  userId String
+  createdAt DateTime          @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, warehouseId, createdAt, seq])
+  @@index([refType, refId])
+  @@index([restaurantId])
+}
+
+/// Expiry tracking only (cost is always the weighted average). One row per (item, warehouse, expiry); written under
+/// the balance row lock, so the batch quantities of an item in a warehouse always sum to its StockBalance.qtyBase.
+model WhBatch {
+  id String    @id @default(uuid())
+  restaurantId String
+  itemId String
+  item WhItem      @relation(fields: [itemId], references: [id])
+  warehouseId String
+  warehouse WhWarehouse @relation(fields: [warehouseId], references: [id])
+  qtyBase Decimal   @db.Decimal(24, 8)
+  /// Postgres DATE; null = no expiry.
+  expiry DateTime? @db.Date
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, warehouseId, expiry])
+  @@index([restaurantId])
+}
+
+/// A posted purchase (src/server/posting/purchase.ts). Written once in the posting transaction; the only later change
+/// is cancellation (status and the cancel* fields). `rateSnapshot` = {USD?, IRT?} IQD-per-unit strings of the posting
+/// day for the currencies involved: locked, so the IQD cost never changes afterwards and AP is carried at this rate.
+/// `totalOriginal` = sum of line totals in `currency`; `totalIqd` = totalOriginal at the locked rate, 4 dp (the value
+/// of the cash/AP credit). The INVENTORY debit is sum(qtyBase x unitCostIqd) at 4 dp; a sub-fils gap between the two
+/// goes to ROUNDING in the same entry. What has been paid is derived from SupplierPayment rows, never stored here.
+model WhPurchase {
+  id String            @id @default(uuid())
+  restaurantId String
+  number BigInt            @unique @default(autoincrement())
+  supplierId String
+  supplier WhSupplier          @relation(fields: [supplierId], references: [id])
+  date DateTime          @db.Date
+  currency WhCurrency
+  paymentMode WhPaymentMode
+  dueDate DateTime?         @db.Date
+  warehouseId String
+  warehouse WhWarehouse         @relation(fields: [warehouseId], references: [id])
+  rateSnapshot Json
+  totalOriginal Decimal           @db.Decimal(24, 4)
+  totalIqd Decimal           @db.Decimal(24, 4)
+  status WhPurchaseStatus    @default(POSTED)
+  journalEntryId String            @unique
+  journalEntry WhJournalEntry      @relation("PurchaseEntry", fields: [journalEntryId], references: [id])
+  cancelEntryId String?           @unique
+  cancelEntry WhJournalEntry?     @relation("PurchaseCancelEntry", fields: [cancelEntryId], references: [id])
+  cancelReason String?
+  cancelledAt DateTime?
+  userId String
+  lines WhPurchaseLine[]
+  landedCosts WhLandedCost[]
+  payments WhSupplierPayment[]
+  returns WhPurchaseReturn[]
+  createdAt DateTime          @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, date])
+  @@index([date])
+  @@index([restaurantId])
+}
+
+/// `qty` in `unit`; `qtyBase` = qty x the unit factor. `unitPrice` and `lineTotal` are in the purchase currency
+/// (lineTotal = qty x unitPrice, 4 dp half-up). `unitCostIqd` = the cost per base unit the stock engine stored.
+model WhPurchaseLine {
+  id String                 @id @default(uuid())
+  restaurantId String
+  purchaseId String
+  purchase WhPurchase               @relation(fields: [purchaseId], references: [id])
+  lineNo Int
+  itemId String
+  item WhItem                   @relation(fields: [itemId], references: [id])
+  unit WhUnit
+  qty Decimal                @db.Decimal(24, 8)
+  qtyBase Decimal                @db.Decimal(24, 8)
+  unitPrice Decimal                @db.Decimal(24, 4)
+  lineTotal Decimal                @db.Decimal(24, 4)
+  expiry DateTime?              @db.Date
+  unitCostIqd Decimal                @db.Decimal(24, 8)
+  allocations WhLandedCostAllocation[]
+  returnLines WhPurchaseReturnLine[]
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, purchaseId, lineNo])
+  @@index([restaurantId])
+}
+
+/// A purchase expense (shipping, customs and so on) in its own currency at the rate of its own date. CREDIT = owed to
+/// `supplierId` (the payee: an AP line on that supplier); CASH = paid from CASH_<currency>, supplierId null.
+/// `amountIqd` = amount at that date's rate, 4 dp = the sum of the allocations' iqdToInventory + iqdToCogs.
+model WhLandedCost {
+  id String                 @id @default(uuid())
+  restaurantId String
+  purchaseId String
+  purchase WhPurchase               @relation(fields: [purchaseId], references: [id])
+  kind WhLandedCostKind
+  amount Decimal                @db.Decimal(24, 4)
+  currency WhCurrency
+  date DateTime               @db.Date
+  rateSnapshot Json
+  amountIqd Decimal                @db.Decimal(24, 4)
+  paymentMode WhPaymentMode
+  supplierId String?
+  supplier WhSupplier?              @relation(fields: [supplierId], references: [id])
+  journalEntryId String                 @unique
+  journalEntry WhJournalEntry           @relation("LandedCostEntry", fields: [journalEntryId], references: [id])
+  userId String
+  allocations WhLandedCostAllocation[]
+  payments WhSupplierPayment[]
+  createdAt DateTime               @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+  @@index([supplierId])
+  @@index([restaurantId])
+}
+
+/// One landed cost's share of one purchase line: `amountOriginal` in the expense currency (the parts sum exactly to
+/// the expense), and its IQD value split into the on-hand part (re-costs stock) and the already-sold part (COGS).
+model WhLandedCostAllocation {
+  id String       @id @default(uuid())
+  restaurantId String
+  landedCostId String
+  landedCost WhLandedCost   @relation(fields: [landedCostId], references: [id])
+  lineId String
+  line WhPurchaseLine @relation(fields: [lineId], references: [id])
+  amountOriginal Decimal      @db.Decimal(24, 4)
+  iqdToInventory Decimal      @db.Decimal(24, 4)
+  iqdToCogs Decimal      @db.Decimal(24, 4)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, landedCostId, lineId])
+  @@index([restaurantId])
+}
+
+/// One payment's settlement of ONE payable document: a credit purchase (purchaseId), a credit landed cost
+/// (landedCostId) or an opening balance owed to the supplier (openingDebtId), exactly one of the three (CHECK). A payment spread FIFO over several documents is several rows
+/// sharing one journalEntryId. `amount`/`currency` = what was paid toward this document; `settledInPurchaseCcy` = how
+/// much of the document it settles, in the document's currency; `rateSnapshot` = the payment-day rates; `fxDiffIqd` =
+/// the cash IQD value minus the AP IQD value at the document's locked rate (positive = FX loss, negative = FX gain).
+model WhSupplierPayment {
+  id String       @id @default(uuid())
+  restaurantId String
+  supplierId String
+  supplier WhSupplier     @relation(fields: [supplierId], references: [id])
+  purchaseId String?
+  purchase WhPurchase?    @relation(fields: [purchaseId], references: [id])
+  landedCostId String?
+  landedCost WhLandedCost?  @relation(fields: [landedCostId], references: [id])
+  openingDebtId String?
+  openingDebt WhOpeningDebt? @relation(fields: [openingDebtId], references: [id])
+  amount Decimal      @db.Decimal(24, 4)
+  currency WhCurrency
+  date DateTime     @db.Date
+  settledInPurchaseCcy Decimal      @db.Decimal(24, 4)
+  rateSnapshot Json
+  fxDiffIqd Decimal      @db.Decimal(24, 4)
+  journalEntryId String
+  journalEntry WhJournalEntry @relation("SupplierPaymentEntry", fields: [journalEntryId], references: [id])
+  userId String
+  createdAt DateTime     @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, date])
+  @@index([purchaseId])
+  @@index([landedCostId])
+  @@index([openingDebtId])
+  @@index([journalEntryId])
+  @@index([restaurantId])
+}
+
+/// Company settings (src/server/settings.ts): one JSON value per typed key. Missing key = the default.
+model WhSetting {
+  id String   @id @default(uuid())
+  restaurantId String
+  key String
+  value Json
+  updatedById String
+  updatedAt DateTime @updatedAt
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, key])
+  @@index([restaurantId])
+}
+
+/// A sale (src/server/posting/sale.ts). One currency per invoice. PENDING_APPROVAL = a rep's price override waiting
+/// for approval: no stock, ledger or credit effect until approveSale posts it (then `date` becomes the approval day
+/// and the prices are converted at that day's rates; `requestedAt` keeps when it was asked for). `rateSnapshot` =
+/// {USD?, IRT?} of the sale currency on `date`: AR is carried at this rate. Totals are in `currency`:
+/// totalOfficial = sum of qty x official price, totalFinal = what the customer owes, totalDiscount = the difference
+/// (negative when a manual price is above the list price). `totalCostIqd` (null until posted) is the issued average
+/// cost and is never shown to a REP. What has been paid is derived from CustomerPayment rows.
+model WhSale {
+  id String             @id @default(uuid())
+  restaurantId String
+  number BigInt             @unique @default(autoincrement())
+  customerId String
+  customer WhCustomer           @relation(fields: [customerId], references: [id])
+  date DateTime           @db.Date
+  requestedAt DateTime           @default(now())
+  currency WhCurrency
+  paymentMode WhPaymentMode
+  dueDate DateTime?          @db.Date
+  warehouseId String
+  warehouse WhWarehouse          @relation(fields: [warehouseId], references: [id])
+  status WhSaleStatus
+  rateSnapshot Json
+  totalOfficial Decimal            @db.Decimal(24, 4)
+  totalFinal Decimal            @db.Decimal(24, 4)
+  totalDiscount Decimal            @db.Decimal(24, 4)
+  totalCostIqd Decimal?           @db.Decimal(24, 4)
+  journalEntryId String?            @unique
+  journalEntry WhJournalEntry?      @relation("SaleEntry", fields: [journalEntryId], references: [id])
+  cancelEntryId String?            @unique
+  cancelEntry WhJournalEntry?      @relation("SaleCancelEntry", fields: [cancelEntryId], references: [id])
+  /// Why it was rejected or cancelled.
+  statusReason String?
+  decidedAt DateTime?
+  userId String
+  approvedById String?
+  /// The rep whose custody (REP_CUSTODY) received the money of a rep's CASH sale, fixed when the sale is entered;
+  /// null for credit sales and office sales. Cancel/approve use it, never the user's CURRENT role (a promoted rep's
+  /// old cash sales still take the money back out of their custody). Never changes once the sale left PENDING (trigger).
+  custodyRepId String?
+  lines WhSaleLine[]
+  payments WhCustomerPayment[]
+  returns WhSaleReturn[]       @relation("SaleReturns")
+  exchangeFor WhSaleReturn?        @relation("ReturnExchange")
+  returnOffsets WhSaleReturnOffset[]
+  createdAt DateTime           @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, date])
+  @@index([status])
+  @@index([date])
+  @@index([restaurantId])
+}
+
+/// `qty` in `unit`, `qtyBase` in the item base unit. `officialPriceIqd` = the price list price per `unit` when the
+/// sale was entered (kept on approval: no re-pricing). officialPrice/finalPrice/discount are per unit in the sale
+/// currency (discount = official - final, negative for a premium); lineTotal = qty x finalPrice (4 dp).
+/// `unitCostIqd` = the average cost per base unit the stock engine issued at (null until posted; never shown to a REP).
+/// Updated only while its sale is PENDING_APPROVAL (DB trigger), never deleted.
+model WhSaleLine {
+  id String           @id @default(uuid())
+  restaurantId String
+  saleId String
+  sale WhSale             @relation(fields: [saleId], references: [id])
+  lineNo Int
+  itemId String
+  item WhItem             @relation(fields: [itemId], references: [id])
+  unit WhUnit
+  qty Decimal          @db.Decimal(24, 8)
+  qtyBase Decimal          @db.Decimal(24, 8)
+  priceMode WhPriceMode
+  percent Decimal?         @db.Decimal(7, 4)
+  manualPrice Decimal?         @db.Decimal(24, 4)
+  officialPriceIqd Decimal          @db.Decimal(24, 4)
+  officialPrice Decimal          @db.Decimal(24, 4)
+  finalPrice Decimal          @db.Decimal(24, 4)
+  discount Decimal          @db.Decimal(24, 4)
+  lineTotal Decimal          @db.Decimal(24, 4)
+  unitCostIqd Decimal?         @db.Decimal(24, 8)
+  batches WhSaleLineBatch[]
+  returnLines WhSaleReturnLine[]
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, saleId, lineNo])
+  @@index([restaurantId])
+}
+
+/// What one posted sale line took from which expiry batch (issueStock's portions; they sum to the line's qtyBase).
+/// A cancellation (and later a return) puts each portion back with its own expiry. Append-only.
+model WhSaleLineBatch {
+  id String    @id @default(uuid())
+  restaurantId String
+  saleLineId String
+  saleLine WhSaleLine  @relation(fields: [saleLineId], references: [id])
+  /// Postgres DATE; null = no expiry.
+  expiry DateTime? @db.Date
+  qtyBase Decimal   @db.Decimal(24, 8)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([saleLineId])
+  @@index([restaurantId])
+}
+
+/// One payment's settlement of ONE credit sale (saleId) or ONE opening balance (openingDebtId), exactly one (CHECK). A payment spread FIFO over several sales is several rows sharing one
+/// journalEntryId. `amount`/`currency` = what was handed over toward this sale; `settledInSaleCcy` = how much of the
+/// sale it settles, in the sale currency; `rateSnapshot` = the payment-day rates; `fxDiffIqd` = cash IQD value minus
+/// the AR IQD value at the sale's locked rate (positive = FX gain, negative = FX loss). `receivedByRep` = the money
+/// went to the rep's custody (REP_CUSTODY) instead of a cash box.
+model WhCustomerPayment {
+  id String       @id @default(uuid())
+  restaurantId String
+  customerId String
+  customer WhCustomer     @relation(fields: [customerId], references: [id])
+  saleId String?
+  sale WhSale?        @relation(fields: [saleId], references: [id])
+  openingDebtId String?
+  openingDebt WhOpeningDebt? @relation(fields: [openingDebtId], references: [id])
+  amount Decimal      @db.Decimal(24, 4)
+  currency WhCurrency
+  date DateTime     @db.Date
+  settledInSaleCcy Decimal      @db.Decimal(24, 4)
+  rateSnapshot Json
+  fxDiffIqd Decimal      @db.Decimal(24, 4)
+  receivedByRep Boolean
+  journalEntryId String
+  journalEntry WhJournalEntry @relation("CustomerPaymentEntry", fields: [journalEntryId], references: [id])
+  userId String
+  createdAt DateTime     @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, date])
+  @@index([saleId])
+  @@index([openingDebtId])
+  @@index([journalEntryId])
+  @@index([restaurantId])
+}
+
+/// A return against one POSTED sale (src/server/posting/return.ts), at the sale's own prices, currency and locked rate
+/// (rateSnapshot of the sale). Append-only: written once, never changed. `totalValue` = what the returned goods are
+/// worth to the customer (sum of the lines' lineTotal, sale currency); `totalOfficial` the same at the official price.
+/// `totalCostIqd` = the returned goods at the sale lines' original issue cost (4 dp); `damageLossIqd` = the DAMAGED
+/// part of it, written off to DAMAGE_LOSS. `refund` CASH = paid out of / into CASH_<currency>; DEBT_OFFSET = AR
+/// (SaleReturnOffset rows say which sales' open balances it reduced). `exchangeSaleId` = the sale of the replacement
+/// goods posted in the same transaction. Settlement = exchange total - totalValue: CUSTOMER_PAYS, COMPANY_PAYS or NONE,
+/// `settlementAmount` its absolute value in `currency`.
+model WhSaleReturn {
+  id String              @id @default(uuid())
+  restaurantId String
+  number BigInt              @unique @default(autoincrement())
+  saleId String
+  sale WhSale                @relation("SaleReturns", fields: [saleId], references: [id])
+  date DateTime            @db.Date
+  currency WhCurrency
+  refund WhReturnRefund
+  totalValue Decimal             @db.Decimal(24, 4)
+  totalOfficial Decimal             @db.Decimal(24, 4)
+  totalCostIqd Decimal             @db.Decimal(24, 4)
+  damageLossIqd Decimal             @db.Decimal(24, 4)
+  exchangeSaleId String?             @unique
+  exchangeSale WhSale?               @relation("ReturnExchange", fields: [exchangeSaleId], references: [id])
+  settlementDirection WhSettlementDirection
+  settlementAmount Decimal             @db.Decimal(24, 4)
+  journalEntryId String              @unique
+  journalEntry WhJournalEntry        @relation("SaleReturnEntry", fields: [journalEntryId], references: [id])
+  userId String
+  lines WhSaleReturnLine[]
+  offsets WhSaleReturnOffset[]
+  createdAt DateTime            @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@index([date])
+  @@index([restaurantId])
+}
+
+/// One returned part of one sale line. `qty` in the sale line's unit, `qtyBase` in the base unit; `unitCostIqd` = the
+/// sale line's original issue cost (what the stock comes back at); `warehouseId` = where it went (the sale's warehouse
+/// for GOOD, the DAMAGE warehouse for DAMAGED). lineOfficial/lineTotal = this part's share of the sale line (sale
+/// currency): cumulative rounding, so all the returns of a line sum exactly to its lineOfficial/lineTotal.
+/// Append-only; a DB trigger refuses returning more than the line sold.
+model WhSaleReturnLine {
+  id String                @id @default(uuid())
+  restaurantId String
+  returnId String
+  saleReturn WhSaleReturn            @relation(fields: [returnId], references: [id])
+  lineNo Int
+  saleLineId String
+  saleLine WhSaleLine              @relation(fields: [saleLineId], references: [id])
+  condition WhReturnCondition
+  warehouseId String
+  warehouse WhWarehouse             @relation(fields: [warehouseId], references: [id])
+  qty Decimal               @db.Decimal(24, 8)
+  qtyBase Decimal               @db.Decimal(24, 8)
+  unitCostIqd Decimal               @db.Decimal(24, 8)
+  lineOfficial Decimal               @db.Decimal(24, 4)
+  lineTotal Decimal               @db.Decimal(24, 4)
+  batches WhSaleReturnLineBatch[]
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, returnId, lineNo])
+  @@index([saleLineId])
+  @@index([restaurantId])
+}
+
+/// Which of the sale line's expiry portions (SaleLineBatch) this return line put back. Per (sale line, expiry) the
+/// returned portions never exceed what the line took (DB trigger). Append-only.
+model WhSaleReturnLineBatch {
+  id String         @id @default(uuid())
+  restaurantId String
+  returnLineId String
+  returnLine WhSaleReturnLine @relation(fields: [returnLineId], references: [id])
+  /// Postgres DATE; null = no expiry.
+  expiry DateTime?      @db.Date
+  qtyBase Decimal        @db.Decimal(24, 8)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([returnLineId])
+  @@index([restaurantId])
+}
+
+/// A DEBT_OFFSET return's credit to one credit sale's receivable (AR, partyId = the customer), in the return's
+/// currency. A sale's open balance = totalFinal - payments - these. `rateIqd` = the IQD rate the AR line was credited
+/// at (that sale's locked rate); `fxDiffIqd` = the AR IQD value minus the returned goods' IQD value at the returned
+/// sale's rate (positive = FX loss, negative = FX gain; 0 when the offset is against the returned sale itself).
+model WhSaleReturnOffset {
+  id String     @id @default(uuid())
+  restaurantId String
+  returnId String
+  saleReturn WhSaleReturn @relation(fields: [returnId], references: [id])
+  saleId String
+  sale WhSale       @relation(fields: [saleId], references: [id])
+  amount Decimal    @db.Decimal(24, 4)
+  rateIqd Decimal    @db.Decimal(18, 8)
+  fxDiffIqd Decimal    @db.Decimal(24, 4)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([saleId])
+  @@index([restaurantId])
+}
+
+/// Cash moved from one cash box to another (src/server/posting/conversion.ts), at `date`'s manual rates. Append-only.
+/// `toAmount` = fromAmount x fromRateIqd / toRateIqd rounded once to 4 dp half-up. Journal: DR CASH_<to> CR
+/// CASH_<from>. `fxDiffIqd` = the IQD value of the cash received minus that of the cash given (each 4 dp): at 0.01 IQD
+/// or more (absolute) it is posted to FX_GAIN (positive) / FX_LOSS (negative), below that the ledger's ROUNDING line
+/// takes it.
+model WhCurrencyConversion {
+  id String       @id @default(uuid())
+  restaurantId String
+  number BigInt       @unique @default(autoincrement())
+  date DateTime     @db.Date
+  fromCurrency WhCurrency
+  fromAmount Decimal      @db.Decimal(24, 4)
+  fromRateIqd Decimal      @db.Decimal(18, 8)
+  toCurrency WhCurrency
+  toAmount Decimal      @db.Decimal(24, 4)
+  toRateIqd Decimal      @db.Decimal(18, 8)
+  fxDiffIqd Decimal      @db.Decimal(24, 4)
+  journalEntryId String       @unique
+  journalEntry WhJournalEntry @relation("ConversionEntry", fields: [journalEntryId], references: [id])
+  userId String
+  createdAt DateTime     @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([restaurantId])
+}
+
+/// A rep handing their custody (REP_CUSTODY, partyId = the rep) to the office (src/server/posting/custody.ts).
+/// PENDING: submitted, nothing posted; the submitted amounts are reserved out of the rep's custody. Confirmed by an
+/// OWNER/PARTNER (never the rep): DR CASH_<currency> / CR REP_CUSTODY for what was RECEIVED, both at the custody's
+/// average IQD rate (no FX). Received below submitted = CONFIRMED_SHORT: the shortage stays in REP_CUSTODY (still owed
+/// by the rep). `date` = the confirmation day (the entry's date). Status moves only PENDING -> CONFIRMED |
+/// CONFIRMED_SHORT | REJECTED (DB trigger); never deleted.
+model WhCustodyHandover {
+  id String                @id @default(uuid())
+  restaurantId String
+  number BigInt                @unique @default(autoincrement())
+  repId String
+  status WhHandoverStatus        @default(PENDING)
+  submittedAt DateTime              @default(now())
+  date DateTime?             @db.Date
+  decidedById String?
+  decidedAt DateTime?
+  statusReason String?
+  journalEntryId String?               @unique
+  journalEntry WhJournalEntry?         @relation("HandoverEntry", fields: [journalEntryId], references: [id])
+  lines WhCustodyHandoverLine[]
+  createdAt DateTime              @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([repId, status])
+  @@index([restaurantId])
+}
+
+/// One currency of a handover. `submitted` > 0; on confirmation `received` (0..submitted), `shortage` = submitted -
+/// received and `rateIqd` (the custody average rate it was posted at; 1 for IQD; null when nothing was received) are
+/// set once (DB trigger).
+model WhCustodyHandoverLine {
+  id String          @id @default(uuid())
+  restaurantId String
+  handoverId String
+  handover WhCustodyHandover @relation(fields: [handoverId], references: [id])
+  currency WhCurrency
+  submitted Decimal         @db.Decimal(24, 4)
+  received Decimal?        @db.Decimal(24, 4)
+  shortage Decimal?        @db.Decimal(24, 4)
+  rateIqd Decimal?        @db.Decimal(18, 8)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, handoverId, currency])
+  @@index([restaurantId])
+}
+
+/// An operating expense (src/server/posting/expense.ts): DR EXPENSE_<category>. OWNER/PARTNER: POSTED at once, paid
+/// from CASH_<currency>. A REP: PENDING (nothing posted) until an OWNER/PARTNER approves it; it is then POSTED on the
+/// approval day (`date` moves there, `requestedAt` keeps when it was asked) and paid from the rep's custody
+/// (REP_CUSTODY, partyId = the rep; `custodyRepId`). `rateIqd` = the day rate the expense was valued at (1 for IQD);
+/// `amountIqd` its IQD value (4 dp); `fxDiffIqd` = for custody-paid foreign expenses, the expense IQD value minus the
+/// custody released at its average rate (positive = FX gain). Status only PENDING -> POSTED | REJECTED (DB trigger).
+model WhExpense {
+  id String          @id @default(uuid())
+  restaurantId String
+  number BigInt          @unique @default(autoincrement())
+  category WhExpenseCategory
+  amount Decimal         @db.Decimal(24, 4)
+  currency WhCurrency
+  date DateTime        @db.Date
+  requestedAt DateTime        @default(now())
+  note String?
+  warehouseId String?
+  warehouse WhWarehouse?      @relation(fields: [warehouseId], references: [id])
+  paidFrom WhExpensePaidFrom
+  custodyRepId String?
+  status WhExpenseStatus
+  rateIqd Decimal?        @db.Decimal(18, 8)
+  amountIqd Decimal?        @db.Decimal(24, 4)
+  fxDiffIqd Decimal?        @db.Decimal(24, 4)
+  journalEntryId String?         @unique
+  journalEntry WhJournalEntry?   @relation("ExpenseEntry", fields: [journalEntryId], references: [id])
+  statusReason String?
+  decidedById String?
+  decidedAt DateTime?
+  userId String
+  createdAt DateTime        @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([date])
+  @@index([custodyRepId])
+  @@index([restaurantId])
+}
+
+/// One opening-balance CSV import (src/server/import/opening.ts): at most one per kind (unique), and every kind shares
+/// one opening date, before every other posting (postJournal refuses later entries dated before it). One journal
+/// entry (source OPENING) credits PARTNER_CAPITAL with the opening value. STOCK rows are StockMovement RECEIPTs
+/// (refType OPENING, refId = id); CASH rows are journal lines only; CUSTOMERS/SUPPLIERS rows are OpeningDebt rows.
+/// Append-only.
+model WhOpeningImport {
+  id String        @id @default(uuid())
+  restaurantId String
+  /// STOCK is imported once (partial unique index "OpeningImport_stock_once", in SQL); the other kinds may repeat.
+  kind WhOpeningKind
+  date DateTime      @db.Date
+  rows Int
+  totalIqd Decimal       @db.Decimal(24, 4)
+  journalEntryId String        @unique
+  journalEntry WhJournalEntry  @relation("OpeningEntry", fields: [journalEntryId], references: [id])
+  userId String
+  debts WhOpeningDebt[]
+  createdAt DateTime      @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([kind])
+  @@index([restaurantId])
+}
+
+/// An opening debt: what a customer owed us (customerId) or we owed a supplier (supplierId) on the opening date,
+/// exactly one party (CHECK), in its own currency, carried at `rateIqd` (IQD per unit, 1 for IQD: the rate its AR/AP
+/// line was pinned at). An open document like a credit sale or purchase: open = amount - the settlements
+/// (CustomerPayment / SupplierPayment rows with this openingDebtId). One per (party, currency). Append-only.
+model WhOpeningDebt {
+  id String            @id @default(uuid())
+  restaurantId String
+  importId String
+  openingImport WhOpeningImport     @relation(fields: [importId], references: [id])
+  lineNo Int
+  customerId String?
+  customer WhCustomer?         @relation(fields: [customerId], references: [id])
+  supplierId String?
+  supplier WhSupplier?         @relation(fields: [supplierId], references: [id])
+  currency WhCurrency
+  amount Decimal           @db.Decimal(24, 4)
+  rateIqd Decimal           @db.Decimal(18, 8)
+  date DateTime          @db.Date
+  customerPayments WhCustomerPayment[]
+  supplierPayments WhSupplierPayment[]
+  createdAt DateTime          @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, importId, lineNo])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([restaurantId])
+}
+
+/// A stock count of one warehouse (src/server/stockCount.ts), dated `date`. Every counted item is a line with the
+/// book quantity (read under the balance row lock), the counted quantity and the difference. A shortage is issued at
+/// the weighted average (DR STOCK_ADJUSTMENT / CR INVENTORY), a surplus received at the average or the entered cost
+/// (DR INVENTORY / CR STOCK_ADJUSTMENT). `lossIqd`/`gainIqd` = the two totals (4 dp); `journalEntryId` is null when
+/// nothing differed. Append-only.
+model WhStockCount {
+  id String           @id @default(uuid())
+  restaurantId String
+  number BigInt           @unique @default(autoincrement())
+  warehouseId String
+  warehouse WhWarehouse        @relation(fields: [warehouseId], references: [id])
+  date DateTime         @db.Date
+  lossIqd Decimal          @db.Decimal(24, 4)
+  gainIqd Decimal          @db.Decimal(24, 4)
+  journalEntryId String?          @unique
+  journalEntry WhJournalEntry?    @relation("StockCountEntry", fields: [journalEntryId], references: [id])
+  userId String
+  lines WhStockCountLine[]
+  createdAt DateTime         @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([warehouseId, date])
+  @@index([restaurantId])
+}
+
+/// `diffBase` = countedBase - bookQtyBase (signed, base units). `unitCostIqd` = the cost per base unit the difference
+/// moved at (0 when nothing differed); `valueIqd` = |diffBase| x that cost, 4 dp. `expiry` = the batch a surplus
+/// entered (null = no expiry). Append-only.
+model WhStockCountLine {
+  id String     @id @default(uuid())
+  restaurantId String
+  countId String
+  stockCount WhStockCount @relation(fields: [countId], references: [id])
+  lineNo Int
+  itemId String
+  item WhItem       @relation(fields: [itemId], references: [id])
+  bookQtyBase Decimal    @db.Decimal(24, 8)
+  countedBase Decimal    @db.Decimal(24, 8)
+  diffBase Decimal    @db.Decimal(24, 8)
+  unitCostIqd Decimal    @db.Decimal(24, 8)
+  valueIqd Decimal    @db.Decimal(24, 4)
+  expiry DateTime?  @db.Date
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, countId, lineNo])
+  @@unique([restaurantId, countId, itemId])
+  @@index([restaurantId])
+}
+
+/// Goods sent back to the supplier of a POSTED purchase (src/server/posting/purchaseReturn.ts), at the purchase's
+/// locked rate (`rateIqd`, 1 for IQD). `totalValue` = the goods' value in the purchase currency (the supplier's credit:
+/// the lines' share of the purchase line totals). `refund` DEBT_OFFSET reduces that credit purchase's AP (its open
+/// balance); CASH = the supplier pays it back into CASH_<currency>. `inventoryIqd` = the stock value taken out (each
+/// line at its original cost plus its share of the purchase's landed costs); `landedLossIqd` = the landed-cost part,
+/// which the supplier does not refund, written off to PURCHASE_RETURN_LOSS. Append-only.
+model WhPurchaseReturn {
+  id String               @id @default(uuid())
+  restaurantId String
+  number BigInt               @unique @default(autoincrement())
+  purchaseId String
+  purchase WhPurchase             @relation(fields: [purchaseId], references: [id])
+  date DateTime             @db.Date
+  currency WhCurrency
+  refund WhReturnRefund
+  rateIqd Decimal              @db.Decimal(18, 8)
+  totalValue Decimal              @db.Decimal(24, 4)
+  inventoryIqd Decimal              @db.Decimal(24, 4)
+  landedLossIqd Decimal              @db.Decimal(24, 4)
+  journalEntryId String               @unique
+  journalEntry WhJournalEntry         @relation("PurchaseReturnEntry", fields: [journalEntryId], references: [id])
+  userId String
+  lines WhPurchaseReturnLine[]
+  createdAt DateTime             @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+  @@index([date])
+  @@index([restaurantId])
+}
+
+/// One returned part of one purchase line: `qty` in the line's unit, `qtyBase` in base units; `unitCostIqd` = what
+/// each base unit left stock at (line cost + landed share, 8 dp); `lineTotal` = this part's share of the line total
+/// (purchase currency, cumulative rounding, so all the returns of a line sum to at most its lineTotal). A DB trigger
+/// refuses returning more than the line bought. Append-only.
+model WhPurchaseReturnLine {
+  id String         @id @default(uuid())
+  restaurantId String
+  returnId String
+  purchaseReturn WhPurchaseReturn @relation(fields: [returnId], references: [id])
+  lineNo Int
+  purchaseLineId String
+  purchaseLine WhPurchaseLine   @relation(fields: [purchaseLineId], references: [id])
+  qty Decimal        @db.Decimal(24, 8)
+  qtyBase Decimal        @db.Decimal(24, 8)
+  unitCostIqd Decimal        @db.Decimal(24, 8)
+  lineTotal Decimal        @db.Decimal(24, 4)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, returnId, lineNo])
+  @@index([purchaseLineId])
+  @@index([restaurantId])
+}
+
+/// A person's part in one wholesale company: owner, partner (full rights) or rep (sells from their own warehouse only).
+/// The rep's warehouse is checked by a composite foreign key: the database accepts only a warehouse whose `repUserId` is this user.
+model WhStaff {
+  id            String       @id @default(cuid())
+  restaurantId  String
+  userId        String
+  role          WhRole
+  warehouseId   String?
+  deactivatedAt DateTime?
+  createdAt     DateTime     @default(now())
+  restaurant    Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse     WhWarehouse? @relation(fields: [restaurantId, warehouseId, userId], references: [restaurantId, id, repUserId], onDelete: Restrict)
+
+  @@unique([restaurantId, userId])
+  @@index([restaurantId])
+  @@index([userId])
 }

@@ -10,7 +10,7 @@ import { REQUEST_PATH_HEADER } from '@/server/http/request-path';
  * network. A request it lets through carries its path in `REQUEST_PATH_HEADER`, for the 404 page's link back.
  */
 export function proxy(request: NextRequest) {
-  const { publicHost, studioHost, pharmacyHost, coreHost, coreGatePath, apexHost, legacyHosts, rootRedirect } = hostEnv();
+  const { publicHost, studioHost, pharmacyHost, wholesaleHost, coreHost, coreGatePath, apexHost, legacyHosts, rootRedirect } = hostEnv();
   const host = request.headers.get('host') ?? '';
   // The super admin host opens only for a request that carries the cookie its secret path hands out. Without an auth
   // secret to sign it with, nothing can open it.
@@ -19,7 +19,7 @@ export function proxy(request: NextRequest) {
     !!coreGatePath && !!authSecret && hasCoreGate(request.cookies.get(CORE_GATE_COOKIE)?.value, coreGatePath, authSecret);
   const decision = routeHost(
     { host, pathname: request.nextUrl.pathname, search: request.nextUrl.search, coreGate },
-    { publicHost, studioHost, pharmacyHost, coreHost, coreGatePath, apexHost, legacyHosts, rootRedirect, production: process.env.NODE_ENV === 'production' },
+    { publicHost, studioHost, pharmacyHost, wholesaleHost, coreHost, coreGatePath, apexHost, legacyHosts, rootRedirect, production: process.env.NODE_ENV === 'production' },
   );
 
   switch (decision.action) {
