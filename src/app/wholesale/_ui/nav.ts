@@ -1,7 +1,7 @@
-import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, Truck, Users, type LucideIcon } from 'lucide-react';
+import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Truck, Users, type LucideIcon } from 'lucide-react';
 import { canWh, type WhPermission, type WhRole } from '@/server/domain/wholesale/permissions';
 
-export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'settings' | 'staff';
+export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'settings' | 'reports' | 'staff';
 
 export interface WhNavItem {
   key: WhNavKey;
@@ -21,6 +21,7 @@ const ALL: WhNavItem[] = [
   { key: 'purchases', href: '/wholesale/purchases', labelKey: 'wh.nav.purchases', icon: ShoppingCart, needs: 'purchase.manage' },
   { key: 'sales', href: '/wholesale/sales', labelKey: 'wh.nav.sales', icon: Receipt, needs: 'sale.create' },
   { key: 'treasury', href: '/wholesale/treasury', labelKey: 'wh.nav.treasury', icon: Wallet, needs: 'custody.submit' },
+  { key: 'reports', href: '/wholesale/reports', labelKey: 'wh.nav.reports', icon: BarChart3, needs: 'report.view' },
   { key: 'expenses', href: '/wholesale/expenses', labelKey: 'wh.nav.expenses', icon: HandCoins, needs: 'expense.submit' },
   { key: 'rates', href: '/wholesale/rates', labelKey: 'wh.nav.rates', icon: Coins, needs: 'rate.set' },
   { key: 'staff', href: '/wholesale/staff', labelKey: 'wh.nav.staff', icon: Users, needs: 'staff.manage' },

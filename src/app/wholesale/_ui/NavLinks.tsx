@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, Truck, Users, type LucideIcon } from 'lucide-react';
+import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Truck, Users, type LucideIcon } from 'lucide-react';
 import { cx } from '@/studio/ui';
 
-const ICONS: Record<string, LucideIcon> = { home: Home, catalog: PackageSearch, stock: Boxes, customers: Contact, suppliers: Truck, purchases: ShoppingCart, sales: Receipt, treasury: Wallet, expenses: HandCoins, settings: Settings, rates: Coins, staff: Users };
+const ICONS: Record<string, LucideIcon> = { home: Home, catalog: PackageSearch, stock: Boxes, customers: Contact, suppliers: Truck, purchases: ShoppingCart, sales: Receipt, treasury: Wallet, expenses: HandCoins, settings: Settings, reports: BarChart3, rates: Coins, staff: Users };
 
 export interface NavLink {
   key: string;
