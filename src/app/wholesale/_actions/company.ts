@@ -1,8 +1,10 @@
 'use server';
 
+import * as books from '@/server/wholesale/actions/books';
 import * as catalog from '@/server/wholesale/actions/catalog';
 import * as purchase from '@/server/wholesale/actions/purchase';
 import * as sale from '@/server/wholesale/actions/sale';
+import * as treasury from '@/server/wholesale/actions/treasury';
 import { invokeWh } from '@/server/wholesale/access';
 
 // The Wholesale screens' Server Actions. `invokeWh` puts in the company the person works in; the browser never names it.
@@ -93,4 +95,44 @@ export async function collectPayment(input: unknown) {
 
 export async function returnSale(input: unknown) {
   return invokeWh(sale.returnSaleAction, input);
+}
+
+export async function convertCash(input: unknown) {
+  return invokeWh(treasury.convertCashAction, input);
+}
+
+export async function submitHandover(input: unknown) {
+  return invokeWh(treasury.submitHandoverAction, input);
+}
+
+export async function confirmHandover(input: unknown) {
+  return invokeWh(treasury.confirmHandoverAction, input);
+}
+
+export async function rejectHandover(input: unknown) {
+  return invokeWh(treasury.rejectHandoverAction, input);
+}
+
+export async function postExpense(input: unknown) {
+  return invokeWh(treasury.postExpenseAction, input);
+}
+
+export async function approveExpense(input: unknown) {
+  return invokeWh(treasury.approveExpenseAction, input);
+}
+
+export async function rejectExpense(input: unknown) {
+  return invokeWh(treasury.rejectExpenseAction, input);
+}
+
+export async function closePeriod(input: unknown) {
+  return invokeWh(books.closePeriodAction, input);
+}
+
+export async function reopenPeriod(input: unknown) {
+  return invokeWh(books.reopenPeriodAction, input);
+}
+
+export async function saveSettings(input: unknown) {
+  return invokeWh(books.saveSettingsAction, input);
 }

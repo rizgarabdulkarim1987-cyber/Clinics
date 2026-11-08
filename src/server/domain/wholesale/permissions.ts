@@ -33,10 +33,13 @@ export const WH_PERMISSIONS = [
   'period.close',
   /** Confirming what a rep hands over from his custody. */
   'custody.confirm',
+  /** A rep handing his cash to the office and recording his own expenses (fuel). */
+  'custody.submit',
+  'expense.submit',
 ] as const;
 export type WhPermission = (typeof WH_PERMISSIONS)[number];
 
-const REP: readonly WhPermission[] = ['catalog.view', 'stock.view', 'sale.create', 'sale.return', 'payment.collect'];
+const REP: readonly WhPermission[] = ['catalog.view', 'stock.view', 'sale.create', 'sale.return', 'payment.collect', 'custody.submit', 'expense.submit'];
 
 const MATRIX: Record<WhRole, readonly WhPermission[]> = {
   OWNER: WH_PERMISSIONS,
