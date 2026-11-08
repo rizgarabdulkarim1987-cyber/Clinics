@@ -24,6 +24,7 @@
     "studio:stage-models": "tsx scripts/set-stage-models.ts",
     "studio:template": "tsx scripts/set-template.ts",
     "studio:photos": "tsx scripts/attach-photos.ts",
+    "wholesale:copy": "tsx scripts/wholesale-copy-company.ts",
     "studio:thumbnails": "playwright test --config playwright.thumbnails.config.ts",
     "db:up": "tsx scripts/db.ts up",
     "db:down": "tsx scripts/db.ts down",

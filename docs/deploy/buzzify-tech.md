@@ -14,6 +14,7 @@ the VPS's environment file and in your password manager.
 | Public menus (guests, QR codes) | `https://menu.buzzify.tech/<menu-address>` | `PUBLIC_MENU_HOST=menu.buzzify.tech`, `PUBLIC_MENU_ORIGIN=https://menu.buzzify.tech` |
 | Menu and Cashier (owners and staff) | `https://hive-4q.buzzify.tech/studio` | `STUDIO_HOST=hive-4q.buzzify.tech`, `BETTER_AUTH_URL=https://hive-4q.buzzify.tech` |
 | Pharmacy | `https://leaf-2x.buzzify.tech/pharmacy` | `PHARMACY_HOST=leaf-2x.buzzify.tech` |
+| Wholesale | `https://wholesales.buzzify.tech/wholesale` | `WHOLESALE_HOST=wholesales.buzzify.tech` |
 | Super admin | `https://<CORE_HOST>/<CORE_GATE_PATH>` | `CORE_HOST=<CORE_HOST>`, `CORE_GATE_PATH=<CORE_GATE_PATH>` |
 | Main domain and `www` | send visitors to the company page | `APEX_HOST=buzzify.tech`, `PUBLIC_ROOT_REDIRECT=https://buzzify.me` |
 | Old hosts | redirect (301-style) to the new ones | `LEGACY_HOSTS=buzzify-menu.online,studio.buzzify-menu.online` |
