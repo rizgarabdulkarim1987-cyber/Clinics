@@ -1,5 +1,6 @@
 'use server';
 
+import * as assistant from '@/server/wholesale/actions/assistant';
 import * as books from '@/server/wholesale/actions/books';
 import * as catalog from '@/server/wholesale/actions/catalog';
 import * as purchase from '@/server/wholesale/actions/purchase';
@@ -135,4 +136,8 @@ export async function reopenPeriod(input: unknown) {
 
 export async function saveSettings(input: unknown) {
   return invokeWh(books.saveSettingsAction, input);
+}
+
+export async function askAssistant(input: unknown) {
+  return invokeWh(assistant.askAssistantAction, input);
 }

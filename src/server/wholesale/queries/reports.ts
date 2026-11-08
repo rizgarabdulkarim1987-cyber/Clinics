@@ -7,6 +7,7 @@ import { listExpenses } from '@/server/wholesale/posting/expense';
 import { cashPosition, debts, lowStock, partyBalances, profit, salesByDay, stockValue } from '@/server/wholesale/posting/reports';
 import { listPendingSales } from '@/server/wholesale/posting/sale';
 import { plain } from '@/server/wholesale/plain';
+import { assistantUsed } from '@/server/wholesale/assistant';
 import { defineQuery } from '@/server/studio/framework/query';
 
 /** Reports and the home screen (Phase 6). Partners only: a rep never sees cost, profit or the company's cash. */
@@ -89,4 +90,14 @@ export const debtorsReportQuery = defineQuery({
     const [customers, suppliers] = await Promise.all([partyBalances(db, 'AR'), partyBalances(db, 'AP')]);
     return plain({ customers, suppliers });
   },
+});
+
+/** How many assistant questions this month has used. */
+export const assistantUsageQuery = defineQuery({
+  name: 'wh.assistant.usage',
+  permission: null,
+  wh: 'ai.use',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => ({ used: await assistantUsed(scoped(ctx).db) }),
 });
