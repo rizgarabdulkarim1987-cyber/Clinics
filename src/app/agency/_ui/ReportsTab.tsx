@@ -2,7 +2,7 @@
 
 import { Download } from 'lucide-react';
 import { useState } from 'react';
-import { ACCOUNT_CURRENCIES, byClient, byMonth, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, byClient, byMonth, byService, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
 import { numberFormat } from '@/studio/format';
 import { useLocale, useT } from '@/studio/i18n';
@@ -35,6 +35,7 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
   const names = new Map(book.movements.flatMap((row) => (row.clientId && row.clientName ? [[row.clientId, row.clientName] as const] : [])));
   const byName = byClient(rows, names, rate);
   // With a rate the best client is the one with the best profit in all the money together.
+  const services = byService(rows, rate);
   const clients = rate === null ? byName : [...byName].sort((a, b) => Number(a.clientId === null) - Number(b.clientId === null) || b.totals.IQD.net - a.totals.IQD.net);
   const sumsOfYear = byMonth(book.movements, year, rate);
   const yearCurrencies = ACCOUNT_CURRENCIES.filter((code) => sumsOfYear.some((entry) => entry[code].income !== 0 || entry[code].expense !== 0));
@@ -163,6 +164,11 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                   <tr key={row.clientId ?? 'none'} className="border-b border-line align-top last:border-b-0 hover:bg-surface">
                     <th scope="row" className={cx('px-4 py-3 text-start font-medium', row.clientId === null && 'text-muted')}>
                       {row.name ?? t('accounts.noClient')}
+                      {row.clientId && (
+                        <a href={`/agency/statement?client=${row.clientId}`} download className="ms-3 text-sm font-normal text-muted underline-offset-2 hover:text-text hover:underline">
+                          {t('accounts.statement')}
+                        </a>
+                      )}
                     </th>
                     <td className="px-3 py-3 text-end">
                       <MoneyStack totals={row.totals} pick="income" locale={locale} />
@@ -194,6 +200,27 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
               </tfoot>
             </table>
           </div>
+        )}
+      </section>
+
+      <section aria-labelledby="services-title" className="flex flex-col gap-3">
+        <h2 id="services-title" className="text-md font-semibold">
+          {t('accounts.services.title')}
+        </h2>
+        {services.length === 0 ? (
+          <p className="text-sm text-muted">{t('accounts.services.empty')}</p>
+        ) : (
+          <ol className="divide-y divide-line rounded-lg border border-line bg-raised">
+            {services.map((row, index) => (
+              <li key={row.service || 'none'} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3">
+                <span className="w-6 text-sm tabular-nums text-muted">{index + 1}</span>
+                <span className={cx('truncate font-medium', row.service === '' && 'text-muted')}>{row.service || t('accounts.services.none')}</span>
+                <span className="font-semibold">
+                  <MoneyStack totals={row.totals} pick="income" locale={locale} />
+                </span>
+              </li>
+            ))}
+          </ol>
         )}
       </section>
     </div>
