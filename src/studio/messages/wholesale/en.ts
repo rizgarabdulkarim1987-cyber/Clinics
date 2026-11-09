@@ -497,6 +497,10 @@ const wholesale: Messages = {
   'wh.print.customer': "Customer",
   'wh.print.sellerSign': "Seller signature",
   'wh.print.buyerSign': "Buyer signature",
+  'wh.alert.title': "Needs your eye",
+  'wh.alert.overdueDebt': "{name} is {daysOverdue} days late on a debt of {openIqd} IQD (due {dueDate}).",
+  'wh.alert.salesDrop': "Sales today ({today} IQD) are {percent}% of a normal day ({average} IQD).",
+  'wh.alert.oddPrice': "{name} was sold at {finalPrice} {currency}, only {percent}% of the list price ({officialPrice}).",
 };
 
 export default wholesale;

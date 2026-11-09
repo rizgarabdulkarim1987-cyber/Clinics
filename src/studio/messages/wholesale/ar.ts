@@ -497,6 +497,10 @@ const wholesale: Messages = {
   'wh.print.customer': "الزبون",
   'wh.print.sellerSign': "توقيع البائع",
   'wh.print.buyerSign': "توقيع المشتري",
+  'wh.alert.title': "يحتاج انتباهك",
+  'wh.alert.overdueDebt': "{name} متأخر {daysOverdue} يوم عن دين {openIqd} دينار (استحقاق {dueDate}).",
+  'wh.alert.salesDrop': "مبيعات اليوم ({today} دينار) فقط {percent}% من اليوم العادي ({average} دينار).",
+  'wh.alert.oddPrice': "{name} انباع بـ {finalPrice} {currency}، يعني {percent}% بس من سعر القائمة ({officialPrice}).",
 };
 
 export default wholesale;

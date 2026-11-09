@@ -497,6 +497,10 @@ const wholesale: Messages = {
   'wh.print.customer': "کڕیار",
   'wh.print.sellerSign': "ئیمزای فرۆشیار",
   'wh.print.buyerSign': "ئیمزای کڕیار",
+  'wh.alert.title': "پێویستی بە سەرنجی تۆیە",
+  'wh.alert.overdueDebt': "{name} {daysOverdue} ڕۆژ دواکەوتووە لە قەرزی {openIqd} دینار (کاتی دانەوە {dueDate}).",
+  'wh.alert.salesDrop': "فرۆشی ئەمڕۆ ({today} دینار) تەنها {percent}%ی ڕۆژێکی ئاسایییە ({average} دینار).",
+  'wh.alert.oddPrice': "{name} بە {finalPrice} {currency} فرۆشراوە، تەنها {percent}%ی نرخی لیست ({officialPrice}).",
 };
 
 export default wholesale;

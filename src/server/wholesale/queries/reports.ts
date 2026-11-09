@@ -5,7 +5,9 @@ import { whPlaceInput, whTargetOf } from '@/server/wholesale/actions/catalog';
 import { listPendingHandovers } from '@/server/wholesale/posting/custody';
 import { listExpenses } from '@/server/wholesale/posting/expense';
 import { cashPosition, debts, lowStock, partyBalances, profit, salesByDay, stockValue } from '@/server/wholesale/posting/reports';
-import { listPendingSales } from '@/server/wholesale/posting/sale';
+import { listPendingSales, receivables } from '@/server/wholesale/posting/sale';
+import { computeAlerts, ODD_PRICE_WINDOW_DAYS, SALES_DROP_TRAILING_DAYS } from '@/server/domain/wholesale/alerts';
+import { D } from '@/server/domain/wholesale/money';
 import { plain } from '@/server/wholesale/plain';
 import { assistantUsed } from '@/server/wholesale/assistant';
 import { defineQuery } from '@/server/studio/framework/query';
@@ -162,5 +164,71 @@ export const expensesReportQuery = defineQuery({
       by.set(r.category, m);
     }
     return plain([...by.entries()].map(([category, m]) => ({ category, byCurrency: fixed(m) })));
+  },
+});
+
+/** What needs a partner's eye: customers late on a debt, a day of weak sales, a sale far under the list price. Plain rules, no AI. */
+export const alertsQuery = defineQuery({
+  name: 'wh.alerts',
+  permission: null,
+  wh: 'report.view',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    const { db } = scoped(ctx);
+    const rid = ctx.wh!.restaurantId;
+    const today = baghdadDate();
+    const [debtors, week, lines] = await Promise.all([
+      partyBalances(db, 'AR'),
+      salesByDay(db, { from: addDays(today, -SALES_DROP_TRAILING_DAYS), to: today }),
+      db.whSaleLine.findMany({
+        where: { sale: { status: 'POSTED', date: { gte: new Date(`${addDays(today, -(ODD_PRICE_WINDOW_DAYS - 1))}T00:00:00Z`) } } },
+        select: { id: true, saleId: true, itemId: true, officialPrice: true, finalPrice: true, sale: { select: { date: true, currency: true } } },
+        take: 5000,
+      }),
+    ]);
+    const receivable: import('@/server/domain/wholesale/alerts').ReceivableAlertRow[] = [];
+    for (const d of debtors.slice(0, 100)) {
+      for (const r of await receivables(db, rid, d.partyId)) {
+        if (r.open.gt(0) && r.dueDate) receivable.push({ id: r.id, kind: r.kind === 'SALE' ? 'SALE' : 'OPENING', customerId: d.partyId, dueDate: r.dueDate, openIqd: r.open.times(r.lockedRate) });
+      }
+    }
+    const byDate = new Map(week.map((w) => [w.date, w.iqd]));
+    const trailing = Array.from({ length: SALES_DROP_TRAILING_DAYS }, (_, i) => byDate.get(addDays(today, -(SALES_DROP_TRAILING_DAYS - i))) ?? new D(0));
+    const alerts = computeAlerts({
+      today,
+      receivables: receivable,
+      sales: { today: byDate.get(today) ?? new D(0), trailing },
+      prices: lines.map((l) => ({
+        saleId: l.saleId,
+        saleLineId: l.id,
+        itemId: l.itemId,
+        date: l.sale.date.toISOString().slice(0, 10),
+        currency: l.sale.currency,
+        officialPrice: new D(l.officialPrice.toString()),
+        finalPrice: new D(l.finalPrice.toString()),
+      })),
+    });
+    const shown = alerts.slice(0, 12);
+    const customerIds = [...new Set(shown.map((a) => a.refs.customerId).filter((x): x is string => !!x))];
+    const itemIds = [...new Set(shown.map((a) => a.refs.itemId).filter((x): x is string => !!x))];
+    const [customers, items] = await Promise.all([
+      db.whCustomer.findMany({ where: { id: { in: customerIds } }, select: { id: true, name: true } }),
+      db.whItem.findMany({ where: { id: { in: itemIds } }, select: { id: true, names: true } }),
+    ]);
+    const cname = new Map(customers.map((c) => [c.id, c.name]));
+    const iname = new Map(items.map((i) => [i.id, i.names as unknown]));
+    return plain({
+      total: alerts.length,
+      alerts: shown.map((a) => ({
+        kind: a.kind,
+        severity: a.severity,
+        params: a.params,
+        customer: a.refs.customerId ? (cname.get(a.refs.customerId) ?? '') : '',
+        customerId: a.refs.customerId ?? '',
+        saleId: a.refs.saleId ?? '',
+        itemNames: a.refs.itemId ? (iname.get(a.refs.itemId) ?? null) : null,
+      })),
+    });
   },
 });

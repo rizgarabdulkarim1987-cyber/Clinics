@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
-import { dashboardQuery } from '@/server/wholesale/queries/reports';
+import { alertsQuery, dashboardQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { Alert, PageHeader } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
@@ -24,6 +24,7 @@ export default async function HomePage() {
   const [items, warehouses, customers] = await Promise.all([queryWh(itemsQuery), queryWh(warehousesQuery), queryWh(customersQuery)]);
   const needsSetup = !isRep && !warehouses.some((w) => w.kind === 'MAIN') && canWh(actor!.role, 'settings.manage');
   const board = canWh(actor!.role, 'report.view') && !needsSetup ? await queryWh(dashboardQuery) : null;
+  const watch = board ? await queryWh(alertsQuery) : null;
   const tiles: { label: string; value: number; href: string }[] = [
     { label: t('wh.home.items'), value: items.length, href: '/wholesale/catalog' },
     { label: t('wh.home.warehouses'), value: warehouses.length, href: '/wholesale/stock' },
@@ -60,6 +61,25 @@ export default async function HomePage() {
                 <span className="text-base">{a.label}</span>
               </Link>
             ))}
+          </section>
+        )}
+        {watch && watch.alerts.length > 0 && (
+          <section aria-label={t('wh.alert.title')} className="flex flex-col gap-2 rounded-md border border-line bg-raised p-4">
+            <h2 className="text-md font-semibold">{t('wh.alert.title')}</h2>
+            <ul className="flex flex-col gap-2">
+              {watch.alerts.map((a, i) => (
+                <li key={i}>
+                  <Link
+                    href={a.kind === 'overdueDebt' ? `/wholesale/customers/${a.customerId}` : a.saleId ? `/wholesale/sales/${a.saleId}` : '/wholesale/sales'}
+                    className={`flex items-start gap-3 rounded-md border px-3 py-2 text-base hover:bg-hover ${a.severity === 'high' ? 'border-danger bg-danger-wash' : 'border-line'}`}
+                  >
+                    <span dir="auto">
+                      {t(`wh.alert.${a.kind}`, { ...a.params, name: a.customer || (a.itemNames ? nameOf(a.itemNames as Names, actor!.locale) : '') })}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
         {board && (

@@ -225,7 +225,7 @@ type Receivable = OpenDoc & { number: bigint | null; lockedRate: DD; date: strin
  * posted credit sales and, unless one sale is asked for, the customer's opening debts (import/opening.ts: dated the
  * opening date, so they come first).
  */
-async function receivables(db: Db, rid: string, customerId: string, saleId?: string): Promise<Receivable[]> {
+export async function receivables(db: Db, rid: string, customerId: string, saleId?: string): Promise<Receivable[]> {
   const sales = await db.whSale.findMany({
     where: { customerId, paymentMode: 'CREDIT', status: 'POSTED', ...(saleId ? { id: saleId } : {}) },
     select: { id: true, number: true, currency: true, totalFinal: true, rateSnapshot: true, date: true, dueDate: true, createdAt: true },
