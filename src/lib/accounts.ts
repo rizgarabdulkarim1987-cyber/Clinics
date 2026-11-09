@@ -23,6 +23,10 @@ export interface AccountMovement {
   occurredOn: string;
   /** Whole dinars for one dollar on the day it was typed in; null when no rate had been set yet. */
   rate?: number | null;
+  /** An income whose money has not all been received yet: the client owes what is left. Absent or false means paid in full. */
+  owed?: boolean;
+  /** What has been received so far, in the movement's own minor unit; only read when `owed`. */
+  paidMinor?: number;
 }
 
 export interface Totals {
@@ -95,6 +99,40 @@ function add(into: CurrencyTotals, movement: AccountMovement, rate: number | nul
   const isDinar = movement.currency === 'IQD';
   addTo(into.IQD, movement.kind, isDinar ? movement.amountMinor : Math.round((movement.amountMinor * used) / 100));
   addTo(into.USD, movement.kind, isDinar ? Math.round((movement.amountMinor * 100) / used) : movement.amountMinor);
+}
+
+/** What a client still owes on one movement: what is left of an income marked as not yet paid; zero for anything else. */
+export function remainingMinor(movement: AccountMovement): number {
+  if (movement.kind !== 'INCOME' || !movement.owed) return 0;
+  return Math.max(0, movement.amountMinor - (movement.paidMinor ?? 0));
+}
+
+/**
+ * What clients still owe, as income totals in each currency apart or, with a `rate`, all of it in dinars and all of it in
+ * dollars (each entry at the rate it was typed in with, as everywhere else).
+ */
+export function owedTotals(movements: readonly AccountMovement[], rate: number | null = null): CurrencyTotals {
+  const totals = emptyCurrencyTotals();
+  for (const movement of movements) {
+    const left = remainingMinor(movement);
+    if (left > 0) add(totals, { ...movement, kind: 'INCOME', amountMinor: left }, rate);
+  }
+  return totals;
+}
+
+/** The days a client may take to pay before the money counts as late. */
+export const LATE_AFTER_DAYS = 30;
+
+const dayNumber = (day: string): number => Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10))) / 86_400_000;
+
+/** Whole days from one calendar day (`YYYY-MM-DD`) to a later one. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round(dayNumber(to) - dayNumber(from));
+}
+
+/** Something is still owed on it and it is more than `LATE_AFTER_DAYS` days old on `today`. */
+export function isLate(movement: AccountMovement, today: string): boolean {
+  return remainingMinor(movement) > 0 && daysBetween(movement.occurredOn, today) > LATE_AFTER_DAYS;
 }
 
 /** The movements of a month, a year, or all of them. */

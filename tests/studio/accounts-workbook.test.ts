@@ -16,6 +16,9 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
   occurredOn: '2026-11-05',
   recordedAt: '2026-11-05T09:30:00.000Z',
   rate: null,
+  owed: false,
+  paidMinor: 0,
+  payments: [],
   ...over,
 });
 

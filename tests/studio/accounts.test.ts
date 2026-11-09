@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addAccountEntry, archiveAccountClient, archiveAccountEntry, createAccountClient, setAccountRate, updateAccountEntry } from '@/server/studio/actions/accounts';
+import { addAccountEntry, archiveAccountClient, archiveAccountEntry, createAccountClient, setAccountRate, updateAccountEntry, addAccountPayment, archiveAccountPayment } from '@/server/studio/actions/accounts';
 import { accountsBook } from '@/server/studio/queries/accounts';
 import { ask, codeOf, dataOf, failureOf, person, prisma, resetWorld, restaurant, run, useTestDatabase, type Person } from '../pos/fixture';
 
@@ -211,5 +211,75 @@ describe('editing a movement', () => {
     dataOf(await run(admin, archiveAccountEntry, { id }));
     expect(codeOf(await run(admin, updateAccountEntry, same))).toBe('NOT_FOUND');
     for (const who of [owner, cashier]) expect(codeOf(await run(who, updateAccountEntry, same))).toBe('FORBIDDEN');
+  });
+});
+
+describe('what clients owe', () => {
+  const owing = async (extra: Record<string, unknown> = {}) =>
+    dataOf(await run(admin, addAccountEntry, { kind: 'INCOME', amount: '1,000', currency: 'USD', occurredOn: '2026-11-01', owed: true, ...extra }));
+  const pay = (entryId: string, amount: string, extra: Record<string, unknown> = {}) => run(admin, addAccountPayment, { entryId, amount, paidOn: '2026-11-05', ...extra });
+
+  it('marks an income as owed, and ignores the mark on an expense and on anything left unmarked', async () => {
+    const a = await owing();
+    const b = await owing({ owed: undefined });
+    const c = await owing({ kind: 'EXPENSE' });
+    const rows = await prisma().accountEntry.findMany({ where: { id: { in: [a.id, b.id, c.id] } } });
+    const owed = (id: string) => rows.find((row) => row.id === id)!.owed;
+    expect([owed(a.id), owed(b.id), owed(c.id)]).toEqual([true, false, false]);
+  });
+
+  it('records payments in the entry currency, and the book carries what is received and each payment', async () => {
+    const { id } = await owing();
+    dataOf(await pay(id, '250.50', { note: 'cash' }));
+    dataOf(await pay(id, '100'));
+    const entry = dataOf(await ask(admin, accountsBook, {})).movements[0]!;
+    expect(entry).toMatchObject({ owed: true, paidMinor: 35_050 });
+    // Oldest first.
+    expect(entry.payments.map((p) => [p.amountMinor, p.paidOn, p.note])).toEqual([
+      [25_050, '2026-11-05', 'cash'],
+      [10_000, '2026-11-05', ''],
+    ]);
+    expect(await prisma().auditLog.count({ where: { action: 'account.payment.created' } })).toBe(2);
+  });
+
+  it('refuses more than is left, a bad amount or day, and an entry that is not owed, an expense, archived or missing', async () => {
+    const { id } = await owing();
+    dataOf(await pay(id, '900'));
+    expect(failureOf(await pay(id, '100.01')).fields?.amount).toBeTruthy();
+    dataOf(await pay(id, '100'));
+    expect(failureOf(await pay(id, '0.01')).fields?.amount).toBeTruthy();
+    const open = await owing();
+    expect(failureOf(await pay(open.id, 'abc')).fields?.amount).toBeTruthy();
+    expect(codeOf(await pay(open.id, '10', { paidOn: '2026-13-40' }))).toBe('INVALID');
+    const plain = await owing({ owed: false });
+    expect(codeOf(await pay(plain.id, '10'))).toBe('NOT_FOUND');
+    const expense = await owing({ kind: 'EXPENSE' });
+    expect(codeOf(await pay(expense.id, '10'))).toBe('NOT_FOUND');
+    expect(codeOf(await pay('nope', '10'))).toBe('NOT_FOUND');
+    dataOf(await run(admin, archiveAccountEntry, { id: open.id }));
+    expect(codeOf(await pay(open.id, '10'))).toBe('NOT_FOUND');
+    for (const who of [owner, cashier]) expect(codeOf(await run(who, addAccountPayment, { entryId: id, amount: '1' }))).toBe('FORBIDDEN');
+  });
+
+  it('archives a payment, and what is received goes back down', async () => {
+    const { id } = await owing();
+    const first = dataOf(await pay(id, '300'));
+    dataOf(await pay(id, '200'));
+    dataOf(await run(admin, archiveAccountPayment, { id: first.id }));
+    expect(dataOf(await ask(admin, accountsBook, {})).movements[0]!.paidMinor).toBe(20_000);
+    expect(await prisma().accountPayment.count()).toBe(2);
+    expect(codeOf(await run(admin, archiveAccountPayment, { id: first.id }))).toBe('NOT_FOUND');
+  });
+
+  it('keeps the mark when an entry is edited without it, and clears it when the entry becomes an expense', async () => {
+    const { id } = await owing();
+    const same = { id, kind: 'INCOME', amount: '1,000', currency: 'USD' };
+    dataOf(await run(admin, updateAccountEntry, same));
+    expect((await prisma().accountEntry.findUniqueOrThrow({ where: { id } })).owed).toBe(true);
+    dataOf(await run(admin, updateAccountEntry, { ...same, owed: false }));
+    expect((await prisma().accountEntry.findUniqueOrThrow({ where: { id } })).owed).toBe(false);
+    dataOf(await run(admin, updateAccountEntry, { ...same, owed: true }));
+    dataOf(await run(admin, updateAccountEntry, { ...same, kind: 'EXPENSE' }));
+    expect((await prisma().accountEntry.findUniqueOrThrow({ where: { id } })).owed).toBe(false);
   });
 });

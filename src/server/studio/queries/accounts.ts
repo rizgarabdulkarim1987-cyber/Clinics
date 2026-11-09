@@ -28,6 +28,20 @@ export interface BookMovement {
   recordedAt: string;
   /** Whole dinars for one dollar on the day it was typed in; null when no rate had been set yet. */
   rate: number | null;
+  /** An income whose money has not all been received: the client owes what the payments leave. */
+  owed: boolean;
+  /** Received so far, in this movement's own minor unit. */
+  paidMinor: number;
+  /** The payments received against it, oldest first. */
+  payments: BookPayment[];
+}
+
+export interface BookPayment {
+  id: string;
+  amountMinor: number;
+  /** The calendar day, `YYYY-MM-DD`. */
+  paidOn: string;
+  note: string;
 }
 
 export interface AccountsBook {
@@ -51,7 +65,10 @@ export const accountsBook = defineQuery({
         where: { archivedAt: null },
         orderBy: [{ occurredOn: 'desc' }, { createdAt: 'desc' }],
         take: BOOK_LIMIT,
-        include: { client: { select: { name: true } } },
+        include: {
+          client: { select: { name: true } },
+          payments: { where: { archivedAt: null }, orderBy: [{ paidOn: 'asc' }, { createdAt: 'asc' }], select: { id: true, amountMinor: true, paidOn: true, note: true } },
+        },
       }),
       db.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } }),
     ]);
@@ -71,6 +88,9 @@ export const accountsBook = defineQuery({
         occurredOn: row.occurredOn.toISOString().slice(0, 10),
         recordedAt: row.createdAt.toISOString(),
         rate: row.rate,
+        owed: row.owed,
+        paidMinor: row.payments.reduce((sum, payment) => sum + payment.amountMinor, 0),
+        payments: row.payments.map((payment) => ({ id: payment.id, amountMinor: payment.amountMinor, paidOn: payment.paidOn.toISOString().slice(0, 10), note: payment.note })),
       })),
     };
   },

@@ -162,6 +162,7 @@ describe('routeHost on the agency host', () => {
   it.each([
     '/agency',
     '/agency/export',
+    '/agency/manifest',
     '/api/auth/sign-in/email',
     '/studio/sign-in',
     '/studio/two-factor',

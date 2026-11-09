@@ -9,10 +9,17 @@ import { StudioI18nProvider } from '@/studio/i18n';
 import { clientMessages } from '@/studio/messages';
 import { requestStudioLocale } from '@/studio/request-locale';
 import { Toaster } from '@/studio/ui/Toaster';
+import { AppWindow } from './_ui/AppWindow';
+
+/** The books scroll as always, but no scrollbar is drawn: the screen is one page and the bar only took space. */
+const NO_SCROLLBARS = '*{scrollbar-width:none}*::-webkit-scrollbar{display:none}';
 
 export const metadata: Metadata = {
   title: { default: 'Buzzify Agency', template: '%s · Buzzify Agency' },
   robots: { index: false, follow: false },
+  // Lets Chrome and Edge install the books as a desktop app with its own window.
+  manifest: '/agency/manifest',
+  icons: { icon: '/agency/icon-192.png', apple: '/agency/icon-192.png' },
 };
 
 /**
@@ -26,6 +33,8 @@ export default async function AgencyRootLayout({ children }: { children: ReactNo
     <html lang={locale} dir={direction(locale)} className={studioFontVariables(locale)} {...appearanceHtmlProps(actor?.appearance)}>
       <body>
         <StudioI18nProvider locale={locale} messages={clientMessages(locale)}>
+          <style>{NO_SCROLLBARS}</style>
+          <AppWindow />
           {children}
           <Toaster />
         </StudioI18nProvider>
