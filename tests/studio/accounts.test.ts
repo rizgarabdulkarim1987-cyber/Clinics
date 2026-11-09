@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addAccountEntry, archiveAccountClient, archiveAccountEntry, createAccountClient } from '@/server/studio/actions/accounts';
+import { addAccountEntry, archiveAccountClient, archiveAccountEntry, createAccountClient, setAccountRate } from '@/server/studio/actions/accounts';
 import { accountsBook } from '@/server/studio/queries/accounts';
 import { ask, codeOf, dataOf, failureOf, person, prisma, resetWorld, restaurant, run, useTestDatabase, type Person } from '../pos/fixture';
 
@@ -138,5 +138,19 @@ describe('the book the screen reads', () => {
     const book = dataOf(await ask(admin, accountsBook, {}));
     expect(book.clients).toHaveLength(0);
     expect(book.movements[0]!.clientName).toBe('Old Client');
+  });
+});
+
+describe('the exchange rate', () => {
+  it('starts unset, then keeps the rate a Super Admin saves, and the book carries it', async () => {
+    expect(dataOf(await ask(admin, accountsBook, {})).rate).toBeNull();
+    dataOf(await run(admin, setAccountRate, { rate: '1,500' }));
+    expect(dataOf(await ask(admin, accountsBook, {})).rate).toBe(1500);
+    dataOf(await run(admin, setAccountRate, { rate: '1520' }));
+    expect(dataOf(await ask(admin, accountsBook, {})).rate).toBe(1520);
+  });
+  it('refuses a bad rate and anyone but a Super Admin', async () => {
+    for (const bad of ['', '0', '12.5', 'x']) expect(failureOf(await run(admin, setAccountRate, { rate: bad })).code, bad).toBe('INVALID');
+    for (const who of [owner, cashier]) expect(codeOf(await run(who, setAccountRate, { rate: '1500' }))).toBe('FORBIDDEN');
   });
 });

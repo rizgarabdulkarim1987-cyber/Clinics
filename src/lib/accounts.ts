@@ -2,7 +2,8 @@
  * The agency's simple books (docs/superpowers/specs/2026-11-09-agency-accounts-design.md): slugs for clients and the
  * totals the screen and the Excel file show. Pure functions, so the browser and the server read the money the same way.
  *
- * Money is in each currency's minor unit and is never converted: dinars and dollars are always totalled apart.
+ * Money is in each currency's minor unit. Dinars and dollars are always totalled apart; the one exception is the
+ * combined line, which adds dollars to dinars at the exchange rate the owner typed (`combineTotals`).
  */
 
 export type AccountCurrency = 'IQD' | 'USD';
@@ -153,4 +154,28 @@ export function parsePeriod(text: string | null | undefined): Period | null {
     if (number >= 1 && number <= 12) return { kind: 'month', year: Number(month[1]), month: number };
   }
   return null;
+}
+
+/** The settings key of the exchange rate: whole dinars for one dollar. */
+export const RATE_SETTING_KEY = 'agency.usdToIqd';
+export const RATE_MAX = 100_000;
+
+/** Whole dinars per dollar, as typed: `1500`, `1,520` or Arabic digits. A rate has no fractions and is above zero. */
+export function parseRate(text: string): { ok: true; rate: number } | { ok: false } {
+  const digits = text
+    .trim()
+    .replace(/,/g, '')
+    .replace(/[٠-٩]/g, (char) => String(char.charCodeAt(0) - 0x660))
+    .replace(/[۰-۹]/g, (char) => String(char.charCodeAt(0) - 0x6f0));
+  if (!/^\d{1,7}$/.test(digits)) return { ok: false };
+  const rate = Number(digits);
+  return rate >= 1 && rate <= RATE_MAX ? { ok: true, rate } : { ok: false };
+}
+
+/** Income, expense and net in dinars: the dollars at `rate` dinars each, rounded to a whole dinar, plus the dinars. */
+export function combineTotals(totals: CurrencyTotals, rate: number): Totals {
+  const dinars = (cents: number) => Math.round((cents * rate) / 100);
+  const income = totals.IQD.income + dinars(totals.USD.income);
+  const expense = totals.IQD.expense + dinars(totals.USD.expense);
+  return { income, expense, net: income - expense };
 }

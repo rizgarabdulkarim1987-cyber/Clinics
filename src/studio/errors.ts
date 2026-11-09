@@ -172,6 +172,7 @@ export const SERVER_TEXT: Readonly<Record<string, string>> = {
   'The amount must be more than zero': 'accounts.error.amount',
   'Use a real date': 'accounts.error.date',
   'Type the name of the client': 'accounts.error.clientName',
+  'Type the dinars for one dollar, for example 1500': 'accounts.error.rate',
   'Use at most 2000 characters': 'error.text.announcementBodyTooLong',
   'Use letters, digits, spaces and . & ( ) - only': 'error.text.senderCharacters',
   'Reserve at most 500 words': 'error.text.reservedTooMany',

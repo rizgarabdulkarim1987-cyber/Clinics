@@ -2500,6 +2500,7 @@ const en: Messages = {
   'activity.action.account.client.archived': 'Archived an agency client',
   'activity.action.account.entry.created': 'Recorded income or an expense',
   'activity.action.account.entry.archived': 'Archived an income or expense',
+  'activity.action.account.rate.set': 'Changed the agency exchange rate',
   'activity.action.account.two_factor_enabled': 'Turned on two-factor',
   'activity.action.account.two_factor_disabled': 'Turned off two-factor',
   'activity.action.account.recovery_codes_regenerated': 'Made new recovery codes',
@@ -3709,6 +3710,16 @@ const en: Messages = {
   'accounts.error.amount': 'Type an amount above zero: digits only, dinars without fractions, dollars with at most two digits after the point.',
   'accounts.error.date': 'Use a real date.',
   'accounts.error.clientName': 'Type the name of the client.',
+  'accounts.error.rate': 'Type the dinars for one dollar, for example 1500.',
+  'accounts.rate.label': 'Exchange rate',
+  'accounts.rate.unit': 'IQD',
+  'accounts.rate.save': 'Save rate',
+  'accounts.rate.saved': 'Rate saved',
+  'accounts.rate.change': 'Change',
+  'accounts.rate.hint': 'Dollars are added to dinars at this rate in the combined lines.',
+  'accounts.combined': 'Combined in dinars',
+  'accounts.combined.needRate': 'Type the exchange rate to see everything in one currency.',
+  'accounts.sheet.rate': 'Exchange rate (dinars for 1 dollar)',
 };
 
 export default en;

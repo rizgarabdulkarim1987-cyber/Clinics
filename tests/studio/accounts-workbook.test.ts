@@ -18,6 +18,7 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
 });
 
 const book: AccountsBook = {
+  rate: null,
   clients: [{ id: 'a', name: 'Al Nour', slug: 'al-nour', phone: '' }],
   movements: [
     move({ id: '1' }),
@@ -27,8 +28,8 @@ const book: AccountsBook = {
   ],
 };
 
-async function open(period: Parameters<typeof buildBookWorkbook>[1], locale: 'en' | 'ar' = 'en') {
-  const bytes = await buildBookWorkbook(book, period, getStudioTranslator(locale), locale);
+async function open(period: Parameters<typeof buildBookWorkbook>[1], locale: 'en' | 'ar' = 'en', rate: number | null = null) {
+  const bytes = await buildBookWorkbook({ ...book, rate }, period, getStudioTranslator(locale), locale);
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
   return workbook;
@@ -84,5 +85,23 @@ describe('the Excel file', () => {
     const workbook = await open({ kind: 'all' }, 'ar');
     expect(workbook.worksheets.every((sheet) => sheet.views[0]?.rightToLeft === true)).toBe(true);
     expect((await open({ kind: 'all' }, 'en')).worksheets.some((sheet) => sheet.views[0]?.rightToLeft)).toBe(false);
+  });
+});
+
+describe('the combined row', () => {
+  const rows = async (rate: number | null) => {
+    const summary = (await open({ kind: 'month', year: 2026, month: 11 }, 'en', rate)).worksheets[0]!;
+    return summary.getRows(1, summary.rowCount)!.map((row) => (row.values as unknown[]).slice(1));
+  };
+
+  it('adds the dollars to the dinars at the rate, and says which rate', async () => {
+    const all = await rows(1500);
+    // $125.50 income at 1,500 = 188,250; plus 1,000,000 dinars; expense 250,000 dinars.
+    expect(all.find((row) => row[0] === 'Combined in dinars')!.slice(1)).toEqual([1_188_250, 250_000, 938_250]);
+    expect(all.find((row) => typeof row[0] === 'string' && (row[0] as string).startsWith('Exchange rate'))![1]).toBe(1500);
+  });
+
+  it('is left out without a rate', async () => {
+    expect((await rows(null)).some((row) => row[0] === 'Combined in dinars')).toBe(false);
   });
 });
