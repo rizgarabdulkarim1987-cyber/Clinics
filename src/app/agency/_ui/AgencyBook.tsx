@@ -37,7 +37,7 @@ export function AgencyBook({ book, today, userName }: { book: AccountsBook; toda
   return (
     <div className="min-h-dvh bg-bg">
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4 sm:px-8">
+        <div className="flex h-14 w-full items-center justify-between gap-4 px-4 sm:px-10">
           <span dir="ltr" lang="en" className="inline-flex items-center gap-2 text-md leading-none">
             <BrandLogo height={16} />
             <span className="text-muted">Agency</span>
@@ -49,7 +49,7 @@ export function AgencyBook({ book, today, userName }: { book: AccountsBook; toda
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-5xl flex-col gap-5 px-4 pb-16 pt-6 sm:px-8">
+      <main className="flex w-full flex-col gap-5 px-4 pb-16 pt-6 sm:px-10">
         <div>
           <h1 className="text-xl font-semibold text-text">{t('accounts.title')}</h1>
           <p className="text-base text-muted">{t('accounts.description')}</p>
