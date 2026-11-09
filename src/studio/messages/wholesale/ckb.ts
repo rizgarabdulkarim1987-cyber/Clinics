@@ -501,6 +501,13 @@ const wholesale: Messages = {
   'wh.alert.overdueDebt': "{name} {daysOverdue} ڕۆژ دواکەوتووە لە قەرزی {openIqd} دینار (کاتی دانەوە {dueDate}).",
   'wh.alert.salesDrop': "فرۆشی ئەمڕۆ ({today} دینار) تەنها {percent}%ی ڕۆژێکی ئاسایییە ({average} دینار).",
   'wh.alert.oddPrice': "{name} بە {finalPrice} {currency} فرۆشراوە، تەنها {percent}%ی نرخی لیست ({officialPrice}).",
+  'wh.forecast.title': "کۆگا چەند دەخایەنێت",
+  'wh.forecast.hint': "لە فرۆشی {days} ڕۆژی ڕابردوو. {lead} ڕۆژ پێشوەخت داوا بکە (ماوەی گەیشتنی دابینکەر).",
+  'wh.forecast.noSales': "فرۆش نییە",
+  'wh.forecast.days': "ڕۆژ",
+  'wh.forecast.orderBy': "داوا بکە تا",
+  'wh.print.statement': "کەشفی حیساب",
+  'wh.print.statementOpen': "چاپکردنی کەشفی حیساب",
 };
 
 export default wholesale;

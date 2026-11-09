@@ -501,6 +501,13 @@ const wholesale: Messages = {
   'wh.alert.overdueDebt': "{name} متأخر {daysOverdue} يوم عن دين {openIqd} دينار (استحقاق {dueDate}).",
   'wh.alert.salesDrop': "مبيعات اليوم ({today} دينار) فقط {percent}% من اليوم العادي ({average} دينار).",
   'wh.alert.oddPrice': "{name} انباع بـ {finalPrice} {currency}، يعني {percent}% بس من سعر القائمة ({officialPrice}).",
+  'wh.forecast.title': "كم يكفي المخزون",
+  'wh.forecast.hint': "من مبيعات آخر {days} يوم. اطلب قبل {lead} يوم (مدة وصول المورد).",
+  'wh.forecast.noSales': "بدون مبيعات",
+  'wh.forecast.days': "يوم",
+  'wh.forecast.orderBy': "اطلب قبل",
+  'wh.print.statement': "كشف حساب",
+  'wh.print.statementOpen': "طباعة كشف الحساب",
 };
 
 export default wholesale;

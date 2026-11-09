@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { addDays } from '@/server/domain/wholesale/forecast';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
-import { debtorsReportQuery, expensesReportQuery, profitReportQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
+import { debtorsReportQuery, expensesReportQuery, forecastQuery, profitReportQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { EmptyState, PageHeader } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
@@ -186,9 +186,34 @@ async function Profit({ from, to, t, locale }: { from: string; to: string; t: T;
 }
 
 async function StockTab({ t, locale }: { t: T; locale: string }) {
-  const s = await queryWh(stockReportQuery);
+  const [s, f] = await Promise.all([queryWh(stockReportQuery), queryWh(forecastQuery)]);
   if (s.rows.length === 0) return <EmptyState title={t('wh.reports.noStock')} />;
   return (
+    <>
+    <section className="rounded-md border border-line bg-raised p-4">
+      <h2 className="text-md font-semibold">{t('wh.forecast.title')}</h2>
+      <p className="mb-3 text-sm text-muted">{t('wh.forecast.hint', { days: String(f.window), lead: String(f.leadDays) })}</p>
+      <ul className="flex flex-col gap-2">
+        {f.rows.map((r) => (
+          <li key={r.itemId} className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-2 first:border-0 first:pt-0">
+            <span className="text-base" dir="auto">
+              {nameOf(r.names as Names, locale)} <span className="text-sm text-muted">· {r.code}</span>
+            </span>
+            <span className="flex items-center gap-3 tabular-nums" dir="ltr">
+              <span className="text-sm text-muted">{money(r.onHand)} {t(`wh.unit.${r.baseUnit}`)}</span>
+              {r.coverDays === null ? (
+                <span className="rounded-full bg-hover px-2.5 py-0.5 text-sm">{t('wh.forecast.noSales')}</span>
+              ) : (
+                <span className={`rounded-full px-2.5 py-0.5 text-sm font-semibold ${r.coverDays < f.leadDays ? 'bg-danger-wash text-danger' : 'bg-success-wash text-success'}`}>
+                  {r.coverDays} {t('wh.forecast.days')}
+                </span>
+              )}
+              {r.reorderBy && r.coverDays !== null && r.coverDays < f.leadDays * 2 && <span className="text-sm text-muted">{t('wh.forecast.orderBy')} {r.reorderBy}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
     <section className="rounded-md border border-line bg-raised p-4">
       <p className="mb-3 text-md font-semibold">
         {t('wh.home.stockValue')}:{' '}
@@ -212,6 +237,7 @@ async function StockTab({ t, locale }: { t: T; locale: string }) {
         ))}
       </ul>
     </section>
+    </>
   );
 }
 

@@ -23,6 +23,11 @@ export default async function CustomerStatementPage({ params }: { params: Promis
   return (
     <>
       <PageHeader title={customer.name} description={t('wh.cstatement.title')} />
+      <div className="px-4 pb-3 md:px-8">
+        <Link href={`/wholesale/customers/${id}/print`} className="text-base underline">
+          {t('wh.print.statementOpen')}
+        </Link>
+      </div>
       <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
         <section className="flex flex-wrap gap-x-8 gap-y-2 rounded-md border border-line bg-raised p-4">
           {Object.keys(balances).length === 0 ? (

@@ -501,6 +501,13 @@ const wholesale: Messages = {
   'wh.alert.overdueDebt': "{name} is {daysOverdue} days late on a debt of {openIqd} IQD (due {dueDate}).",
   'wh.alert.salesDrop': "Sales today ({today} IQD) are {percent}% of a normal day ({average} IQD).",
   'wh.alert.oddPrice': "{name} was sold at {finalPrice} {currency}, only {percent}% of the list price ({officialPrice}).",
+  'wh.forecast.title': "How long the stock lasts",
+  'wh.forecast.hint': "From the last {days} days of sales. Order {lead} days ahead (the supplier lead time).",
+  'wh.forecast.noSales': "no sales",
+  'wh.forecast.days': "days",
+  'wh.forecast.orderBy': "order by",
+  'wh.print.statement': "Account statement",
+  'wh.print.statementOpen': "Print the account statement",
 };
 
 export default wholesale;

@@ -8,6 +8,8 @@ import { cashPosition, debts, lowStock, partyBalances, profit, salesByDay, stock
 import { listPendingSales, receivables } from '@/server/wholesale/posting/sale';
 import { computeAlerts, ODD_PRICE_WINDOW_DAYS, SALES_DROP_TRAILING_DAYS } from '@/server/domain/wholesale/alerts';
 import { D } from '@/server/domain/wholesale/money';
+import { activeDaysOf, dailyRate, daysOfCover, reorderBy } from '@/server/domain/wholesale/forecast';
+import { getSettings } from '@/server/wholesale/settings';
 import { plain } from '@/server/wholesale/plain';
 import { assistantUsed } from '@/server/wholesale/assistant';
 import { defineQuery } from '@/server/studio/framework/query';
@@ -230,5 +232,44 @@ export const alertsQuery = defineQuery({
         itemNames: a.refs.itemId ? (iname.get(a.refs.itemId) ?? null) : null,
       })),
     });
+  },
+});
+
+/**
+ * How long each item's stock lasts at its recent selling speed (plain arithmetic, no AI): the last N days of posted sales (N from the
+ * settings), stock on hand in the main and rep warehouses (never the damaged one), and the last day to order given the supplier lead
+ * days. Items with stock or sales, slowest cover first; items with no sales have no cover.
+ */
+export const forecastQuery = defineQuery({
+  name: 'wh.report.forecast',
+  permission: null,
+  wh: 'report.view',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    const { db } = scoped(ctx);
+    const today = baghdadDate();
+    const settings = await getSettings(db);
+    const window = settings.forecastWindowDays;
+    const from = addDays(today, -(window - 1));
+    const [balances, lines] = await Promise.all([
+      db.whStockBalance.findMany({ where: { qtyBase: { not: 0 }, warehouse: { kind: { not: 'DAMAGE' } } }, select: { itemId: true, qtyBase: true } }),
+      db.whSaleLine.findMany({ where: { sale: { status: 'POSTED', date: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${today}T00:00:00Z`) } } }, select: { itemId: true, qtyBase: true }, take: 100000 }),
+    ]);
+    const onHand = new Map<string, InstanceType<typeof D>>();
+    for (const b of balances) onHand.set(b.itemId, (onHand.get(b.itemId) ?? new D(0)).plus(b.qtyBase.toString()));
+    const sold = new Map<string, InstanceType<typeof D>>();
+    for (const l of lines) sold.set(l.itemId, (sold.get(l.itemId) ?? new D(0)).plus(l.qtyBase.toString()));
+    const ids = [...new Set([...onHand.keys(), ...sold.keys()])];
+    const items = await db.whItem.findMany({ where: { id: { in: ids }, active: true }, select: { id: true, code: true, names: true, baseUnit: true } });
+    const active = activeDaysOf(today, null, window);
+    const rows = items.map((i) => {
+      const have = onHand.get(i.id) ?? new D(0);
+      const rate = dailyRate(sold.get(i.id) ?? new D(0), new D(0), window, active);
+      const cover = daysOfCover(have, rate);
+      return { itemId: i.id, code: i.code, names: i.names, baseUnit: i.baseUnit as string, onHand: have, rate, coverDays: cover, reorderBy: reorderBy(today, cover, settings.reorderLeadDays) };
+    });
+    rows.sort((a, b) => (a.coverDays ?? Number.MAX_SAFE_INTEGER) - (b.coverDays ?? Number.MAX_SAFE_INTEGER) || a.code.localeCompare(b.code));
+    return plain({ window, leadDays: settings.reorderLeadDays, rows: rows.slice(0, 300) });
   },
 });
