@@ -171,6 +171,7 @@ export const SERVER_TEXT: Readonly<Record<string, string>> = {
   'That amount is too large': 'accounts.error.amount',
   'The amount must be more than zero': 'accounts.error.amount',
   'Use a real date': 'accounts.error.date',
+  'That is more than what is left to receive': 'accounts.error.tooMuch',
   'Type the name of the client': 'accounts.error.clientName',
   'Type the dinars for one dollar, for example 1500': 'accounts.error.rate',
   'Use at most 2000 characters': 'error.text.announcementBodyTooLong',

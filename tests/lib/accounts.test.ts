@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byClient, byMonth, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
+import { byClient, byMonth, isLate, owedTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, remainingMinor, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
 
 const move = (over: Partial<AccountMovement>): AccountMovement => ({
   kind: 'INCOME',
@@ -188,5 +188,37 @@ describe('totals with exchange rates', () => {
 
   it('is all zeros when empty', () => {
     expect(summarize([], 1500).USD).toEqual({ income: 0, expense: 0, net: 0 });
+  });
+});
+
+describe('what clients still owe', () => {
+  const owed = (over: Partial<AccountMovement>) => move({ owed: true, paidMinor: 0, ...over });
+
+  it('is what is left of an income marked as not yet paid, and nothing for any other movement', () => {
+    expect(remainingMinor(owed({ amountMinor: 1000, paidMinor: 400 }))).toBe(600);
+    expect(remainingMinor(owed({ amountMinor: 1000, paidMinor: 1000 }))).toBe(0);
+    expect(remainingMinor(owed({ amountMinor: 1000, paidMinor: 1500 }))).toBe(0);
+    expect(remainingMinor(move({ amountMinor: 1000 }))).toBe(0); // an old entry counts as paid in full
+    expect(remainingMinor(owed({ kind: 'EXPENSE', amountMinor: 1000 }))).toBe(0);
+  });
+
+  it('adds up in each currency, and in dinars and dollars with a rate, at the rate of each entry', () => {
+    const rows = [
+      owed({ amountMinor: 1_000_000, currency: 'IQD', paidMinor: 400_000, rate: 1500 }), // 600,000 dinars left
+      owed({ amountMinor: 10_000, currency: 'USD', paidMinor: 0, rate: 1400 }), // $100 left at 1,400
+      move({ amountMinor: 999_999 }), // paid in full: not counted
+    ];
+    expect(owedTotals(rows).IQD.income).toBe(600_000);
+    expect(owedTotals(rows).USD.income).toBe(10_000);
+    expect(owedTotals(rows, 1500).IQD.income).toBe(600_000 + 140_000);
+    expect(owedTotals(rows, 1500).USD.income).toBe(40_000 + 10_000); // 600,000 / 1,500 = $400.00
+  });
+
+  it('is late when something is left and it is more than 30 days old', () => {
+    const today = '2026-11-20';
+    expect(isLate(owed({ occurredOn: '2026-10-21' }), today)).toBe(false); // 30 days
+    expect(isLate(owed({ occurredOn: '2026-10-20' }), today)).toBe(true); // 31 days
+    expect(isLate(owed({ occurredOn: '2026-01-01', paidMinor: 100 }), today)).toBe(false); // paid in full
+    expect(isLate(move({ occurredOn: '2026-01-01' }), today)).toBe(false); // an old entry
   });
 });

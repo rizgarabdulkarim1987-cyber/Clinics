@@ -88,6 +88,7 @@ export const GLOBAL_MODELS = [
   // The agency's own books (a Super Admin's, not a restaurant's): clients and money in and out.
   'AccountClient',
   'AccountEntry',
+  'AccountPayment',
   // Billing catalog and history: the products, their prices, and a subscription's events (reached through its subscription).
   'Application',
   'PlanPrice',
