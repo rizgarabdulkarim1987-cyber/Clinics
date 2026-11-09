@@ -295,3 +295,14 @@ describe('openRetailNavItem', () => {
     expect(keys(items)).toEqual(['myRestaurant', 'myMenu']);
   });
 });
+
+describe('safeNextPath', () => {
+  it('lets a person return to the Studio, the till, the pharmacy and the agency books after signing in', () => {
+    for (const path of ['/studio', '/studio/menus', '/pos', '/pharmacy/catalog', '/agency']) expect(safeNextPath(path)).toBe(path);
+  });
+  it('refuses anything that leaves the product', () => {
+    for (const path of ['https://evil.test', '//evil.test', '/agencyx', '/agency/../x', '/other', '', undefined, ['/agency']]) {
+      expect(safeNextPath(path as string | undefined)).toBeNull();
+    }
+  });
+});

@@ -44,9 +44,9 @@ describe('validateSlug', () => {
     }
   });
 
-  it('reserves the fifteen platform words', () => {
+  it('reserves the sixteen platform words', () => {
     expect([...RESERVED_SLUGS].sort()).toEqual(
-      ['_next', 'admin', 'api', 'app', 'assets', 'auth', 'help', 'login', 'media', 'menu', 'pharmacy', 'pos', 'static', 'studio', 'www'].sort(),
+      ['_next', 'admin', 'agency', 'api', 'app', 'assets', 'auth', 'help', 'login', 'media', 'menu', 'pharmacy', 'pos', 'static', 'studio', 'www'].sort(),
     );
     for (const word of RESERVED_SLUGS) expect(validateSlug(word, []).ok, word).toBe(false);
   });

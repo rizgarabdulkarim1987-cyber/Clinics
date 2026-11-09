@@ -272,10 +272,10 @@ export function openRetailNavItem(actor: Actor, shops: readonly { id: string }[]
 }
 
 /** A Studio, till or pharmacy path of plain segments: what a `next` parameter may name. No query, no `..`, no other host. */
-const STUDIO_PATH = /^\/(?:studio|pos|pharmacy)(?:\/[A-Za-z0-9_-]+)*$/;
+const STUDIO_PATH = /^\/(?:studio|pos|pharmacy|agency)(?:\/[A-Za-z0-9_-]+)*$/;
 
 /**
- * The page to return to after signing in, from an untrusted `next` parameter: a Studio path, or null for anything else,
+ * The page to return to after signing in, from an untrusted `next` parameter: a Studio, till, pharmacy or agency path, or null for anything else,
  * so a link cannot send a person who signs in to another site.
  */
 export function safeNextPath(value: string | string[] | null | undefined): string | null {

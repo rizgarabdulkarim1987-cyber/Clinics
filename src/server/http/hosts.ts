@@ -9,6 +9,8 @@ export interface HostConfig {
   production: boolean;
   /** The pharmacy's own host. While null, the Studio host still serves the pharmacy. */
   pharmacyHost?: string | null;
+  /** The agency books' own host. While null, the Studio host still serves `/agency`. */
+  agencyHost?: string | null;
   /** Wholesale's own host. While null, the Studio host still serves Wholesale. */
   wholesaleHost?: string | null;
   /** The super admin's host. While null, the Studio host still serves the super admin's pages. */
@@ -38,7 +40,7 @@ const NEXT: HostDecision = { action: 'next' };
 const NOT_FOUND: HostDecision = { action: 'notFound' };
 
 /** Paths that exist only on the Studio host. `/api/retail` is what Buzzify Retail calls (signed, server to server); `/api/v1` is what separate products call (a service secret). */
-const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/wholesale', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail', '/api/v1'];
+const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/wholesale', '/agency', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail', '/api/v1'];
 /** What the Studio host serves besides `/`. */
 const STUDIO_SERVES = [...STUDIO_ONLY, '/_next'];
 /** What belongs to the pharmacy host once it is set (sign-in is `/api/auth`, shared by every product host). */
@@ -50,6 +52,9 @@ const PHARMACY_SERVES = [...PHARMACY_ONLY, ...SHARED_ACCOUNT_PAGES, '/api/auth',
 /** What belongs to the wholesale host once it is set (sign-in is `/api/auth`, shared by every product host). */
 const WHOLESALE_ONLY = ['/wholesale'];
 const WHOLESALE_SERVES = [...WHOLESALE_ONLY, ...SHARED_ACCOUNT_PAGES, '/api/auth', '/_next'];
+/** What belongs to the agency host once it is set: the books, and the shared sign-in pages and their API. */
+const AGENCY_ONLY = ['/agency'];
+const AGENCY_SERVES = [...AGENCY_ONLY, ...SHARED_ACCOUNT_PAGES, '/api/auth', '/_next'];
 /** Pages only the super admin has; once the core host is set the Studio host no longer serves them. */
 const CORE_ONLY = ['/studio/restaurants', '/studio/team'];
 const CORE_SERVES = ['/studio', '/api/auth', '/api/studio', '/_next'];
@@ -131,6 +136,12 @@ const pharmacyRule: Rule = ({ req, path, cfg }) => {
   return serves(path, PHARMACY_SERVES) ? NEXT : NOT_FOUND;
 };
 
+const agencyRule: Rule = ({ req, path, cfg }) => {
+  if (!isHost(req.host, cfg.agencyHost ?? null)) return null;
+  if (path === '/' || path === '/studio') return redirect('/agency');
+  return serves(path, AGENCY_SERVES) ? NEXT : NOT_FOUND;
+};
+
 const wholesaleRule: Rule = ({ req, path, cfg }) => {
   if (!isHost(req.host, cfg.wholesaleHost ?? null)) return null;
   if (path === '/') return redirect('/wholesale');
@@ -154,6 +165,7 @@ const studioRule: Rule = ({ req, path, cfg }) => {
   if (path === '/') return redirect('/studio');
   // Once a product has its own host, the Studio host stops serving it.
   if (cfg.pharmacyHost && PHARMACY_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
+  if (cfg.agencyHost && AGENCY_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
   if (cfg.wholesaleHost && WHOLESALE_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
   if (cfg.coreHost && CORE_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
   return serves(path, STUDIO_SERVES) ? NEXT : NOT_FOUND;
@@ -170,7 +182,7 @@ const wwwRule: Rule = ({ req, cfg }) =>
   cfg.publicHost && !cfg.publicHost.includes(':') && isHost(req.host, `www.${cfg.publicHost}`) ? redirect(sameRequestOn(cfg.publicHost, req)) : null;
 
 /** The first rule that knows the host decides. The order matters: the product hosts come before the shared Studio host. */
-const RULES: Rule[] = [apexRule, legacyRule, pharmacyRule, wholesaleRule, coreRule, studioRule, publicRule, wwwRule];
+const RULES: Rule[] = [apexRule, legacyRule, agencyRule, pharmacyRule, wholesaleRule, coreRule, studioRule, publicRule, wwwRule];
 
 /**
  * Which host a request belongs to, and what to do with the path. One deployment serves them all: the Studio keeps its
