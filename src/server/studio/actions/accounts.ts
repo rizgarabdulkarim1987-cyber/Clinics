@@ -101,8 +101,13 @@ export const addAccountEntry = defineAction({
         const client = await tx.accountClient.findFirst({ where: { id: input.clientId, archivedAt: null }, select: { id: true } });
         if (!client) throw new StudioError('NOT_FOUND');
       }
+      // The rate of the day it is typed in stays with it: a later rate never changes it.
+      const setting = await tx.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } });
+      const stored = setting?.value;
+      const rate = typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 ? stored : null;
       const row = await tx.accountEntry.create({
         data: {
+          rate,
           kind: input.kind,
           amountMinor: amount.minor,
           currency: input.currency,

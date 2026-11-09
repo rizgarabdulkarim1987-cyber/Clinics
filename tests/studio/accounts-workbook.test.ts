@@ -14,6 +14,8 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
   service: 'website',
   note: '',
   occurredOn: '2026-11-05',
+  recordedAt: '2026-11-05T09:30:00.000Z',
+  rate: null,
   ...over,
 });
 
@@ -63,7 +65,7 @@ describe('the Excel file', () => {
     const sheet = (await open({ kind: 'month', year: 2026, month: 11 })).worksheets[2]!;
     const dataRows = sheet.getRows(2, 3)!.map((row) => row.values as unknown[]);
     expect(dataRows[0]![1]).toBeInstanceOf(Date);
-    const signed = dataRows.filter((row) => row.includes('IQD')).map((row) => row[row.length - 1]);
+    const signed = dataRows.filter((row) => row.includes('IQD')).map((row) => row[8]);
     expect(signed.reduce((sum, value) => (sum as number) + (value as number), 0)).toBe(750_000);
   });
 
@@ -88,20 +90,65 @@ describe('the Excel file', () => {
   });
 });
 
-describe('the combined row', () => {
+describe('with an exchange rate', () => {
   const rows = async (rate: number | null) => {
     const summary = (await open({ kind: 'month', year: 2026, month: 11 }, 'en', rate)).worksheets[0]!;
     return summary.getRows(1, summary.rowCount)!.map((row) => (row.values as unknown[]).slice(1));
   };
 
-  it('adds the dollars to the dinars at the rate, and says which rate', async () => {
+  it('shows everything in dinars and everything in dollars, and says which rate', async () => {
     const all = await rows(1500);
-    // $125.50 income at 1,500 = 188,250; plus 1,000,000 dinars; expense 250,000 dinars.
-    expect(all.find((row) => row[0] === 'Combined in dinars')!.slice(1)).toEqual([1_188_250, 250_000, 938_250]);
+    // Income 1,000,000 dinars + $125.50 (188,250 dinars); expense 250,000 dinars.
+    expect(all.find((row) => row[0] === 'IQD')!.slice(1)).toEqual([1_188_250, 250_000, 938_250]);
+    // The same in dollars: 1,000,000 / 1500 = 666.67 plus 125.50; 250,000 / 1500 = 166.67.
+    expect(all.find((row) => row[0] === 'USD')!.slice(1)).toEqual([792.17, 166.67, 625.5]);
     expect(all.find((row) => typeof row[0] === 'string' && (row[0] as string).startsWith('Exchange rate'))![1]).toBe(1500);
   });
 
-  it('is left out without a rate', async () => {
-    expect((await rows(null)).some((row) => row[0] === 'Combined in dinars')).toBe(false);
+  it('keeps the currencies apart without a rate', async () => {
+    const all = await rows(null);
+    expect(all.find((row) => row[0] === 'IQD')!.slice(1)).toEqual([1_000_000, 250_000, 750_000]);
+    expect(all.some((row) => typeof row[0] === 'string' && (row[0] as string).startsWith('Exchange rate'))).toBe(false);
+  });
+});
+
+describe('the movements sheet in full', () => {
+  it('writes each movement in dinars and in dollars, signed, when there is a rate, and when it was typed in', async () => {
+    const sheet = (await open({ kind: 'month', year: 2026, month: 11 }, 'en', 1500)).worksheets[2]!;
+    const rows = sheet.getRows(2, 3)!.map((row) => row.values as unknown[]);
+    // Oldest first: the 1,000,000 dinar income, the 250,000 dinar expense, then the $125.50 income.
+    expect(rows[0]!.slice(9, 11)).toEqual([1_000_000, 666.67]);
+    expect(rows[1]!.slice(9, 11)).toEqual([-250_000, -166.67]);
+    expect(rows[2]!.slice(9, 11)).toEqual([188_250, 125.5]);
+    expect(rows[0]![12]).toBeInstanceOf(Date);
+    expect(rows.map((row) => row[11])).toEqual([1500, 1500, 1500]);
+  });
+  it('still lists every movement with its date, client, service and note, and when typed in, without a rate', async () => {
+    const sheet = (await open({ kind: 'all' })).worksheets[2]!;
+    const first = (sheet.getRow(2).values as unknown[]).slice(1);
+    expect(first).toHaveLength(9);
+    expect(first[0]).toBeInstanceOf(Date);
+    expect(first[8]).toBeInstanceOf(Date);
+  });
+});
+
+describe('a movement keeps its own rate', () => {
+  it('converts each movement at the rate it was typed in with, not the current one', async () => {
+    const own: AccountsBook = {
+      rate: 1400,
+      clients: [],
+      movements: [
+        move({ id: 'a', currency: 'USD', amountMinor: 10_000, rate: 1500, occurredOn: '2026-11-01', clientId: null, clientName: null }), // $100 at 1,500
+        move({ id: 'b', currency: 'USD', amountMinor: 10_000, rate: 1400, occurredOn: '2026-11-02', clientId: null, clientName: null }), // $100 at 1,400
+      ],
+    };
+    const bytes = await buildBookWorkbook(own, { kind: 'month', year: 2026, month: 11 }, getStudioTranslator('en'), 'en');
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
+    const rows = workbook.worksheets[2]!.getRows(2, 2)!.map((row) => row.values as unknown[]);
+    expect(rows.map((row) => [row[9], row[11]])).toEqual([[150_000, 1500], [140_000, 1400]]);
+    const summary = workbook.worksheets[0]!;
+    const iqd = summary.getRows(1, summary.rowCount)!.map((row) => (row.values as unknown[]).slice(1)).find((row) => row[0] === 'IQD')!;
+    expect(iqd[1]).toBe(290_000);
   });
 });

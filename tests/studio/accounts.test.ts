@@ -154,3 +154,22 @@ describe('the exchange rate', () => {
     for (const who of [owner, cashier]) expect(codeOf(await run(who, setAccountRate, { rate: '1500' }))).toBe('FORBIDDEN');
   });
 });
+
+describe('the rate each movement keeps', () => {
+  it('stamps a movement with the rate of the day it is typed in, and a later rate leaves it alone', async () => {
+    dataOf(await run(admin, setAccountRate, { rate: '1500' }));
+    dataOf(await run(admin, addAccountEntry, { kind: 'INCOME', amount: '100', currency: 'USD', occurredOn: '2026-11-01' }));
+    dataOf(await run(admin, setAccountRate, { rate: '1400' }));
+    dataOf(await run(admin, addAccountEntry, { kind: 'INCOME', amount: '100', currency: 'USD', occurredOn: '2026-11-02' }));
+    const book = dataOf(await ask(admin, accountsBook, {}));
+    expect(book.rate).toBe(1400);
+    expect(book.movements.map((m) => [m.occurredOn, m.rate])).toEqual([
+      ['2026-11-02', 1400],
+      ['2026-11-01', 1500],
+    ]);
+  });
+  it('leaves the rate empty on a movement typed in before any rate was set', async () => {
+    dataOf(await run(admin, addAccountEntry, { kind: 'INCOME', amount: '100', currency: 'USD' }));
+    expect(dataOf(await ask(admin, accountsBook, {})).movements[0]!.rate).toBeNull();
+  });
+});

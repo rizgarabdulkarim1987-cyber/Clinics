@@ -24,6 +24,10 @@ export interface BookMovement {
   note: string;
   /** The calendar day, `YYYY-MM-DD`. */
   occurredOn: string;
+  /** When it was typed in, as an ISO time. */
+  recordedAt: string;
+  /** Whole dinars for one dollar on the day it was typed in; null when no rate had been set yet. */
+  rate: number | null;
 }
 
 export interface AccountsBook {
@@ -65,6 +69,8 @@ export const accountsBook = defineQuery({
         service: row.service,
         note: row.note,
         occurredOn: row.occurredOn.toISOString().slice(0, 10),
+        recordedAt: row.createdAt.toISOString(),
+        rate: row.rate,
       })),
     };
   },

@@ -2,7 +2,7 @@
 
 import { Download } from 'lucide-react';
 import { useState } from 'react';
-import { ACCOUNT_CURRENCIES, byClient, combineTotals, byMonth, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, byClient, byMonth, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
 import { numberFormat } from '@/studio/format';
 import { useLocale, useT } from '@/studio/i18n';
@@ -10,8 +10,8 @@ import { buttonClasses } from '@/studio/ui/Button';
 import { cx } from '@/studio/ui/cx';
 import { Field } from '@/studio/ui/Field';
 import { Select } from '@/studio/ui/Select';
-import { CombinedRow } from './CombinedRow';
 import { Money, MoneyStack, usedCurrencies } from './money';
+import { RateHint } from './RateHint';
 
 const monthLabels = (locale: string, style: 'long' | 'short') =>
   Array.from({ length: 12 }, (_, index) => new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'ar-IQ', { month: style, timeZone: 'UTC' }).format(new Date(Date.UTC(2026, index, 1))));
@@ -28,16 +28,14 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
   const years = [...new Set([thisYear, ...book.movements.map((row) => Number(row.occurredOn.slice(0, 4)))])].sort((a, b) => b - a);
   const period: Period = kind === 'all' ? { kind: 'all' } : kind === 'year' ? { kind: 'year', year } : { kind: 'month', year, month };
   const rows = inPeriod(book.movements, period);
-  const totals = summarize(rows);
-  const names = new Map(book.movements.flatMap((row) => (row.clientId && row.clientName ? [[row.clientId, row.clientName] as const] : [])));
   const rate = book.rate;
-  const mixed = rate !== null && (totals.USD.income !== 0 || totals.USD.expense !== 0);
-  const byName = byClient(rows, names);
-  // With dollars and a rate, the best client is the one with the best profit in dinars and dollars together.
-  const clients = mixed
-    ? [...byName].sort((a, b) => Number(a.clientId === null) - Number(b.clientId === null) || combineTotals(b.totals, rate).net - combineTotals(a.totals, rate).net)
-    : byName;
-  const sumsOfYear = byMonth(book.movements, year);
+  const dollarsAndDinars = summarize(rows);
+  const totals = summarize(rows, rate);
+  const names = new Map(book.movements.flatMap((row) => (row.clientId && row.clientName ? [[row.clientId, row.clientName] as const] : [])));
+  const byName = byClient(rows, names, rate);
+  // With a rate the best client is the one with the best profit in all the money together.
+  const clients = rate === null ? byName : [...byName].sort((a, b) => Number(a.clientId === null) - Number(b.clientId === null) || b.totals.IQD.net - a.totals.IQD.net);
+  const sumsOfYear = byMonth(book.movements, year, rate);
   const yearCurrencies = ACCOUNT_CURRENCIES.filter((code) => sumsOfYear.some((entry) => entry[code].income !== 0 || entry[code].expense !== 0));
   const compact = numberFormat(locale, { notation: 'compact', maximumFractionDigits: 1, signDisplay: 'exceptZero' });
   const short = monthLabels(locale, 'short');
@@ -78,6 +76,12 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
             <Download aria-hidden />
             {t('accounts.export')}
           </a>
+          {kind !== 'all' && (
+            <a href="/agency/export?period=all" className={buttonClasses('ghost', 'md', 'self-end')} download>
+              <Download aria-hidden />
+              {t('accounts.export.everything')}
+            </a>
+          )}
         </div>
         <p className="text-sm text-muted">{t('accounts.export.note')}</p>
 
@@ -104,7 +108,7 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
               </div>
             </dl>
           ))}
-          <CombinedRow totals={totals} rate={rate} locale={locale} />
+          <RateHint totals={dollarsAndDinars} rate={rate} />
         </div>
       </section>
 
@@ -175,11 +179,6 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                   <th scope="col" className="h-9 px-4 text-end">
                     {t('accounts.col.net')}
                   </th>
-                  {mixed && (
-                    <th scope="col" className="h-9 px-4 text-end">
-                      {t('accounts.combined')}
-                    </th>
-                  )}
                 </tr>
               </thead>
               <tbody>
@@ -197,11 +196,6 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                     <td className="px-4 py-3 text-end font-semibold">
                       <MoneyStack totals={row.totals} pick="net" locale={locale} tone="net" sign />
                     </td>
-                    {mixed && (
-                      <td className="px-4 py-3 text-end font-semibold">
-                        <Money minor={combineTotals(row.totals, rate).net} currency="IQD" locale={locale} tone="net" sign />
-                      </td>
-                    )}
                   </tr>
                 ))}
               </tbody>
@@ -219,11 +213,6 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                   <td className="px-4 py-3 text-end">
                     <MoneyStack totals={totals} pick="net" locale={locale} tone="net" sign />
                   </td>
-                  {mixed && (
-                    <td className="px-4 py-3 text-end">
-                      <Money minor={combineTotals(totals, rate).net} currency="IQD" locale={locale} tone="net" sign />
-                    </td>
-                  )}
                 </tr>
               </tfoot>
             </table>

@@ -20,8 +20,8 @@ import { Field } from '@/studio/ui/Field';
 import { IconButton } from '@/studio/ui/IconButton';
 import { Input } from '@/studio/ui/Input';
 import { Select } from '@/studio/ui/Select';
-import { CombinedRow } from './CombinedRow';
 import { Money, usedCurrencies } from './money';
+import { RateHint } from './RateHint';
 
 /** Names people give the work: offered as suggestions, never forced. */
 const SERVICES = {
@@ -117,7 +117,10 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   };
 
   const month = inPeriod(book.movements, { kind: 'month', year: cursor.year, month: cursor.month });
-  const totals = summarize(month);
+  // With a rate the month is two lines, all of it in dinars and all of it in dollars, each entry at the rate it was typed in
+  // with; without one, each currency apart.
+  const totals = summarize(month, book.rate);
+  const dollarsAndDinars = summarize(month);
   const shift = (by: number) => {
     const index = cursor.year * 12 + (cursor.month - 1) + by;
     setCursor({ year: Math.floor(index / 12), month: (index % 12) + 1 });
@@ -250,7 +253,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
               </div>
             </dl>
           ))}
-          <CombinedRow totals={totals} rate={book.rate} locale={locale} />
+          <RateHint totals={dollarsAndDinars} rate={book.rate} />
         </div>
         {month.length === 0 && <p className="text-sm text-muted">{t('accounts.summary.nothing')}</p>}
       </section>

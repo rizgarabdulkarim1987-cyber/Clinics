@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { ACCOUNT_CURRENCIES, byClient, combineTotals, inPeriod, summarize, type AccountCurrency, type AccountMovement, type Period } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, byClient, inPeriod, summarize, type AccountCurrency, type AccountMovement, type Period } from '@/lib/accounts';
 import type { Locale } from '@/lib/locale';
 import type { Translate } from '@/lib/i18n';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
@@ -34,22 +34,19 @@ export async function buildBookWorkbook(book: AccountsBook, period: Period, t: T
   };
 
   // Summary: one row per currency that has any movement (both when there is none, so the sheet is never empty).
-  const totals = summarize(movements as AccountMovement[]);
+  // With a rate, everything is shown twice over: all of it in dinars and all of it in dollars; without one, apart.
+  const rate = book.rate;
+  const totals = summarize(movements as AccountMovement[], rate);
   const summary = sheet(t('accounts.sheet.summary'));
   head(summary, [periodLabel(period, locale) || t('accounts.period.kind.all'), t('accounts.col.income'), t('accounts.col.expense'), t('accounts.col.net')], [18, 18, 18, 18]);
-  const used = ACCOUNT_CURRENCIES.filter((currency) => movements.some((row) => row.currency === currency));
+  const used = rate === null ? ACCOUNT_CURRENCIES.filter((currency) => movements.some((row) => row.currency === currency)) : [];
   for (const currency of used.length ? used : ACCOUNT_CURRENCIES) {
     const row = summary.addRow([currency, major(totals[currency].income, currency), major(totals[currency].expense, currency), major(totals[currency].net, currency)]);
     for (let column = 2; column <= 4; column += 1) money(row.getCell(column), currency);
   }
 
-  // With a rate and dollars in the period, one more row adds them to the dinars at that rate, in dinars.
-  if (book.rate !== null && totals.USD.income + totals.USD.expense !== 0) {
-    const combined = combineTotals(totals, book.rate);
-    const row = summary.addRow([t('accounts.combined'), combined.income, combined.expense, combined.net]);
-    for (let column = 2; column <= 4; column += 1) money(row.getCell(column), 'IQD');
-    row.font = { bold: true };
-    const rateRow = summary.addRow([t('accounts.sheet.rate'), book.rate]);
+  if (rate !== null) {
+    const rateRow = summary.addRow([t('accounts.sheet.rate'), rate]);
     rateRow.getCell(2).numFmt = '#,##0';
   }
 
@@ -58,7 +55,7 @@ export async function buildBookWorkbook(book: AccountsBook, period: Period, t: T
   for (const row of movements) if (row.clientId && row.clientName) names.set(row.clientId, row.clientName);
   const clients = sheet(t('accounts.sheet.clients'));
   head(clients, [t('accounts.col.client'), t('accounts.col.currency'), t('accounts.col.income'), t('accounts.col.expense'), t('accounts.col.net')], [28, 10, 18, 18, 18]);
-  for (const entry of byClient(movements as AccountMovement[], names)) {
+  for (const entry of byClient(movements as AccountMovement[], names, rate)) {
     for (const currency of ACCOUNT_CURRENCIES) {
       const sums = entry.totals[currency];
       if (sums.income === 0 && sums.expense === 0) continue;
@@ -69,7 +66,16 @@ export async function buildBookWorkbook(book: AccountsBook, period: Period, t: T
 
   // Movements: oldest first, as a ledger reads; the signed column is what a SUM should add.
   const list = sheet(t('accounts.sheet.movements'));
-  head(list, [t('accounts.col.date'), t('accounts.col.type'), t('accounts.col.client'), t('accounts.col.service'), t('accounts.col.note'), t('accounts.col.currency'), t('accounts.col.amount'), t('accounts.col.signed')], [12, 12, 26, 20, 36, 10, 16, 16]);
+  // With a rate, each movement is also written in dinars and in dollars, signed; the last column says when it was typed in.
+  const titles = [t('accounts.col.date'), t('accounts.col.type'), t('accounts.col.client'), t('accounts.col.service'), t('accounts.col.note'), t('accounts.col.currency'), t('accounts.col.amount'), t('accounts.col.signed')];
+  const widths = [12, 12, 26, 20, 36, 10, 16, 16];
+  if (rate !== null) {
+    titles.push(t('accounts.col.signedIqd'), t('accounts.col.signedUsd'), t('accounts.col.rateUsed'));
+    widths.push(18, 18, 14);
+  }
+  titles.push(t('accounts.col.recordedAt'));
+  widths.push(20);
+  head(list, titles, widths);
   for (const entry of [...movements].sort((a, b) => a.occurredOn.localeCompare(b.occurredOn))) {
     const amount = major(entry.amountMinor, entry.currency);
     const row = list.addRow([
@@ -82,6 +88,22 @@ export async function buildBookWorkbook(book: AccountsBook, period: Period, t: T
       amount,
       entry.kind === 'INCOME' ? amount : -amount,
     ]);
+    if (rate !== null) {
+      const sign = entry.kind === 'INCOME' ? 1 : -1;
+      // The rate the movement was typed in with; the current one when it was typed in before any rate was set.
+      const used = entry.rate ?? rate;
+      const dinars = entry.currency === 'IQD' ? entry.amountMinor : Math.round((entry.amountMinor * used) / 100);
+      const cents = entry.currency === 'USD' ? entry.amountMinor : Math.round((entry.amountMinor * 100) / used);
+      row.getCell(9).value = sign * dinars;
+      row.getCell(10).value = sign * (cents / 100);
+      money(row.getCell(9), 'IQD');
+      money(row.getCell(10), 'USD');
+      row.getCell(11).value = used;
+      row.getCell(11).numFmt = '#,##0';
+    }
+    const recorded = row.getCell(rate !== null ? 12 : 9);
+    recorded.value = new Date(entry.recordedAt);
+    recorded.numFmt = 'yyyy-mm-dd hh:mm';
     row.getCell(1).numFmt = 'yyyy-mm-dd';
     money(row.getCell(7), entry.currency);
     money(row.getCell(8), entry.currency);
