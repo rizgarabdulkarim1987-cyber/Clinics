@@ -52,6 +52,8 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       today={today}
       isRep={isRep}
       customerId={customerId}
+      debt={owed.map(([cur, v]) => `${money(v!)} ${cur}`).join(' · ')}
+      attention={pending.length}
       customers={activeCustomers.map((x) => ({ id: x.id, name: x.name, phone: x.phone }))}
       warehouses={warehouses.map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))}
       items={usable.map((i) => ({

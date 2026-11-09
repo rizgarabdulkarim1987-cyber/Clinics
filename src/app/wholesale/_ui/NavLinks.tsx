@@ -32,7 +32,7 @@ export function NavLinks({ groups, label }: { groups: NavGroup[]; label: string 
             aria-current={here ? 'page' : undefined}
             className={cx(
               'flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-1 text-sm font-medium whitespace-nowrap md:min-h-12 md:flex-row md:justify-start md:gap-2 md:px-3 md:text-base',
-              here ? 'bg-ink text-on-ink' : 'text-text hover:bg-hover',
+              here ? 'bg-wh-blue text-white' : 'text-white/90 hover:bg-wh-rail-hover',
             )}
           >
             <Icon aria-hidden className="size-4 shrink-0" />
@@ -58,7 +58,7 @@ export function SectionLinks({ groups }: { groups: NavGroup[] }) {
             key={p.key}
             href={p.href}
             aria-current={here ? 'page' : undefined}
-            className={cx('flex min-h-10 shrink-0 items-center rounded-full border px-4 text-base whitespace-nowrap', here ? 'border-ink bg-ink text-on-ink' : 'border-line-strong hover:bg-hover')}
+            className={cx('flex min-h-10 shrink-0 items-center rounded-full border px-4 text-base whitespace-nowrap', here ? 'border-wh-blue bg-wh-blue text-white' : 'border-line-strong bg-raised hover:bg-wh-blue-wash')}
           >
             {p.label}
           </Link>

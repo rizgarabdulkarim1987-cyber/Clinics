@@ -46,6 +46,26 @@
   --s-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
 }
 
+/* Wholesale: a colour palette of its own (navy rail, blue action, green money-in, amber credit), scoped to .wh. */
+.wh {
+  --wh-canvas: #eef2f8;
+  --wh-rail: #0f2a4a;
+  --wh-rail-hover: #1b3a63;
+  --wh-rail-muted: #a9bdd6;
+  --wh-blue: #1f4fc4;
+  --wh-blue-wash: #e6edff;
+  --wh-green: #0b7a4b;
+  --wh-green-wash: #e3f5ec;
+  --wh-amber: #b45309;
+  --wh-amber-wash: #fff1d6;
+  --wh-rose: #be123c;
+  --wh-rose-wash: #fde8ee;
+  --wh-violet: #6d28d9;
+  --wh-violet-wash: #efe8fd;
+  --wh-teal: #0e7490;
+  --wh-teal-wash: #dff4f9;
+}
+
 [dir='rtl'] {
   --s-sheet-from: -24px;
 }
@@ -102,6 +122,25 @@
   --color-ph-on-green-muted: var(--ph-on-green-muted);
   --color-ph-badge: var(--ph-badge);
   --color-ph-badge-ink: var(--ph-badge-ink);
+
+  /* Wholesale's palette (--wh-*, defined on .wh above). */
+  --color-white: #ffffff;
+  --color-wh-canvas: var(--wh-canvas);
+  --color-wh-rail: var(--wh-rail);
+  --color-wh-rail-hover: var(--wh-rail-hover);
+  --color-wh-rail-muted: var(--wh-rail-muted);
+  --color-wh-blue: var(--wh-blue);
+  --color-wh-blue-wash: var(--wh-blue-wash);
+  --color-wh-green: var(--wh-green);
+  --color-wh-green-wash: var(--wh-green-wash);
+  --color-wh-amber: var(--wh-amber);
+  --color-wh-amber-wash: var(--wh-amber-wash);
+  --color-wh-rose: var(--wh-rose);
+  --color-wh-rose-wash: var(--wh-rose-wash);
+  --color-wh-violet: var(--wh-violet);
+  --color-wh-violet-wash: var(--wh-violet-wash);
+  --color-wh-teal: var(--wh-teal);
+  --color-wh-teal-wash: var(--wh-teal-wash);
 
   --font-*: initial;
   --font-sans: var(--s-font);

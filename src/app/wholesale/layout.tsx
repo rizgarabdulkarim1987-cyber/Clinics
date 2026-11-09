@@ -21,7 +21,7 @@ export default async function WholesaleRootLayout({ children }: { children: Reac
   const locale = await requestStudioLocale();
   return (
     <html lang={locale} dir={direction(locale)} className={studioFontVariables(locale)}>
-      <body className="bg-surface text-text">
+      <body className="wh bg-wh-canvas text-text">
         <StudioI18nProvider locale={locale} messages={clientMessages(locale)}>
           {children}
           <Toaster />
