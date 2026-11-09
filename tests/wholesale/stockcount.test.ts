@@ -43,7 +43,7 @@ beforeEach(async () => {
 });
 
 
-const count = (counts: { itemId: string; countedBase: string; unitCostIqd?: string }[], user = PARTNER) =>
+const count = (counts: { itemId: string; countedBase: string; unitCostIqd?: string }[], user: { id: string; role: 'PARTNER' | 'REP' } = PARTNER) =>
   run(A, async (tx) => {
     const w = await tx.whWarehouse.findFirstOrThrow({ where: { kind: 'MAIN' } });
     return postStockCountTx(tx, A, user, { warehouseId: w.id, counts });

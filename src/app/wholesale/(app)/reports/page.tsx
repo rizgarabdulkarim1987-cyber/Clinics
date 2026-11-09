@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { addDays } from '@/server/domain/wholesale/forecast';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
-import { debtorsReportQuery, profitReportQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
+import { debtorsReportQuery, expensesReportQuery, profitReportQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { EmptyState, PageHeader } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
@@ -42,7 +42,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </Link>
           ))}
         </nav>
-        {tab === 'profit' && <Profit from={from} to={to} t={t} />}
+        {tab === 'profit' && <Profit from={from} to={to} t={t} locale={actor!.locale} />}
         {tab === 'stock' && <StockTab t={t} locale={actor!.locale} />}
         {tab === 'debts' && <Debts t={t} />}
       </div>
@@ -50,8 +50,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   );
 }
 
-async function Profit({ from, to, t }: { from: string; to: string; t: T }) {
-  const { profit: p, days } = await queryWh(profitReportQuery, { from, to });
+const cur = (by: Record<string, string>) =>
+  Object.entries(by)
+    .map(([c, v]) => `${money(v)} ${c}`)
+    .join(' · ');
+
+async function Profit({ from, to, t, locale }: { from: string; to: string; t: T; locale: string }) {
+  const [{ profit: p, days }, sales, expenses] = await Promise.all([queryWh(profitReportQuery, { from, to }), queryWh(salesBreakdownQuery, { from, to }), queryWh(expensesReportQuery, { from, to })]);
   const rows: { label: string; value: string; strong?: boolean }[] = [
     { label: t('wh.reports.sales'), value: p.salesIqd },
     { label: t('wh.reports.discounts'), value: minus(p.discountsIqd) },
@@ -112,6 +117,69 @@ async function Profit({ from, to, t }: { from: string; to: string; t: T }) {
             ))}
           </ul>
         )}
+      </section>
+      <section className="rounded-md border border-line bg-raised p-4">
+        <h2 className="mb-3 text-md font-semibold">{t('wh.reports.byCustomer')}</h2>
+        {sales.customers.length === 0 ? (
+          <EmptyState title={t('wh.home.noSales')} />
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {sales.customers.map((c, i) => (
+              <li key={i} className="flex flex-wrap items-center justify-between gap-3 text-base">
+                <span className="min-w-0 truncate" dir="auto">
+                  {c.name} <span className="text-sm text-muted">· {c.count}</span>
+                </span>
+                <span className="tabular-nums" dir="ltr">
+                  {cur(c.byCurrency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="rounded-md border border-line bg-raised p-4">
+        <h2 className="mb-3 text-md font-semibold">{t('wh.reports.byItem')}</h2>
+        {sales.items.length === 0 ? (
+          <EmptyState title={t('wh.home.noSales')} />
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {sales.items.map((c, i) => (
+              <li key={i} className="flex flex-wrap items-center justify-between gap-3 text-base">
+                <span className="min-w-0 truncate" dir="auto">
+                  {nameOf(c.names as Names, locale)} <span className="text-sm text-muted">· {money(c.qty)} {t(`wh.unit.${c.baseUnit}`)}</span>
+                </span>
+                <span className="tabular-nums" dir="ltr">
+                  {cur(c.byCurrency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="rounded-md border border-line bg-raised p-4">
+        <h2 className="mb-3 text-md font-semibold">{t('wh.reports.byExpense')}</h2>
+        {expenses.length === 0 ? (
+          <EmptyState title={t('wh.reports.noExpenses')} />
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {expenses.map((e) => (
+              <li key={e.category} className="flex items-center justify-between gap-3 text-base">
+                <span>{t(`wh.expenses.cat.${e.category}`)}</span>
+                <span className="tabular-nums" dir="ltr">
+                  {cur(e.byCurrency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="flex flex-wrap items-center gap-3 text-base">
+        <span className="text-muted">{t('wh.reports.download')}</span>
+        {(['sales-customers', 'sales-items', 'expenses', 'stock', 'debts'] as const).map((k) => (
+          <a key={k} className="rounded-md border border-line-strong px-3 py-2 hover:bg-hover" href={`/wholesale/export?kind=${k}&from=${from}&to=${to}`} download>
+            {t(`wh.reports.x.${k}`)}
+          </a>
+        ))}
       </section>
     </>
   );

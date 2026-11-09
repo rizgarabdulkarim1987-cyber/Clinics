@@ -60,9 +60,9 @@ export function StockCountForm({ warehouses, rows, unitLabels }: { warehouses: {
                 </span>
               </span>
               {gain && Number(book) === 0 && (
-                <Input aria-label={t('wh.count.cost')} placeholder={t('wh.count.cost')} inputMode="decimal" dir="ltr" className="w-28" value={costs[key] ?? ''} onChange={(e) => setCosts({ ...costs, [key]: e.target.value })} />
+                <div className="w-32"><Input aria-label={t('wh.count.cost')} placeholder={t('wh.count.cost')} inputMode="decimal" dir="ltr" value={costs[key] ?? ''} onChange={(e) => setCosts({ ...costs, [key]: e.target.value })} /></div>
               )}
-              <Input aria-label={r.label} placeholder={t('wh.count.counted')} inputMode="decimal" dir="ltr" className="w-28" value={counted[key] ?? ''} onChange={(e) => setCounted({ ...counted, [key]: e.target.value })} />
+              <div className="w-32"><Input aria-label={r.label} placeholder={t('wh.count.counted')} inputMode="decimal" dir="ltr" value={counted[key] ?? ''} onChange={(e) => setCounted({ ...counted, [key]: e.target.value })} /></div>
             </li>
           );
         })}

@@ -63,6 +63,9 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
             </div>
           )}
           <StatusBadge tone={live ? 'ink' : 'neutral'}>{t(`wh.sales.status.${s.status}`)}</StatusBadge>
+          <Link href={`/wholesale/sales/${s.id}/print`} className="text-base underline">
+            {t('wh.print.open')}
+          </Link>
           <Link href={`/wholesale/customers/${s.customer.id}`} className="text-base underline">
             {t('wh.sales.statement')}
           </Link>
