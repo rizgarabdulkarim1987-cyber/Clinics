@@ -2,37 +2,65 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Sparkles, Truck, Users, type LucideIcon } from 'lucide-react';
+import { BarChart3, Boxes, Home, Receipt, Settings, Wallet, type LucideIcon } from 'lucide-react';
 import { cx } from '@/studio/ui';
 
-const ICONS: Record<string, LucideIcon> = { home: Home, catalog: PackageSearch, stock: Boxes, customers: Contact, suppliers: Truck, purchases: ShoppingCart, sales: Receipt, treasury: Wallet, expenses: HandCoins, settings: Settings, reports: BarChart3, assistant: Sparkles, rates: Coins, staff: Users };
+const ICONS: Record<string, LucideIcon> = { home: Home, sales: Receipt, stock: Boxes, money: Wallet, admin: Settings, reports: BarChart3 };
 
-export interface NavLink {
+export interface NavGroup {
   key: string;
   href: string;
   label: string;
+  match: string[];
+  places: { key: string; href: string; label: string }[];
 }
 
-/** The places of the signed-in role. A rail on a desktop, a scrolling bar under the header on a phone. */
-export function NavLinks({ links, label }: { links: NavLink[]; label: string }) {
+const within = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
+
+/** The few sections of the signed-in role: a rail on a desktop, a bar with big targets on a phone. */
+export function NavLinks({ groups, label }: { groups: NavGroup[]; label: string }) {
   const path = usePathname();
   return (
-    <nav aria-label={label} className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
-      {links.map((link) => {
-        const Icon = ICONS[link.key] ?? Home;
-        const here = path === link.href || path.startsWith(`${link.href}/`);
+    <nav aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 md:flex md:flex-col">
+      {groups.map((g) => {
+        const Icon = ICONS[g.key] ?? Home;
+        const here = g.match.some((m) => within(path, m));
         return (
           <Link
-            key={link.key}
-            href={link.href}
+            key={g.key}
+            href={g.href}
             aria-current={here ? 'page' : undefined}
             className={cx(
-              'flex min-h-11 shrink-0 items-center gap-2 rounded-md px-3 text-base font-medium whitespace-nowrap',
+              'flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-1 text-sm font-medium whitespace-nowrap md:min-h-12 md:flex-row md:justify-start md:gap-2 md:px-3 md:text-base',
               here ? 'bg-ink text-on-ink' : 'text-text hover:bg-hover',
             )}
           >
-            <Icon aria-hidden className="size-4" />
-            {link.label}
+            <Icon aria-hidden className="size-4 shrink-0" />
+            {g.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** The places inside the section the person is in (two to four), shown above the page. Nothing when the section is one place. */
+export function SectionLinks({ groups }: { groups: NavGroup[] }) {
+  const path = usePathname();
+  const group = groups.find((g) => g.match.some((m) => within(path, m)));
+  if (!group || group.places.length < 2) return null;
+  return (
+    <nav aria-label={group.label} className="flex gap-1 overflow-x-auto px-3 pt-3 md:px-6">
+      {group.places.map((p) => {
+        const here = within(path, p.href);
+        return (
+          <Link
+            key={p.key}
+            href={p.href}
+            aria-current={here ? 'page' : undefined}
+            className={cx('flex min-h-10 shrink-0 items-center rounded-full border px-4 text-base whitespace-nowrap', here ? 'border-ink bg-ink text-on-ink' : 'border-line-strong hover:bg-hover')}
+          >
+            {p.label}
           </Link>
         );
       })}

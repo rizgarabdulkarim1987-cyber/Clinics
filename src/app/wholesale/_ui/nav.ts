@@ -33,3 +33,33 @@ const ALL: WhNavItem[] = [
 export function whNav(role: WhRole): WhNavItem[] {
   return ALL.filter((item) => canWh(role, item.needs));
 }
+
+/** What a section is called, where it leads, which paths belong to it, and the few places inside it. */
+export interface WhGroup {
+  key: 'home' | 'sales' | 'stock' | 'money' | 'admin';
+  href: string;
+  labelKey: string;
+  match: string[];
+  places: { key: WhNavKey; href: string; labelKey: string }[];
+}
+
+const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
+  { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
+  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers'] },
+  { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
+  { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
+  { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff'] },
+];
+
+/** Five sections at most (a rep sees four): the old fourteen places are the few places inside them. */
+export function whGroups(role: WhRole): WhGroup[] {
+  const visible = new Map(whNav(role).map((i) => [i.key, i]));
+  return GROUPS.flatMap((g) => {
+    const places = g.keys.flatMap((k) => {
+      const i = visible.get(k);
+      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey }] : [];
+    });
+    if (places.length === 0) return [];
+    return [{ key: g.key, href: places[0]!.href, labelKey: g.labelKey, match: places.map((p) => p.href), places }];
+  });
+}

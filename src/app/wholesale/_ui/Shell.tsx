@@ -4,15 +4,15 @@ import type { ReactNode } from 'react';
 import type { Translate } from '@/lib/i18n';
 import type { WhActor } from '@/server/wholesale/actor';
 import { SignOutButton } from '@/app/pos/_ui/SignOutButton';
-import { NavLinks } from './NavLinks';
-import { whNav } from './nav';
+import { NavLinks, SectionLinks } from './NavLinks';
+import { whGroups } from './nav';
 
 /**
  * The frame of every Wholesale screen: the company and the person at the start side of a desktop (a bar on a phone), the
  * places the role may use, and the page. A state notice (read-only) sits above the page.
  */
 export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?: ReactNode; t: Translate; children: ReactNode }) {
-  const links = whNav(actor.role).map((item) => ({ key: item.key, href: item.href, label: t(item.labelKey) }));
+  const groups = whGroups(actor.role).map((g) => ({ key: g.key, href: g.href, label: t(g.labelKey), match: g.match, places: g.places.map((p) => ({ key: p.key, href: p.href, label: t(p.labelKey) })) }));
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
       <a href="#main" className="sr-only rounded-md bg-ink px-3 py-2 text-on-ink focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50">
@@ -33,7 +33,7 @@ export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?:
             </span>
           </p>
         </div>
-        <NavLinks links={links} label={t('wh.nav.main')} />
+        <NavLinks groups={groups} label={t('wh.nav.main')} />
         <div className="hidden flex-col gap-0.5 border-t border-line pt-3 md:mt-auto md:flex">
           <Link href="/studio/account" className="flex min-h-11 items-center rounded-md px-3 text-base font-medium hover:bg-hover">
             {t('wh.shell.account')}
@@ -43,6 +43,7 @@ export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?:
       </header>
       <main id="main" className="min-w-0 flex-1">
         {notice}
+        <SectionLinks groups={groups} />
         {children}
       </main>
     </div>
