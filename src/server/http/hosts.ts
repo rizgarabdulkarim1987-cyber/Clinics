@@ -144,7 +144,8 @@ const agencyRule: Rule = ({ req, path, cfg }) => {
 
 const wholesaleRule: Rule = ({ req, path, cfg }) => {
   if (!isHost(req.host, cfg.wholesaleHost ?? null)) return null;
-  if (path === '/') return redirect('/wholesale');
+  // Signing in without a `next` lands on `/studio`, which this host does not serve: the person's own place is Wholesale.
+  if (path === '/' || path === '/studio') return redirect('/wholesale');
   return serves(path, WHOLESALE_SERVES) ? NEXT : NOT_FOUND;
 };
 

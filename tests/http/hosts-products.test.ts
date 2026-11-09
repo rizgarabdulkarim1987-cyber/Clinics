@@ -146,11 +146,13 @@ describe('wholesale host', () => {
     expect(routeHost({ host: WHOLESALE, pathname }, cfg)).toEqual(NEXT),
   );
 
-  it.each(['/studio', '/studio/menus', '/pos', '/pharmacy', '/api/studio/export', '/atelier'])('answers 404 for %s', (pathname) =>
+  it.each(['/studio/menus', '/pos', '/pharmacy', '/api/studio/export', '/atelier'])('answers 404 for %s', (pathname) =>
     expect(routeHost({ host: WHOLESALE, pathname }, cfg)).toEqual(NOT_FOUND),
   );
 
-  it('sends / to /wholesale', () => expect(routeHost({ host: WHOLESALE, pathname: '/' }, cfg)).toEqual({ action: 'redirect', to: '/wholesale' }));
+  it.each(['/', '/studio'])('sends %s to /wholesale (a sign-in with no next lands on /studio)', (pathname) =>
+    expect(routeHost({ host: WHOLESALE, pathname }, cfg)).toEqual({ action: 'redirect', to: '/wholesale' }),
+  );
 
   it('is no longer served by the studio host once it is set, and still is while it is not', () => {
     expect(routeHost({ host: STUDIO, pathname: '/wholesale/sales' }, cfg)).toEqual(NOT_FOUND);
