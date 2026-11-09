@@ -25,13 +25,13 @@ import { RateHint } from './RateHint';
 
 /** Names people give the work: offered as suggestions, never forced. */
 const SERVICES = {
-  INCOME: ['Social media', 'Website', 'Accounting system', 'Ad campaign', 'Commission', 'Printing'],
-  EXPENSE: ['Freelancer', 'Equipment', 'Subscription', 'Paid ads', 'Printing'],
+  INCOME: ['Branding', 'Campaign', 'Production', 'Social media', 'Website', 'QR menu', 'Cashier system', 'Pharmacy system', 'Retail system', 'Wholesale system', 'Loyalty cards', 'Menu photography', 'Accounting system', 'Commission', 'Printing', 'Other'],
+  EXPENSE: ['Rent', 'Electricity', 'Freelancer', 'Equipment', 'Subscription', 'Paid ads', 'Printing', 'Other'],
 } as const;
 
 const SERVICES_AR = {
-  INCOME: ['سوشيال ميديا', 'موقع إلكتروني', 'نظام محاسبي', 'حملة إعلانية', 'عمولة', 'طباعة'],
-  EXPENSE: ['فريلانسر', 'معدات', 'اشتراك', 'إعلانات مدفوعة', 'طباعة'],
+  INCOME: ['براندنك', 'كمبين', 'برودكشن', 'سوشيال ميديا', 'موقع إلكتروني', 'منيو QR', 'نظام كاشير', 'نظام صيدلية', 'نظام تجزئة', 'نظام جملة', 'بطاقات ولاء', 'تصوير منيو', 'نظام محاسبي', 'عمولة', 'طباعة', 'أخرى'],
+  EXPENSE: ['إيجار', 'كهرباء', 'فريلانسر', 'معدات', 'اشتراك', 'إعلانات مدفوعة', 'طباعة', 'أخرى'],
 } as const;
 
 const RECENT = 30;
