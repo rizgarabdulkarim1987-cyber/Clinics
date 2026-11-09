@@ -1071,6 +1071,53 @@ model Announcement {
   @@index([archivedAt, startsAt])
 }
 
+/// Whether a movement of the agency's money came in or went out (docs/superpowers/specs/2026-11-09-agency-accounts-design.md).
+enum AccountKind {
+  INCOME
+  EXPENSE
+}
+
+/**
+ * A client of Buzzify's own agency business, for its simple books. Not a restaurant: nothing here is tenant data. The
+ * slug is made from the name, unique, and never changes. Archived rather than deleted so past movements keep their client.
+ */
+model AccountClient {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  phone       String         @default("")
+  /// A plain id, not a relation, so removing the person never removes the client.
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  entries     AccountEntry[]
+}
+
+/**
+ * One movement of the agency's money: income or an expense, in dinars or dollars (never converted), on a calendar day,
+ * for a client or for none (gear, subscriptions). Money is an Int in the currency's minor unit, like billing's.
+ * Archived rather than deleted.
+ */
+model AccountEntry {
+  id          String         @id @default(cuid())
+  kind        AccountKind
+  amountMinor Int
+  currency    Currency
+  clientId    String?
+  client      AccountClient? @relation(fields: [clientId], references: [id])
+  /// What it was for: social media, website, freelancer, equipment. Free text with suggestions.
+  service     String         @default("")
+  note        String         @default("")
+  occurredOn  DateTime       @db.Date
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@index([occurredOn])
+  @@index([clientId, occurredOn])
+}
+
 /**
  * What a media library file is: a photo or drawing (made into variants), an SVG drawing, or an icon kept as it is.
  */

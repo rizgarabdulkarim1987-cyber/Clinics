@@ -125,6 +125,10 @@ export const AUDIT_ACTIONS = [
   'announcement.created',
   'announcement.updated',
   'announcement.archived',
+  'account.client.created',
+  'account.client.archived',
+  'account.entry.created',
+  'account.entry.archived',
   'account.two_factor_enabled',
   'account.two_factor_disabled',
   'account.recovery_codes_regenerated',
@@ -225,6 +229,8 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 /** The kinds of row the audit log names (its `entityType`), each with a label (`activity.entity.<type>`). */
 export const AUDIT_ENTITY_TYPES = [
   'Announcement',
+  'AccountClient',
+  'AccountEntry',
   'PosSettings',
   'PosStaff',
   'PosKitchenSection',

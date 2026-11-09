@@ -1,0 +1,88 @@
+import ExcelJS from 'exceljs';
+import { describe, expect, it } from 'vitest';
+import { buildBookWorkbook } from '@/server/accounts/workbook';
+import type { AccountsBook, BookMovement } from '@/server/studio/queries/accounts';
+import { getStudioTranslator } from '@/studio/messages';
+
+const move = (over: Partial<BookMovement>): BookMovement => ({
+  id: 'm',
+  kind: 'INCOME',
+  amountMinor: 1_000_000,
+  currency: 'IQD',
+  clientId: 'a',
+  clientName: 'Al Nour',
+  service: 'website',
+  note: '',
+  occurredOn: '2026-11-05',
+  ...over,
+});
+
+const book: AccountsBook = {
+  clients: [{ id: 'a', name: 'Al Nour', slug: 'al-nour', phone: '' }],
+  movements: [
+    move({ id: '1' }),
+    move({ id: '2', kind: 'EXPENSE', amountMinor: 250_000, clientId: null, clientName: null, service: 'equipment', occurredOn: '2026-11-06' }),
+    move({ id: '3', currency: 'USD', amountMinor: 12_550, clientId: 'a', service: 'ads', occurredOn: '2026-11-07' }),
+    move({ id: '4', note: '=HYPERLINK("x")', occurredOn: '2025-03-01' }),
+  ],
+};
+
+async function open(period: Parameters<typeof buildBookWorkbook>[1], locale: 'en' | 'ar' = 'en') {
+  const bytes = await buildBookWorkbook(book, period, getStudioTranslator(locale), locale);
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
+  return workbook;
+}
+
+describe('the Excel file', () => {
+  it('has a summary, a clients sheet and a movements sheet', async () => {
+    const workbook = await open({ kind: 'month', year: 2026, month: 11 });
+    expect(workbook.worksheets).toHaveLength(3);
+    expect(workbook.worksheets.every((sheet) => sheet.name.length > 0 && sheet.name.length <= 31)).toBe(true);
+  });
+
+  it('keeps only the chosen period, in every sheet', async () => {
+    const workbook = await open({ kind: 'month', year: 2026, month: 11 });
+    const movements = workbook.worksheets[2]!;
+    // header + the three movements of November 2026; the 2025 one is out.
+    expect(movements.rowCount).toBe(4);
+    expect((await open({ kind: 'all' })).worksheets[2]!.rowCount).toBe(5);
+  });
+
+  it('writes amounts as numbers in the major unit and keeps the currencies apart', async () => {
+    const summary = (await open({ kind: 'month', year: 2026, month: 11 })).worksheets[0]!;
+    const rows = summary.getRows(1, summary.rowCount)!.map((row) => (row.values as unknown[]).slice(1));
+    const dinar = rows.find((row) => row.includes('IQD'))!;
+    const dollar = rows.find((row) => row.includes('USD'))!;
+    expect(dinar.filter((cell) => typeof cell === 'number')).toEqual([1_000_000, 250_000, 750_000]);
+    expect(dollar.filter((cell) => typeof cell === 'number')).toEqual([125.5, 0, 125.5]);
+  });
+
+  it('gives each movement a real date, and a signed amount that adds up', async () => {
+    const sheet = (await open({ kind: 'month', year: 2026, month: 11 })).worksheets[2]!;
+    const dataRows = sheet.getRows(2, 3)!.map((row) => row.values as unknown[]);
+    expect(dataRows[0]![1]).toBeInstanceOf(Date);
+    const signed = dataRows.filter((row) => row.includes('IQD')).map((row) => row[row.length - 1]);
+    expect(signed.reduce((sum, value) => (sum as number) + (value as number), 0)).toBe(750_000);
+  });
+
+  it('writes the movements with no client as their own row in the clients sheet', async () => {
+    const sheet = (await open({ kind: 'month', year: 2026, month: 11 })).worksheets[1]!;
+    const names = sheet.getRows(2, sheet.rowCount - 1)!.map((row) => (row.values as unknown[])[1]);
+    expect(names).toContain('Al Nour');
+    expect(names).toContain(getStudioTranslator('en')('accounts.noClient'));
+  });
+
+  it('never turns a note into a formula', async () => {
+    const sheet = (await open({ kind: 'all' })).worksheets[2]!;
+    const cells = sheet.getRows(2, sheet.rowCount - 1)!.flatMap((row) => (row.values as unknown[]).slice(1));
+    expect(cells.some((cell) => typeof cell === 'object' && cell !== null && 'formula' in (cell as object))).toBe(false);
+    expect(cells).toContain('=HYPERLINK("x")');
+  });
+
+  it('reads right to left in Arabic', async () => {
+    const workbook = await open({ kind: 'all' }, 'ar');
+    expect(workbook.worksheets.every((sheet) => sheet.views[0]?.rightToLeft === true)).toBe(true);
+    expect((await open({ kind: 'all' }, 'en')).worksheets.some((sheet) => sheet.views[0]?.rightToLeft)).toBe(false);
+  });
+});

@@ -21,11 +21,18 @@ describe('parseHostEnv', () => {
       rootRedirect: 'https://buzzify.me',
       pharmacyHost: null,
       wholesaleHost: null,
+      agencyHost: null,
       coreHost: null,
       coreGatePath: null,
       apexHost: null,
       legacyHosts: [],
     });
+  });
+
+  it('reads the agency host, lowercased, and treats blank as unset', () => {
+    expect(parseHostEnv({ AGENCY_HOST: ' Agency.Buzzify.tech ' }).agencyHost).toBe('agency.buzzify.tech');
+    expect(parseHostEnv({ AGENCY_HOST: '  ' }).agencyHost).toBeNull();
+    expect(() => parseHostEnv({ AGENCY_HOST: 'https://agency.buzzify.tech' })).toThrow();
   });
 
   it('reads the product hosts, the secret path, the apex and the legacy hosts', () => {
@@ -65,6 +72,7 @@ describe('parseHostEnv', () => {
       rootRedirect: 'https://example.com/welcome',
       pharmacyHost: null,
       wholesaleHost: null,
+      agencyHost: null,
       coreHost: null,
       coreGatePath: null,
       apexHost: null,

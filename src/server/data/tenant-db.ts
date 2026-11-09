@@ -85,6 +85,9 @@ export const GLOBAL_MODELS = [
   'PlatformAdvertDaily',
   // Written by the Buzzify team for everyone; no restaurant owns one.
   'Announcement',
+  // The agency's own books (a Super Admin's, not a restaurant's): clients and money in and out.
+  'AccountClient',
+  'AccountEntry',
   // Billing catalog and history: the products, their prices, and a subscription's events (reached through its subscription).
   'Application',
   'PlanPrice',

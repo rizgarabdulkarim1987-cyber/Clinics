@@ -151,3 +151,45 @@ describe('routeHost for the scheduler', () => {
     expect(routeHost({ host, pathname: '/api/cron/publish' }, { ...cfg, production: true })).toEqual(NEXT);
   });
 });
+
+describe('routeHost on the agency host', () => {
+  const agency = { ...cfg, agencyHost: 'agency.buzzify.tech', production: true };
+  const AGENCY = 'agency.buzzify.tech';
+
+  it.each(['/', '/studio'])('sends %s to /agency', (pathname) =>
+    expect(routeHost({ host: AGENCY, pathname }, agency)).toEqual({ action: 'redirect', to: '/agency' }));
+
+  it.each([
+    '/agency',
+    '/agency/export',
+    '/api/auth/sign-in/email',
+    '/studio/sign-in',
+    '/studio/two-factor',
+    '/studio/setup-two-factor',
+    '/studio/forgot',
+    '/studio/reset',
+    '/_next/static/a.js',
+    '/favicon.ico',
+  ])('serves %s', (pathname) => expect(routeHost({ host: AGENCY, pathname }, agency)).toEqual(NEXT));
+
+  it.each(['/studio/menus', '/studio/settings', '/pos', '/pharmacy', '/api/studio/export', '/api/pos/sync', '/atelier/en', '/agencyx'])(
+    'answers 404 for %s, so the host shows nothing but the books',
+    (pathname) => expect(routeHost({ host: AGENCY, pathname }, agency)).toEqual(NOT_FOUND),
+  );
+
+  it('matches the host with a port and any case', () => {
+    expect(routeHost({ host: 'AGENCY.buzzify.tech:443', pathname: '/agency' }, agency)).toEqual(NEXT);
+  });
+
+  it('is served on the studio host until the agency host is set, and never on the public host', () => {
+    expect(routeHost({ host: STUDIO, pathname: '/agency' }, { ...cfg, production: true })).toEqual(NEXT);
+    expect(routeHost({ host: STUDIO, pathname: '/agency' }, agency)).toEqual(NOT_FOUND);
+    expect(routeHost({ host: PUBLIC, pathname: '/agency' }, agency)).toEqual(NOT_FOUND);
+    expect(routeHost({ host: PUBLIC, pathname: '/agency/export' }, agency)).toEqual(NOT_FOUND);
+  });
+
+  it('changes nothing when no agency host is configured', () => {
+    expect(routeHost({ host: AGENCY, pathname: '/agency' }, { ...cfg, production: true })).toEqual(NOT_FOUND);
+    expect(routeHost({ host: AGENCY, pathname: '/agency' }, { ...cfg, agencyHost: null, production: true })).toEqual(NOT_FOUND);
+  });
+});
