@@ -470,6 +470,14 @@ const wholesale: Messages = {
   'wh.opening.row': "الصف",
   'wh.opening.history': "المستورد سابقاً",
   'wh.opening.none': "ما انستورد شي بعد.",
+  'wh.count.title': "جرد المخزن",
+  'wh.count.body': "اكتب الموجود فعلاً على الرف. اترك الصنف فارغاً لتتخطاه. الفروقات تُسجَّل فوراً: النقص خسارة والزيادة ربح.",
+  'wh.count.search': "ابحث عن صنف",
+  'wh.count.book': "بالدفاتر",
+  'wh.count.counted': "المعدود",
+  'wh.count.cost': "التكلفة للوحدة",
+  'wh.count.post': "ترحيل الجرد",
+  'wh.count.done': "أصناف فيها فرق",
 };
 
 export default wholesale;

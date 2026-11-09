@@ -470,6 +470,14 @@ const wholesale: Messages = {
   'wh.opening.row': "Row",
   'wh.opening.history': "Already imported",
   'wh.opening.none': "Nothing imported yet.",
+  'wh.count.title': "Stock count",
+  'wh.count.body': "Type what is really on the shelf. Leave an item empty to skip it. Differences are booked at once: a shortage as a loss, a surplus as a gain.",
+  'wh.count.search': "Find an item",
+  'wh.count.book': "In the books",
+  'wh.count.counted': "Counted",
+  'wh.count.cost': "Cost per unit",
+  'wh.count.post': "Post the count",
+  'wh.count.done': "Items with a difference",
 };
 
 export default wholesale;

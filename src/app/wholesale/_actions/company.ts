@@ -145,3 +145,7 @@ export async function askAssistant(input: unknown) {
 export async function importOpening(input: unknown) {
   return invokeWh(books.importOpeningAction, input);
 }
+
+export async function postStockCount(input: unknown) {
+  return invokeWh(books.postStockCountAction, input);
+}

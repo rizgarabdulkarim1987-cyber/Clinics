@@ -470,6 +470,14 @@ const wholesale: Messages = {
   'wh.opening.row': "ڕیز",
   'wh.opening.history': "پێشتر هاوردەکراوە",
   'wh.opening.none': "هێشتا هیچ هاوردە نەکراوە.",
+  'wh.count.title': "ژماردنی کۆگا",
+  'wh.count.body': "ئەوەی بەڕاستی لەسەر ڕەفەکەیە بنووسە. بۆ بازدان بەتاڵی بهێڵەرەوە. جیاوازییەکان یەکسەر تۆمار دەکرێن: کەمی وەک زیان و زیادی وەک قازانج.",
+  'wh.count.search': "کاڵایەک بدۆزەرەوە",
+  'wh.count.book': "لە دەفتەرەکان",
+  'wh.count.counted': "ژمێردراو",
+  'wh.count.cost': "تێچووی یەکە",
+  'wh.count.post': "تۆمارکردنی ژماردن",
+  'wh.count.done': "کاڵای جیاواز",
 };
 
 export default wholesale;

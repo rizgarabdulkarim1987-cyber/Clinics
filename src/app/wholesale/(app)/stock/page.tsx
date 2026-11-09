@@ -4,6 +4,7 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { itemsQuery, stockQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
 import { EmptyState, PageHeader } from '@/studio/ui';
+import { StockCountForm } from '../../_ui/StockCountForm';
 import { TransferForm } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'Stock' };
@@ -18,7 +19,12 @@ export default async function StockPage() {
   const rows = await queryWh(stockQuery);
   const showCost = canWh(actor!.role, 'cost.view');
   const canTransfer = canWh(actor!.role, 'stock.transfer');
-  const [items, warehouses] = canTransfer ? await Promise.all([queryWh(itemsQuery), queryWh(warehousesQuery)]) : [[], []];
+  const canCount = canWh(actor!.role, 'stock.count');
+  const [items, warehouses] = canTransfer || canCount ? await Promise.all([queryWh(itemsQuery), queryWh(warehousesQuery)]) : [[], []];
+  const countRows = items
+    .filter((i) => i.active)
+    .map((i) => ({ itemId: i.id, label: nameOf(i.names, actor!.locale), unit: i.baseUnit, book: Object.fromEntries(rows.filter((r) => r.itemId === i.id).map((r) => [r.warehouseId, r.qtyBase])) }));
+  const unitLabels = Object.fromEntries([...new Set(items.map((i) => i.baseUnit))].map((u) => [u, t(`wh.unit.${u}`)]));
   return (
     <>
       <PageHeader title={t('wh.stock.title')} description={t('wh.stock.description')} />
@@ -32,6 +38,15 @@ export default async function StockPage() {
               warehouses={warehouses.filter((w) => w.kind === 'REP').map((w) => ({ id: w.id, label: w.name }))}
             />
           </section>
+        )}
+        {canCount && (
+          <details className="rounded-md border border-line bg-raised">
+            <summary className="flex min-h-12 cursor-pointer items-center px-4 text-md font-semibold">{t('wh.count.title')}</summary>
+            <div className="border-t border-line p-4">
+              <p className="mb-3 text-sm text-muted">{t('wh.count.body')}</p>
+              <StockCountForm warehouses={warehouses.filter((w) => w.kind !== 'DAMAGE').map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))} rows={countRows} unitLabels={unitLabels} />
+            </div>
+          </details>
         )}
         {rows.length === 0 ? (
           <EmptyState title={t('wh.stock.empty')} />

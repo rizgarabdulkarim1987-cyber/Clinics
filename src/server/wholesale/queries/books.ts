@@ -4,6 +4,7 @@ import { listPeriods } from '@/server/wholesale/period';
 import { getSettings } from '@/server/wholesale/settings';
 import { plain } from '@/server/wholesale/plain';
 import { listOpeningImports } from '@/server/wholesale/import/opening';
+import { listStockCounts } from '@/server/wholesale/stockCount';
 import { defineQuery } from '@/server/studio/framework/query';
 
 export const periodsQuery = defineQuery({
@@ -39,5 +40,17 @@ export const openingImportsQuery = defineQuery({
   run: async (ctx) => {
     if (!ctx.wh || !ctx.scoped) throw new Error('A wholesale query ran without a wholesale actor');
     return plain(await listOpeningImports(ctx.scoped));
+  },
+});
+
+export const stockCountsQuery = defineQuery({
+  name: 'wh.stockcount.list',
+  permission: null,
+  wh: 'stock.count',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    if (!ctx.wh || !ctx.scoped) throw new Error('A wholesale query ran without a wholesale actor');
+    return plain(await listStockCounts(ctx.scoped));
   },
 });
