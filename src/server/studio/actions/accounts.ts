@@ -310,3 +310,20 @@ export const archiveAccountAttachment = defineAction({
       return { id };
     }),
 });
+
+/** Gives an income its invoice number the first time it is asked for; asking again returns the same one. */
+export const issueAccountInvoice = defineAction({
+  name: 'account.invoice.issue',
+  permission: 'platform.settings',
+  input: z.object({ entryId: z.string().min(1).max(100) }),
+  target: () => PLATFORM,
+  run: (ctx, { entryId }) =>
+    ctx.transaction(async (tx) => {
+      const entry = await tx.accountEntry.findFirst({ where: { id: entryId, archivedAt: null, kind: 'INCOME' }, select: { id: true, invoice: { select: { number: true } } } });
+      if (!entry) throw new StudioError('NOT_FOUND');
+      if (entry.invoice) return { number: entry.invoice.number };
+      const row = await tx.accountInvoice.create({ data: { entryId: entry.id, issuedOn: toDay(todayInBaghdad())!, createdById: ctx.actor.userId }, select: { id: true, number: true } });
+      ctx.audit({ action: 'account.invoice.issued', entityType: 'AccountInvoice', entityId: row.id });
+      return { number: row.number };
+    }),
+});

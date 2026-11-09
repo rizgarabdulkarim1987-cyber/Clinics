@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, HandCoins, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, FileText, HandCoins, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition, type FormEvent, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
@@ -378,6 +378,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
                       <Money minor={income ? row.amountMinor : -row.amountMinor} currency={row.currency} locale={locale} tone="net" sign className="font-semibold" />
                       <div className="flex items-center">
                         {income && row.owed && <IconButton label={t('accounts.payment.add')} onClick={() => setPayingId(row.id)} icon={<HandCoins aria-hidden />} />}
+                        {income && <IconButton label={t('accounts.invoice')} onClick={() => window.open(`/agency/invoice?entry=${encodeURIComponent(row.id)}`, '_blank', 'noopener')} icon={<FileText aria-hidden />} />}
                         <IconButton label={`${t('accounts.attachments')}${row.attachments.length ? ` (${row.attachments.length})` : ''}`} onClick={() => setFilesId(row.id)} icon={<Paperclip aria-hidden className={row.attachments.length ? 'text-text' : undefined} />} />
                         <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
                         <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />

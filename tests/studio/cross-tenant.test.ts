@@ -1032,6 +1032,7 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
   // The platform's intro background and adverts (`platform.settings`).
   // The agency's books (`platform.settings`): the platform's own, naming no restaurant.
   'accounts.book': [c('the books', () => ({}), ONLY_FORBIDDEN)],
+  'accounts.invoice': [c('an invoice', () => ({ entryId: 'nope' }), ONLY_FORBIDDEN)],
   'accounts.attachment': [c('an attachment', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'account.client.create': [c('a client', () => ({ name: 'Acme' }), ONLY_FORBIDDEN)],
   'account.client.archive': [c('a client', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
@@ -1041,6 +1042,7 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
   'account.payment.create': [c('a payment', () => ({ entryId: 'nope', amount: '1' }), ONLY_FORBIDDEN)],
   'account.payment.archive': [c('a payment', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'account.attachment.create': [c('an attachment', () => ({ entryId: 'nope', fileName: 'a.pdf', mediaType: 'application/pdf', data: new Uint8Array([37, 80, 68, 70]) }), ONLY_FORBIDDEN)],
+  'account.invoice.issue': [c('an invoice', () => ({ entryId: 'nope' }), ONLY_FORBIDDEN)],
   'account.attachment.archive': [c('an attachment', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'account.entry.archive': [c('an entry', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'platform.intro': [c('the platform intro', () => ({}), ONLY_FORBIDDEN)],
