@@ -13,6 +13,9 @@ import { Toaster } from '@/studio/ui/Toaster';
 export const metadata: Metadata = {
   title: { default: 'Buzzify Agency', template: '%s · Buzzify Agency' },
   robots: { index: false, follow: false },
+  // Lets Chrome and Edge install the books as a desktop app with its own window.
+  manifest: '/agency/manifest',
+  icons: { icon: '/agency/icon-192.png', apple: '/agency/icon-192.png' },
 };
 
 /**
