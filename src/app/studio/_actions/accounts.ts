@@ -11,6 +11,10 @@ export async function addAccountEntry(input: unknown) {
   return invoke(accounts.addAccountEntry, input);
 }
 
+export async function updateAccountEntry(input: unknown) {
+  return invoke(accounts.updateAccountEntry, input);
+}
+
 export async function archiveAccountEntry(input: unknown) {
   return invoke(accounts.archiveAccountEntry, input);
 }

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addAccountEntry, archiveAccountClient, archiveAccountEntry, createAccountClient, setAccountRate } from '@/server/studio/actions/accounts';
+import { addAccountEntry, archiveAccountClient, archiveAccountEntry, createAccountClient, setAccountRate, updateAccountEntry } from '@/server/studio/actions/accounts';
 import { accountsBook } from '@/server/studio/queries/accounts';
 import { ask, codeOf, dataOf, failureOf, person, prisma, resetWorld, restaurant, run, useTestDatabase, type Person } from '../pos/fixture';
 
@@ -171,5 +171,45 @@ describe('the rate each movement keeps', () => {
   it('leaves the rate empty on a movement typed in before any rate was set', async () => {
     dataOf(await run(admin, addAccountEntry, { kind: 'INCOME', amount: '100', currency: 'USD' }));
     expect(dataOf(await ask(admin, accountsBook, {})).movements[0]!.rate).toBeNull();
+  });
+});
+
+describe('editing a movement', () => {
+  const add = async (extra: Record<string, unknown> = {}) =>
+    dataOf(await run(admin, addAccountEntry, { kind: 'INCOME', amount: '100', currency: 'USD', service: 'website', occurredOn: '2026-11-01', ...extra }));
+
+  it('changes what was typed wrong, and keeps the rate of the day it was first typed in', async () => {
+    dataOf(await run(admin, setAccountRate, { rate: '1500' }));
+    const client = await newClient('Al Nour');
+    const { id } = await add();
+    dataOf(await run(admin, setAccountRate, { rate: '1400' }));
+    dataOf(await run(admin, updateAccountEntry, { id, kind: 'EXPENSE', amount: '2,500,000', currency: 'IQD', clientId: client.id, service: 'rent', note: 'fixed', occurredOn: '2026-10-30' }));
+    const row = await prisma().accountEntry.findUniqueOrThrow({ where: { id } });
+    expect(row).toMatchObject({ kind: 'EXPENSE', amountMinor: 2_500_000, currency: 'IQD', clientId: client.id, service: 'rent', note: 'fixed', rate: 1500 });
+    expect(row.occurredOn.toISOString().slice(0, 10)).toBe('2026-10-30');
+    expect(await prisma().accountEntry.count()).toBe(1);
+  });
+
+  it('can take the client off, and is audited', async () => {
+    const client = await newClient('Al Nour');
+    const { id } = await add({ clientId: client.id });
+    dataOf(await run(admin, updateAccountEntry, { id, kind: 'INCOME', amount: '100', currency: 'USD', clientId: null }));
+    expect((await prisma().accountEntry.findUniqueOrThrow({ where: { id } })).clientId).toBeNull();
+    expect(await prisma().auditLog.count({ where: { action: 'account.entry.updated' } })).toBe(1);
+  });
+
+  it('refuses a bad amount or day, a missing, archived or unknown entry, an archived client, and anyone but a Super Admin', async () => {
+    const { id } = await add();
+    const same = { id, kind: 'INCOME', amount: '100', currency: 'USD' };
+    expect(failureOf(await run(admin, updateAccountEntry, { ...same, amount: 'abc' })).fields?.amount).toBeTruthy();
+    expect(failureOf(await run(admin, updateAccountEntry, { ...same, amount: '25.5', currency: 'IQD' })).fields?.amount).toBeTruthy();
+    expect(codeOf(await run(admin, updateAccountEntry, { ...same, occurredOn: '2026-13-40' }))).toBe('INVALID');
+    expect(codeOf(await run(admin, updateAccountEntry, { ...same, id: 'nope' }))).toBe('NOT_FOUND');
+    const gone = await newClient('Gone');
+    dataOf(await run(admin, archiveAccountClient, { id: gone.id }));
+    expect(codeOf(await run(admin, updateAccountEntry, { ...same, clientId: gone.id }))).toBe('NOT_FOUND');
+    dataOf(await run(admin, archiveAccountEntry, { id }));
+    expect(codeOf(await run(admin, updateAccountEntry, same))).toBe('NOT_FOUND');
+    for (const who of [owner, cashier]) expect(codeOf(await run(who, updateAccountEntry, same))).toBe('FORBIDDEN');
   });
 });

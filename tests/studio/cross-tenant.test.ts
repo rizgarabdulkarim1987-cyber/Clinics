@@ -1036,6 +1036,7 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
   'account.client.archive': [c('a client', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'account.entry.create': [c('an entry', () => ({ kind: 'INCOME', amount: '1000', currency: 'IQD' }), ONLY_FORBIDDEN)],
   'account.rate.set': [c('the rate', () => ({ rate: '1500' }), ONLY_FORBIDDEN)],
+  'account.entry.update': [c('an entry', () => ({ id: 'nope', kind: 'INCOME', amount: '1000', currency: 'IQD' }), ONLY_FORBIDDEN)],
   'account.entry.archive': [c('an entry', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'platform.intro': [c('the platform intro', () => ({}), ONLY_FORBIDDEN)],
   'platform.introReports': [c('the intro report', () => ({ from: '2026-10-01', to: '2026-10-31' }), ONLY_FORBIDDEN)],
