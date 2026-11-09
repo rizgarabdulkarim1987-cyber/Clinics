@@ -11,8 +11,8 @@ import { Button } from '@/studio/ui/Button';
 import { Input } from '@/studio/ui/Input';
 
 /**
- * The exchange rate, always in reach on the one screen: whole dinars for one dollar. Dollars are added to dinars at this
- * rate in the combined lines; nothing is converted in what was recorded.
+ * The exchange rate, always in reach in the header: whole dinars for one dollar. A new rate applies to entries typed from
+ * then on; the sentence that says so shows only while a new rate is being typed, so the bar stays one small line.
  */
 export function RateBar({ rate }: { rate: number | null }) {
   const t = useT();
@@ -45,33 +45,37 @@ export function RateBar({ rate }: { rate: number | null }) {
   };
 
   return (
-    <form onSubmit={submit} aria-label={t('accounts.rate.label')} className="flex shrink-0 flex-col gap-1.5 rounded-lg border border-line bg-raised px-4 py-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="whitespace-nowrap text-sm font-medium text-text">{t('accounts.rate.label')}</span>
-        <span dir="ltr" className="inline-flex shrink-0 items-center gap-2 text-base tabular-nums">
-          <span className="whitespace-nowrap text-muted">1 USD =</span>
-          <Input
-            aria-label={t('accounts.rate.label')}
-            aria-invalid={error ? true : undefined}
-            inputMode="numeric"
-            autoComplete="off"
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              setError('');
-            }}
-            className="w-28 text-end"
-            placeholder="1500"
-          />
-          <span className="whitespace-nowrap text-muted">IQD</span>
-        </span>
-        <Button type="submit" variant="secondary" disabled={pending || !changed}>
+    <form onSubmit={submit} aria-label={t('accounts.rate.label')} className="relative flex items-center gap-2">
+      <span dir="ltr" className="inline-flex items-center gap-1.5 whitespace-nowrap text-base tabular-nums">
+        <span className="text-muted">1 USD =</span>
+        <Input
+          aria-label={t('accounts.rate.label')}
+          aria-invalid={error ? true : undefined}
+          inputMode="numeric"
+          autoComplete="off"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setError('');
+          }}
+          className="w-24 text-end"
+          placeholder="1500"
+        />
+        <span className="text-muted">IQD</span>
+      </span>
+      {changed && (
+        <Button type="submit" size="sm" variant="primary" pending={pending}>
           {t('accounts.rate.save')}
         </Button>
-      </div>
-      <p className={error ? 'text-sm text-danger' : 'text-sm text-muted'} role={error ? 'alert' : undefined}>
-        {error || t('accounts.rate.hint')}
-      </p>
+      )}
+      {(changed || error) && (
+        <p
+          role={error ? 'alert' : 'status'}
+          className={`absolute end-0 top-full z-10 mt-2 w-72 rounded-md border bg-raised px-3 py-2 text-sm shadow-[0_6px_16px_rgb(0_0_0/0.12)] ${error ? 'border-danger text-danger' : 'border-line-strong text-muted'}`}
+        >
+          {error || t('accounts.rate.hint')}
+        </p>
+      )}
     </form>
   );
 }

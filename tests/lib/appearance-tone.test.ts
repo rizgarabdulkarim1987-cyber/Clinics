@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkAppearance, DEFAULT_APPEARANCE, PRESETS, switchTone, toneOf } from '@/lib/appearance';
+import { checkAppearance, DEFAULT_APPEARANCE, fullAppearanceVars, PRESETS, switchTone, toneOf } from '@/lib/appearance';
 
 const dark = PRESETS.find((preset) => preset.key === 'dark')!.appearance;
 
@@ -26,5 +26,12 @@ describe('switchTone', () => {
       expect(toneOf(next.bg)).not.toBe(toneOf(preset.appearance.bg));
       expect(checkAppearance(next).ok).toBe(true);
     }
+  });
+});
+
+describe('the amber highlight', () => {
+  it('is a deep amber on a dark page and left to the stylesheet on a light one', () => {
+    expect(fullAppearanceVars(dark)['--s-accent-wash']).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(fullAppearanceVars(DEFAULT_APPEARANCE)['--s-accent-wash']).toBeUndefined();
   });
 });

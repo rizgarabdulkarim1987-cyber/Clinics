@@ -39,51 +39,45 @@ export function AgencyBook({ book, today, userName, appearance }: { book: Accoun
   return (
     <div className="min-h-dvh bg-bg lg:flex lg:h-dvh lg:flex-col lg:overflow-hidden">
       <header className="border-b border-line bg-surface">
-        <div className="flex h-14 w-full items-center justify-between gap-4 px-4 sm:px-10">
+        <div className="flex min-h-14 w-full flex-wrap items-center gap-x-8 gap-y-1 px-4 sm:px-10">
           <span dir="ltr" lang="en" className="inline-flex items-center gap-2 text-md leading-none">
             <BrandLogo height={16} />
             <span className="text-muted">Agency</span>
           </span>
-          <div className="flex items-center gap-4">
-            <span className="hidden max-w-[16ch] truncate text-sm text-muted sm:inline">{userName}</span>
+
+          <div role="tablist" aria-label={t('accounts.tabs.label')} onKeyDown={onKeyDown} className="flex self-stretch">
+            {TABS.map((value) => (
+              <button
+                key={value}
+                ref={(node) => {
+                  refs.current[value] = node;
+                }}
+                role="tab"
+                id={`${id}-tab-${value}`}
+                aria-selected={tab === value}
+                aria-controls={`${id}-panel-${value}`}
+                tabIndex={tab === value ? 0 : -1}
+                onClick={() => setTab(value)}
+                className={cx(
+                  '-mb-px inline-flex min-h-14 items-center border-b-2 px-4 text-base font-medium transition-colors duration-150',
+                  tab === value ? 'border-accent text-text' : 'border-transparent text-muted hover:text-text',
+                )}
+              >
+                {t(`accounts.tab.${value}`)}
+              </button>
+            ))}
+          </div>
+
+          <div className="ms-auto flex items-center gap-4 py-2">
+            <RateBar key={book.rate ?? 'none'} rate={book.rate} />
+            <span className="hidden max-w-[16ch] truncate text-sm text-muted xl:inline">{userName}</span>
             <ThemeToggle appearance={appearance} />
             <LanguageSwitch signedIn />
           </div>
         </div>
       </header>
 
-      <main className="flex w-full flex-col gap-5 px-4 pb-16 pt-6 sm:px-10 lg:min-h-0 lg:flex-1 lg:gap-3 lg:pb-4 lg:pt-3">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-          <div>
-            <h1 className="text-xl font-semibold text-text">{t('accounts.title')}</h1>
-            <p className="text-base text-muted">{t('accounts.description')}</p>
-          </div>
-          <RateBar key={book.rate ?? 'none'} rate={book.rate} />
-        </div>
-
-        <div role="tablist" aria-label={t('accounts.tabs.label')} onKeyDown={onKeyDown} className="flex gap-1 border-b border-line">
-          {TABS.map((value) => (
-            <button
-              key={value}
-              ref={(node) => {
-                refs.current[value] = node;
-              }}
-              role="tab"
-              id={`${id}-tab-${value}`}
-              aria-selected={tab === value}
-              aria-controls={`${id}-panel-${value}`}
-              tabIndex={tab === value ? 0 : -1}
-              onClick={() => setTab(value)}
-              className={cx(
-                '-mb-px h-10 border-b-2 px-4 text-base font-medium transition-colors duration-150',
-                tab === value ? 'border-accent text-text' : 'border-transparent text-muted hover:text-text',
-              )}
-            >
-              {t(`accounts.tab.${value}`)}
-            </button>
-          ))}
-        </div>
-
+      <main className="flex w-full flex-col px-4 pb-16 pt-5 sm:px-10 lg:min-h-0 lg:flex-1 lg:pb-5">
         <div role="tabpanel" id={`${id}-panel-entry`} aria-labelledby={`${id}-tab-entry`} hidden={tab !== 'entry'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           <EntryTab book={book} today={today} />
         </div>

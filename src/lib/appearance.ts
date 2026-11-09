@@ -208,6 +208,8 @@ export function fullAppearanceVars(a: Appearance): Record<string, string> {
     '--s-btn-radius': a.shape === 'round' ? '9999px' : '6px',
     ...statusVars(a.bg),
   };
+  // The pale amber highlight (the current month in a chart, the selected row) turns to a deep amber on a dark page.
+  if (isDark(a.bg)) vars['--s-accent-wash'] = mix(a.bg, '#f2b705', 0.16);
   const stack = FONTS[a.font].stack;
   if (stack) vars['--s-font'] = stack;
   return vars;
