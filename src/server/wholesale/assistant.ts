@@ -116,7 +116,7 @@ const SYSTEM = [
 const monthKey = (today: string) => `aiUsage:${today.slice(0, 7)}`;
 
 /** Reserves one question of this month's allowance; null when the allowance is spent. Atomic: two questions cannot both take the last one. */
-async function reserve(db: Db, rid: string, userId: string, today: string): Promise<number | null> {
+export async function reserve(db: Db, rid: string, userId: string, today: string): Promise<number | null> {
   const rows = await db.$queryRaw<{ n: number }[]>`
     INSERT INTO "WhSetting" (id, "restaurantId", key, value, "updatedById", "updatedAt")
     VALUES (gen_random_uuid()::text, ${rid}, ${monthKey(today)}, '1'::jsonb, ${userId}, now())
@@ -127,7 +127,7 @@ async function reserve(db: Db, rid: string, userId: string, today: string): Prom
   return rows[0]?.n ?? null;
 }
 
-async function release(db: Db, rid: string, today: string): Promise<void> {
+export async function release(db: Db, rid: string, today: string): Promise<void> {
   await db.$executeRaw`UPDATE "WhSetting" SET value = to_jsonb(GREATEST((("value" #>> '{}')::int) - 1, 0)) WHERE "restaurantId" = ${rid} AND key = ${monthKey(today)}`;
 }
 

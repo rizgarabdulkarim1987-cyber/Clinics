@@ -5,6 +5,7 @@ import { assistantUsageQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { PageHeader } from '@/studio/ui';
 import { AssistantChat } from '../../_ui/AssistantChat';
+import { InvoicePhoto } from '../../_ui/InvoicePhoto';
 
 export const metadata: Metadata = { title: 'Assistant' };
 
@@ -15,7 +16,8 @@ export default async function AssistantPage() {
   return (
     <>
       <PageHeader title={t('wh.assistant.title')} description={t('wh.assistant.description')} />
-      <div className="px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+        <InvoicePhoto limit={ASSISTANT_MONTHLY_LIMIT} used={used} />
         <AssistantChat limit={ASSISTANT_MONTHLY_LIMIT} used={used} />
       </div>
     </>
