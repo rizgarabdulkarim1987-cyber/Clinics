@@ -88,20 +88,24 @@ describe('the Excel file', () => {
   });
 });
 
-describe('the combined row', () => {
+describe('with an exchange rate', () => {
   const rows = async (rate: number | null) => {
     const summary = (await open({ kind: 'month', year: 2026, month: 11 }, 'en', rate)).worksheets[0]!;
     return summary.getRows(1, summary.rowCount)!.map((row) => (row.values as unknown[]).slice(1));
   };
 
-  it('adds the dollars to the dinars at the rate, and says which rate', async () => {
+  it('shows everything in dinars and everything in dollars, and says which rate', async () => {
     const all = await rows(1500);
-    // $125.50 income at 1,500 = 188,250; plus 1,000,000 dinars; expense 250,000 dinars.
-    expect(all.find((row) => row[0] === 'Combined in dinars')!.slice(1)).toEqual([1_188_250, 250_000, 938_250]);
+    // Income 1,000,000 dinars + $125.50 (188,250 dinars); expense 250,000 dinars.
+    expect(all.find((row) => row[0] === 'IQD')!.slice(1)).toEqual([1_188_250, 250_000, 938_250]);
+    // The same in dollars: 1,000,000 / 1500 = 666.67 plus 125.50; 250,000 / 1500 = 166.67.
+    expect(all.find((row) => row[0] === 'USD')!.slice(1)).toEqual([792.17, 166.67, 625.5]);
     expect(all.find((row) => typeof row[0] === 'string' && (row[0] as string).startsWith('Exchange rate'))![1]).toBe(1500);
   });
 
-  it('is left out without a rate', async () => {
-    expect((await rows(null)).some((row) => row[0] === 'Combined in dinars')).toBe(false);
+  it('keeps the currencies apart without a rate', async () => {
+    const all = await rows(null);
+    expect(all.find((row) => row[0] === 'IQD')!.slice(1)).toEqual([1_000_000, 250_000, 750_000]);
+    expect(all.some((row) => typeof row[0] === 'string' && (row[0] as string).startsWith('Exchange rate'))).toBe(false);
   });
 });

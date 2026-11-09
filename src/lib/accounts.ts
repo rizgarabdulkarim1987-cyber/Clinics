@@ -179,3 +179,15 @@ export function combineTotals(totals: CurrencyTotals, rate: number): Totals {
   const expense = totals.IQD.expense + dinars(totals.USD.expense);
   return { income, expense, net: income - expense };
 }
+
+/**
+ * Everything in one currency, then in the other, at `rate` dinars per dollar: `IQD` holds the whole of it in dinars and
+ * `USD` the whole of it in dollars, so a screen can show two lines whatever mix of currencies was recorded.
+ */
+export function convertTotals(totals: CurrencyTotals, rate: number): CurrencyTotals {
+  const inDinars = combineTotals(totals, rate);
+  const cents = (dinars: number) => Math.round((dinars * 100) / rate);
+  const income = totals.USD.income + cents(totals.IQD.income);
+  const expense = totals.USD.expense + cents(totals.IQD.expense);
+  return { IQD: inDinars, USD: { income, expense, net: income - expense } };
+}

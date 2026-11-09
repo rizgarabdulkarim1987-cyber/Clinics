@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byClient, byMonth, combineTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
+import { byClient, byMonth, combineTotals, convertTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
 
 const move = (over: Partial<AccountMovement>): AccountMovement => ({
   kind: 'INCOME',
@@ -168,5 +168,23 @@ describe('combineTotals', () => {
   });
   it('rounds each dollar total to a whole dinar', () => {
     expect(combineTotals(summarize([move({ amountMinor: 1, currency: 'USD' })]), 1480)).toEqual({ income: 15, expense: 0, net: 15 });
+  });
+});
+
+describe('convertTotals', () => {
+  it('gives the whole of it in dinars and the whole of it in dollars, at the rate', () => {
+    const totals = summarize([
+      move({ kind: 'INCOME', amountMinor: 1_500_000, currency: 'IQD' }),
+      move({ kind: 'INCOME', amountMinor: 155_000, currency: 'USD' }), // $1,550.00
+      move({ kind: 'EXPENSE', amountMinor: 750_000, currency: 'IQD' }),
+      move({ kind: 'EXPENSE', amountMinor: 48_000, currency: 'USD' }), // $480.00
+    ]);
+    const all = convertTotals(totals, 1500);
+    expect(all.IQD).toEqual({ income: 1_500_000 + 2_325_000, expense: 750_000 + 720_000, net: 2_355_000 });
+    // $1,000 from the dinars and $1,550 already in dollars; $500 and $480.
+    expect(all.USD).toEqual({ income: 255_000, expense: 98_000, net: 157_000 });
+  });
+  it('is all zeros when empty', () => {
+    expect(convertTotals(summarize([]), 1500).USD).toEqual({ income: 0, expense: 0, net: 0 });
   });
 });
