@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byClient, byMonth, isLate, owedTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, remainingMinor, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
+import { byClient, byMonth, byService, isLate, owedTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, remainingMinor, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
 
 const move = (over: Partial<AccountMovement>): AccountMovement => ({
   kind: 'INCOME',
@@ -220,5 +220,13 @@ describe('what clients still owe', () => {
     expect(isLate(owed({ occurredOn: '2026-10-20' }), today)).toBe(true); // 31 days
     expect(isLate(owed({ occurredOn: '2026-01-01', paidMinor: 100 }), today)).toBe(false); // paid in full
     expect(isLate(move({ occurredOn: '2026-01-01' }), today)).toBe(false); // an old entry
+  });
+});
+
+describe('byService', () => {
+  const income = (service: string, amountMinor: number, currency: 'IQD' | 'USD' = 'IQD') => ({ kind: 'INCOME' as const, amountMinor, currency, clientId: null, occurredOn: '2026-11-01', service });
+  it('ranks income by service, best first, and ignores expenses', () => {
+    const rows = byService([income('ads', 100), income('logo', 500), income('ads', 300), { ...income('rent', 9_000), kind: 'EXPENSE' as const }]);
+    expect(rows.map((row) => [row.service, row.totals.IQD.income])).toEqual([['logo', 500], ['ads', 400]]);
   });
 });

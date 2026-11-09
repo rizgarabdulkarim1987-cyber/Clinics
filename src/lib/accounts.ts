@@ -190,6 +190,28 @@ export function byClient(movements: readonly AccountMovement[], names: ReadonlyM
   return [...clients, ...general];
 }
 
+export interface ServiceRow {
+  /** What was sold; empty for income typed in with no service. */
+  service: string;
+  totals: CurrencyTotals;
+}
+
+/** What each service brought in, best dinar income first (then dollar income). Only income counts; expenses are not services sold. */
+export function byService(movements: readonly (AccountMovement & { service?: string })[], rate: number | null = null): ServiceRow[] {
+  const rows = new Map<string, ServiceRow>();
+  for (const movement of movements) {
+    if (movement.kind !== 'INCOME') continue;
+    const key = (movement.service ?? '').trim();
+    let row = rows.get(key);
+    if (!row) {
+      row = { service: key, totals: emptyCurrencyTotals() };
+      rows.set(key, row);
+    }
+    add(row.totals, movement, rate);
+  }
+  return [...rows.values()].sort((a, b) => b.totals.IQD.income - a.totals.IQD.income || b.totals.USD.income - a.totals.USD.income || a.service.localeCompare(b.service));
+}
+
 /** A period as a link and a form carry it: `month:2026-11`, `year:2026`, `all`. */
 export function periodKey(period: Period): string {
   if (period.kind === 'all') return 'all';
