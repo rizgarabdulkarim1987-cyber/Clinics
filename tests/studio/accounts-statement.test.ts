@@ -6,7 +6,7 @@ import { getStudioTranslator } from '@/studio/messages';
 
 const move = (over: Partial<BookMovement>): BookMovement => ({
   id: 'm', kind: 'INCOME', amountMinor: 1_000_000, currency: 'IQD', clientId: 'a', clientName: 'Al Nour', service: 'website', note: '',
-  occurredOn: '2026-11-05', recordedAt: '2026-11-05T09:30:00.000Z', rate: null, owed: false, paidMinor: 0, payments: [], ...over,
+  occurredOn: '2026-11-05', recordedAt: '2026-11-05T09:30:00.000Z', rate: null, owed: false, paidMinor: 0, payments: [], attachments: [], ...over,
 });
 
 const book: AccountsBook = {

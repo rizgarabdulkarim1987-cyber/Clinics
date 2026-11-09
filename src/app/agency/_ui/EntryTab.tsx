@@ -1,10 +1,10 @@
 'use client';
 
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, HandCoins, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition, type FormEvent, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
-import { addAccountEntry, addAccountPayment, archiveAccountEntry, archiveAccountPayment, createAccountClient, updateAccountEntry } from '@/app/studio/_actions/accounts';
+import { addAccountEntry, addAccountPayment, archiveAccountAttachment, archiveAccountEntry, archiveAccountPayment, createAccountClient, updateAccountEntry } from '@/app/studio/_actions/accounts';
 import { ACCOUNT_CURRENCIES, daysBetween, inPeriod, isLate, owedTotals, remainingMinor, slugFromName, summarize, type AccountCurrency, type AccountKind } from '@/lib/accounts';
 import type { Locale } from '@/lib/locale';
 import type { AccountsBook, BookMovement } from '@/server/studio/queries/accounts';
@@ -76,6 +76,8 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   const [removing, setRemoving] = useState<BookMovement | null>(null);
   const [payingId, setPayingId] = useState<string | null>(null);
   const paying = book.movements.find((row) => row.id === payingId) ?? null;
+  const [filesId, setFilesId] = useState<string | null>(null);
+  const filing = book.movements.find((row) => row.id === filesId) ?? null;
 
   const suggestions = (locale === 'en' ? SERVICES : SERVICES_AR)[kind];
 
@@ -376,6 +378,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
                       <Money minor={income ? row.amountMinor : -row.amountMinor} currency={row.currency} locale={locale} tone="net" sign className="font-semibold" />
                       <div className="flex items-center">
                         {income && row.owed && <IconButton label={t('accounts.payment.add')} onClick={() => setPayingId(row.id)} icon={<HandCoins aria-hidden />} />}
+                        <IconButton label={`${t('accounts.attachments')}${row.attachments.length ? ` (${row.attachments.length})` : ''}`} onClick={() => setFilesId(row.id)} icon={<Paperclip aria-hidden className={row.attachments.length ? 'text-text' : undefined} />} />
                         <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
                         <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />
                       </div>
@@ -387,6 +390,72 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
           </section>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={filing !== null}
+        onOpenChange={(open) => !open && setFilesId(null)}
+        title={t('accounts.attachments.title')}
+        body={t('accounts.attachments.body')}
+        confirmLabel={t('accounts.attachments.upload')}
+        tone="primary"
+        onConfirm={async (form) => {
+          if (!filing) return true;
+          const files = form.getAll('files').filter((file): file is File => file instanceof File && file.size > 0);
+          if (files.length === 0) return { message: t('accounts.attachments.body'), fields: { files: t('accounts.attachments.body') } };
+          for (const file of files) {
+            const body = new FormData();
+            body.set('entry', filing.id);
+            body.set('file', file);
+            const response = await fetch('/agency/attachment', { method: 'POST', body }).catch(() => null);
+            const result = response ? await response.json().catch(() => null) : null;
+            if (!result?.ok) {
+              const failure = result?.error ? describeFailure(t, locale, result.error) : { message: t('accounts.error.fileUpload'), fields: undefined };
+              router.refresh();
+              return { message: `${file.name}: ${failure.fields?.file ?? failure.message}`, fields: undefined };
+            }
+          }
+          toast.success(t('accounts.attachments.uploaded'));
+          router.refresh();
+          return true;
+        }}
+      >
+        {(fieldErrors) =>
+          filing && (
+            <div className="flex flex-col gap-3">
+              <Field label={t('accounts.attachments.upload')} error={fieldErrors.files}>
+                <input name="files" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" className="block w-full text-sm file:me-3 file:rounded-md file:border file:border-line-strong file:bg-raised file:px-3 file:py-2 file:text-sm" />
+              </Field>
+              {filing.attachments.length === 0 ? (
+                <p className="text-sm text-muted">{t('accounts.attachments.none')}</p>
+              ) : (
+                <ul className="divide-y divide-line rounded-md border border-line">
+                  {filing.attachments.map((file) => (
+                    <li key={file.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <a href={`/agency/attachment?id=${file.id}`} target="_blank" rel="noreferrer" className="min-w-0 truncate font-medium underline-offset-2 hover:underline">
+                        {file.fileName}
+                        <span className="ms-2 font-normal text-muted">{Math.max(1, Math.round(file.sizeBytes / 1024))} KB</span>
+                      </a>
+                      <IconButton
+                        label={t('accounts.attachments.remove')}
+                        icon={<Trash2 aria-hidden />}
+                        onClick={async () => {
+                          const result = await archiveAccountAttachment({ id: file.id });
+                          if (!result.ok) {
+                            toast.error(describeFailure(t, locale, result.error).message);
+                            return;
+                          }
+                          toast.success(t('accounts.attachments.removed'));
+                          router.refresh();
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )
+        }
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={paying !== null}

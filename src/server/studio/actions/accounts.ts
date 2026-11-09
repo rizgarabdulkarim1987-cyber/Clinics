@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ATTACHMENT_MAX_BYTES, ATTACHMENTS_PER_ENTRY, cleanAttachmentName, sniffAttachment } from '@/lib/attachments';
 import { nextSlug, parseRate, RATE_SETTING_KEY, slugFromName } from '@/lib/accounts';
 import { defineAction } from '@/server/studio/framework/action';
 import { StudioError } from '@/server/studio/framework/result';
@@ -264,4 +265,48 @@ export const setAccountRate = defineAction({
       return { rate: parsed.rate };
     });
   },
+});
+
+export const addAccountAttachment = defineAction({
+  name: 'account.attachment.create',
+  permission: 'platform.settings',
+  input: z.object({
+    entryId: z.string().min(1).max(100),
+    fileName: z.string().max(300),
+    data: z.instanceof(Uint8Array),
+  }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    if (input.data.byteLength === 0) throw new StudioError('INVALID', undefined, { file: 'That file is empty' });
+    if (input.data.byteLength > ATTACHMENT_MAX_BYTES) throw new StudioError('INVALID', undefined, { file: 'A file can be at most 5 MB' });
+    const type = sniffAttachment(input.data);
+    if (!type) throw new StudioError('INVALID', undefined, { file: 'Use a photo (PNG, JPG, WebP) or a PDF' });
+    return ctx.transaction(async (tx) => {
+      const entry = await tx.accountEntry.findFirst({ where: { id: input.entryId, archivedAt: null }, select: { id: true } });
+      if (!entry) throw new StudioError('NOT_FOUND');
+      const count = await tx.accountAttachment.count({ where: { entryId: entry.id, archivedAt: null } });
+      if (count >= ATTACHMENTS_PER_ENTRY) throw new StudioError('INVALID', undefined, { file: 'An entry can hold at most 10 files' });
+      const row = await tx.accountAttachment.create({
+        data: { entryId: entry.id, fileName: cleanAttachmentName(input.fileName, type), mediaType: type, sizeBytes: input.data.byteLength, data: Buffer.from(input.data), createdById: ctx.actor.userId },
+        select: { id: true },
+      });
+      ctx.audit({ action: 'account.attachment.created', entityType: 'AccountAttachment', entityId: row.id });
+      return { id: row.id };
+    });
+  },
+});
+
+export const archiveAccountAttachment = defineAction({
+  name: 'account.attachment.archive',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => PLATFORM,
+  run: (ctx, { id }) =>
+    ctx.transaction(async (tx) => {
+      const found = await tx.accountAttachment.findFirst({ where: { id, archivedAt: null }, select: { id: true } });
+      if (!found) throw new StudioError('NOT_FOUND');
+      await tx.accountAttachment.update({ where: { id }, data: { archivedAt: new Date() } });
+      ctx.audit({ action: 'account.attachment.archived', entityType: 'AccountAttachment', entityId: id });
+      return { id };
+    }),
 });
