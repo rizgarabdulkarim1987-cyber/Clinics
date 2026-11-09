@@ -1,17 +1,17 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { addAccountEntry, archiveAccountEntry, createAccountClient } from '@/app/studio/_actions/accounts';
+import { addAccountEntry, archiveAccountEntry, createAccountClient, updateAccountEntry } from '@/app/studio/_actions/accounts';
 import { ACCOUNT_CURRENCIES, inPeriod, slugFromName, summarize, type AccountCurrency, type AccountKind } from '@/lib/accounts';
 import type { Locale } from '@/lib/locale';
 import type { AccountsBook, BookMovement } from '@/server/studio/queries/accounts';
 import { describeFailure } from '@/studio/errors';
 import { formatDate } from '@/studio/format';
 import { useLocale, useT } from '@/studio/i18n';
-import { parseAmountInput } from '@/studio/money-input';
+import { formatAmountInput, parseAmountInput } from '@/studio/money-input';
 import { Button } from '@/studio/ui/Button';
 import { ConfirmDialog } from '@/studio/ui/ConfirmDialog';
 import { cx } from '@/studio/ui/cx';
@@ -58,6 +58,9 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   const [day, setDay] = useState(today);
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  /** The movement being corrected; the form below holds its values until it is saved or cancelled. */
+  const [editing, setEditing] = useState<BookMovement | null>(null);
+  const formTop = useRef<HTMLFormElement>(null);
 
   const [clientName, setClientName] = useState('');
   const [clientSlug, setClientSlug] = useState('');
@@ -80,11 +83,14 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
     }
     setErrors({});
     start(async () => {
-      const result = await addAccountEntry({ kind, amount, currency, clientId: clientId || null, service, note, occurredOn: day });
+      const fields = { kind, amount, currency, clientId: clientId || null, service, note, occurredOn: day };
+      const result = editing ? await updateAccountEntry({ id: editing.id, ...fields }) : await addAccountEntry(fields);
       if (result.ok) {
-        toast.success(t('accounts.add.saved'));
+        toast.success(t(editing ? 'accounts.edit.saved' : 'accounts.add.saved'));
+        setEditing(null);
         setAmount('');
         setNote('');
+        setDay(today);
         focusAmount();
         router.refresh();
       } else {
@@ -93,6 +99,29 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
         toast.error(failure.message);
       }
     });
+  };
+
+  const startEdit = (row: BookMovement) => {
+    setEditing(row);
+    setKind(row.kind);
+    setAmount(formatAmountInput(row.amountMinor, row.currency));
+    setCurrency(row.currency);
+    setClientId(row.clientId ?? '');
+    setService(row.service);
+    setNote(row.note);
+    setDay(row.occurredOn);
+    setErrors({});
+    formTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    focusAmount();
+  };
+
+  const cancelEdit = () => {
+    setEditing(null);
+    setAmount('');
+    setNote('');
+    setService('');
+    setDay(today);
+    setErrors({});
   };
 
   const submitClient = (event: FormEvent) => {
@@ -128,9 +157,9 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
 
   return (
     <div className="flex flex-col gap-6">
-      <form onSubmit={submitEntry} className="flex flex-col gap-4 rounded-lg border border-line-strong bg-raised p-4 sm:p-5" aria-labelledby="add-title">
+      <form ref={formTop} onSubmit={submitEntry} className={cx('flex flex-col gap-4 rounded-lg border bg-raised p-4 sm:p-5', editing ? 'border-accent' : 'border-line-strong')} aria-labelledby="add-title">
         <h2 id="add-title" className="text-md font-semibold">
-          {t('accounts.add.title')}
+          {t(editing ? 'accounts.edit.title' : 'accounts.add.title')}
         </h2>
         <div role="radiogroup" aria-label={t('accounts.kind.label')} className="inline-flex w-full self-start rounded-md border border-line bg-surface p-0.5 sm:w-auto">
           {(['INCOME', 'EXPENSE'] as const).map((value) => (
@@ -177,10 +206,15 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
             <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} />
           </Field>
         </div>
-        <div>
-          <Button type="submit" variant="primary" size="lg" pending={pending} icon={<Plus aria-hidden />} className="w-full sm:w-auto">
-            {t(kind === 'INCOME' ? 'accounts.add.submitIncome' : 'accounts.add.submitExpense')}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="primary" size="lg" pending={pending} icon={editing ? <Pencil aria-hidden /> : <Plus aria-hidden />} className="w-full sm:w-auto">
+            {editing ? t('accounts.edit.save') : t(kind === 'INCOME' ? 'accounts.add.submitIncome' : 'accounts.add.submitExpense')}
           </Button>
+          {editing && (
+            <Button type="button" variant="secondary" size="lg" onClick={cancelEdit} className="w-full sm:w-auto">
+              {t('accounts.edit.cancel')}
+            </Button>
+          )}
         </div>
       </form>
 
@@ -267,7 +301,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
         ) : (
           <ul className="divide-y divide-line rounded-lg border border-line bg-raised">
             {book.movements.slice(0, RECENT).map((row) => (
-              <li key={row.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-3">
+              <li key={row.id} className={cx('grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-4 py-3', editing?.id === row.id && 'bg-surface')}>
                 <div className="min-w-0">
                   <p className="truncate font-medium">{row.service || t(row.kind === 'INCOME' ? 'accounts.kind.income' : 'accounts.kind.expense')}</p>
                   <p className="truncate text-sm text-muted">
@@ -276,6 +310,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
                   </p>
                 </div>
                 <Money minor={row.kind === 'INCOME' ? row.amountMinor : -row.amountMinor} currency={row.currency} locale={locale} tone="net" sign className="font-semibold" />
+                <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
                 <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />
               </li>
             ))}

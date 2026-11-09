@@ -125,6 +125,53 @@ export const addAccountEntry = defineAction({
   },
 });
 
+export const updateAccountEntry = defineAction({
+  name: 'account.entry.update',
+  permission: 'platform.settings',
+  input: z.object({
+    id: z.string().min(1).max(100),
+    kind: z.enum(['INCOME', 'EXPENSE']),
+    amount: z.string().max(40),
+    currency: z.enum(['IQD', 'USD']),
+    clientId: z.string().min(1).max(100).nullable().optional(),
+    service: z.string().trim().max(60, 'Use at most 60 characters').optional(),
+    note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
+    occurredOn: z.string().max(10).optional(),
+  }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    const amount = parseAmountInput(input.amount, input.currency);
+    if (!amount.ok) throw new StudioError('INVALID', undefined, { amount: AMOUNT_MESSAGES[amount.reason] });
+    if (amount.minor <= 0) throw new StudioError('INVALID', undefined, { amount: 'The amount must be more than zero' });
+    const day = toDay(input.occurredOn || todayInBaghdad());
+    if (!day) throw new StudioError('INVALID', undefined, { occurredOn: 'Use a real date' });
+
+    return ctx.transaction(async (tx) => {
+      const found = await tx.accountEntry.findFirst({ where: { id: input.id, archivedAt: null }, select: { id: true } });
+      if (!found) throw new StudioError('NOT_FOUND');
+      if (input.clientId) {
+        const client = await tx.accountClient.findFirst({ where: { id: input.clientId, archivedAt: null }, select: { id: true } });
+        if (!client) throw new StudioError('NOT_FOUND');
+      }
+      // The rate stays the one of the day it was first typed in: a correction is not a new entry.
+      await tx.accountEntry.update({
+        where: { id: input.id },
+        data: {
+          kind: input.kind,
+          amountMinor: amount.minor,
+          currency: input.currency,
+          clientId: input.clientId ?? null,
+          service: input.service ?? '',
+          note: input.note ?? '',
+          occurredOn: day,
+        },
+      });
+      ctx.audit({ action: 'account.entry.updated', entityType: 'AccountEntry', entityId: input.id });
+      return { id: input.id };
+    });
+  },
+});
+
 export const archiveAccountEntry = defineAction({
   name: 'account.entry.archive',
   permission: 'platform.settings',
