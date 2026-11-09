@@ -14,6 +14,7 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
   service: 'website',
   note: '',
   occurredOn: '2026-11-05',
+  recordedAt: '2026-11-05T09:30:00.000Z',
   ...over,
 });
 
@@ -63,7 +64,7 @@ describe('the Excel file', () => {
     const sheet = (await open({ kind: 'month', year: 2026, month: 11 })).worksheets[2]!;
     const dataRows = sheet.getRows(2, 3)!.map((row) => row.values as unknown[]);
     expect(dataRows[0]![1]).toBeInstanceOf(Date);
-    const signed = dataRows.filter((row) => row.includes('IQD')).map((row) => row[row.length - 1]);
+    const signed = dataRows.filter((row) => row.includes('IQD')).map((row) => row[8]);
     expect(signed.reduce((sum, value) => (sum as number) + (value as number), 0)).toBe(750_000);
   });
 
@@ -107,5 +108,24 @@ describe('with an exchange rate', () => {
     const all = await rows(null);
     expect(all.find((row) => row[0] === 'IQD')!.slice(1)).toEqual([1_000_000, 250_000, 750_000]);
     expect(all.some((row) => typeof row[0] === 'string' && (row[0] as string).startsWith('Exchange rate'))).toBe(false);
+  });
+});
+
+describe('the movements sheet in full', () => {
+  it('writes each movement in dinars and in dollars, signed, when there is a rate, and when it was typed in', async () => {
+    const sheet = (await open({ kind: 'month', year: 2026, month: 11 }, 'en', 1500)).worksheets[2]!;
+    const rows = sheet.getRows(2, 3)!.map((row) => row.values as unknown[]);
+    // Oldest first: the 1,000,000 dinar income, the 250,000 dinar expense, then the $125.50 income.
+    expect(rows[0]!.slice(9, 11)).toEqual([1_000_000, 666.67]);
+    expect(rows[1]!.slice(9, 11)).toEqual([-250_000, -166.67]);
+    expect(rows[2]!.slice(9, 11)).toEqual([188_250, 125.5]);
+    expect(rows[0]![11]).toBeInstanceOf(Date);
+  });
+  it('still lists every movement with its date, client, service and note, and when typed in, without a rate', async () => {
+    const sheet = (await open({ kind: 'all' })).worksheets[2]!;
+    const first = (sheet.getRow(2).values as unknown[]).slice(1);
+    expect(first).toHaveLength(9);
+    expect(first[0]).toBeInstanceOf(Date);
+    expect(first[8]).toBeInstanceOf(Date);
   });
 });

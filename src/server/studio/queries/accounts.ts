@@ -24,6 +24,8 @@ export interface BookMovement {
   note: string;
   /** The calendar day, `YYYY-MM-DD`. */
   occurredOn: string;
+  /** When it was typed in, as an ISO time. */
+  recordedAt: string;
 }
 
 export interface AccountsBook {
@@ -65,6 +67,7 @@ export const accountsBook = defineQuery({
         service: row.service,
         note: row.note,
         occurredOn: row.occurredOn.toISOString().slice(0, 10),
+        recordedAt: row.createdAt.toISOString(),
       })),
     };
   },

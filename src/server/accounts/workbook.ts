@@ -67,7 +67,16 @@ export async function buildBookWorkbook(book: AccountsBook, period: Period, t: T
 
   // Movements: oldest first, as a ledger reads; the signed column is what a SUM should add.
   const list = sheet(t('accounts.sheet.movements'));
-  head(list, [t('accounts.col.date'), t('accounts.col.type'), t('accounts.col.client'), t('accounts.col.service'), t('accounts.col.note'), t('accounts.col.currency'), t('accounts.col.amount'), t('accounts.col.signed')], [12, 12, 26, 20, 36, 10, 16, 16]);
+  // With a rate, each movement is also written in dinars and in dollars, signed; the last column says when it was typed in.
+  const titles = [t('accounts.col.date'), t('accounts.col.type'), t('accounts.col.client'), t('accounts.col.service'), t('accounts.col.note'), t('accounts.col.currency'), t('accounts.col.amount'), t('accounts.col.signed')];
+  const widths = [12, 12, 26, 20, 36, 10, 16, 16];
+  if (rate !== null) {
+    titles.push(t('accounts.col.signedIqd'), t('accounts.col.signedUsd'));
+    widths.push(18, 18);
+  }
+  titles.push(t('accounts.col.recordedAt'));
+  widths.push(20);
+  head(list, titles, widths);
   for (const entry of [...movements].sort((a, b) => a.occurredOn.localeCompare(b.occurredOn))) {
     const amount = major(entry.amountMinor, entry.currency);
     const row = list.addRow([
@@ -80,6 +89,18 @@ export async function buildBookWorkbook(book: AccountsBook, period: Period, t: T
       amount,
       entry.kind === 'INCOME' ? amount : -amount,
     ]);
+    if (rate !== null) {
+      const sign = entry.kind === 'INCOME' ? 1 : -1;
+      const dinars = entry.currency === 'IQD' ? entry.amountMinor : Math.round((entry.amountMinor * rate) / 100);
+      const cents = entry.currency === 'USD' ? entry.amountMinor : Math.round((entry.amountMinor * 100) / rate);
+      row.getCell(9).value = sign * dinars;
+      row.getCell(10).value = sign * (cents / 100);
+      money(row.getCell(9), 'IQD');
+      money(row.getCell(10), 'USD');
+    }
+    const recorded = row.getCell(rate !== null ? 11 : 9);
+    recorded.value = new Date(entry.recordedAt);
+    recorded.numFmt = 'yyyy-mm-dd hh:mm';
     row.getCell(1).numFmt = 'yyyy-mm-dd';
     money(row.getCell(7), entry.currency);
     money(row.getCell(8), entry.currency);

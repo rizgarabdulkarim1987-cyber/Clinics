@@ -77,6 +77,12 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
             <Download aria-hidden />
             {t('accounts.export')}
           </a>
+          {kind !== 'all' && (
+            <a href="/agency/export?period=all" className={buttonClasses('ghost', 'md', 'self-end')} download>
+              <Download aria-hidden />
+              {t('accounts.export.everything')}
+            </a>
+          )}
         </div>
         <p className="text-sm text-muted">{t('accounts.export.note')}</p>
 
