@@ -208,15 +208,29 @@ export function fullAppearanceVars(a: Appearance): Record<string, string> {
     '--s-btn-radius': a.shape === 'round' ? '9999px' : '6px',
     ...statusVars(a.bg),
   };
+  // The pale amber highlight (the current month in a chart, the selected row) turns to a deep amber on a dark page.
+  if (isDark(a.bg)) vars['--s-accent-wash'] = mix(a.bg, '#f2b705', 0.16);
   const stack = FONTS[a.font].stack;
   if (stack) vars['--s-font'] = stack;
   return vars;
 }
 
+/**
+ * The other of the two plain looks: the dark preset from a light page, the light default from a dark one. The person's own
+ * font and button shape are kept, so a quick switch never undoes what they chose in their account.
+ */
+export function switchTone(current: Appearance | null | undefined): Appearance {
+  const now = parseStoredAppearance(current);
+  const target = toneOf(now.bg) === 'dark' ? DEFAULT_APPEARANCE : PRESETS_DARK;
+  return { ...target, font: now.font, shape: now.shape };
+}
+
+const PRESETS_DARK: Appearance = { font: 'studio', bg: '#121212', text: '#f2f2f2', button: '#f2b705', buttonText: '#111111', shape: 'square' };
+
 /** Starting points in the picker; each passes the readability check. */
 export const PRESETS: ReadonlyArray<{ key: 'light' | 'dark' | 'cream' | 'ocean'; appearance: Appearance }> = [
   { key: 'light', appearance: DEFAULT_APPEARANCE },
-  { key: 'dark', appearance: { font: 'studio', bg: '#121212', text: '#f2f2f2', button: '#f2b705', buttonText: '#111111', shape: 'square' } },
+  { key: 'dark', appearance: PRESETS_DARK },
   { key: 'cream', appearance: { font: 'studio', bg: '#faf3e3', text: '#2b2118', button: '#7a3e11', buttonText: '#ffffff', shape: 'round' } },
   { key: 'ocean', appearance: { font: 'studio', bg: '#eef5fb', text: '#0b2540', button: '#1d4ed8', buttonText: '#ffffff', shape: 'round' } },
 ];
