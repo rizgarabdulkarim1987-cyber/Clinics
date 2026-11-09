@@ -87,6 +87,8 @@ export const addAccountEntry = defineAction({
     note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
     /** `YYYY-MM-DD`; today (Baghdad) when left out. */
     occurredOn: z.string().max(10).optional(),
+    /** An income whose money has not been received yet. Ignored on an expense. */
+    owed: z.boolean().optional(),
   }),
   target: () => PLATFORM,
   run: (ctx, input) => {
@@ -108,6 +110,7 @@ export const addAccountEntry = defineAction({
       const row = await tx.accountEntry.create({
         data: {
           rate,
+          owed: input.kind === 'INCOME' && input.owed === true,
           kind: input.kind,
           amountMinor: amount.minor,
           currency: input.currency,
@@ -137,6 +140,8 @@ export const updateAccountEntry = defineAction({
     service: z.string().trim().max(60, 'Use at most 60 characters').optional(),
     note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
     occurredOn: z.string().max(10).optional(),
+    /** Left out, the entry keeps whether it is owed; an expense is never owed. */
+    owed: z.boolean().optional(),
   }),
   target: () => PLATFORM,
   run: (ctx, input) => {
@@ -147,7 +152,7 @@ export const updateAccountEntry = defineAction({
     if (!day) throw new StudioError('INVALID', undefined, { occurredOn: 'Use a real date' });
 
     return ctx.transaction(async (tx) => {
-      const found = await tx.accountEntry.findFirst({ where: { id: input.id, archivedAt: null }, select: { id: true } });
+      const found = await tx.accountEntry.findFirst({ where: { id: input.id, archivedAt: null }, select: { id: true, owed: true } });
       if (!found) throw new StudioError('NOT_FOUND');
       if (input.clientId) {
         const client = await tx.accountClient.findFirst({ where: { id: input.clientId, archivedAt: null }, select: { id: true } });
@@ -164,6 +169,7 @@ export const updateAccountEntry = defineAction({
           service: input.service ?? '',
           note: input.note ?? '',
           occurredOn: day,
+          owed: input.kind === 'INCOME' && (input.owed ?? found.owed),
         },
       });
       ctx.audit({ action: 'account.entry.updated', entityType: 'AccountEntry', entityId: input.id });
@@ -183,6 +189,59 @@ export const archiveAccountEntry = defineAction({
       if (!found) throw new StudioError('NOT_FOUND');
       await tx.accountEntry.update({ where: { id }, data: { archivedAt: new Date() } });
       ctx.audit({ action: 'account.entry.archived', entityType: 'AccountEntry', entityId: id });
+      return { id };
+    }),
+});
+
+export const addAccountPayment = defineAction({
+  name: 'account.payment.create',
+  permission: 'platform.settings',
+  input: z.object({
+    entryId: z.string().min(1).max(100),
+    /** As typed, in the major unit of the entry's own currency. */
+    amount: z.string().max(40),
+    /** `YYYY-MM-DD`; today (Baghdad) when left out. */
+    paidOn: z.string().max(10).optional(),
+    note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
+  }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    const day = toDay(input.paidOn || todayInBaghdad());
+    if (!day) throw new StudioError('INVALID', undefined, { paidOn: 'Use a real date' });
+    return ctx.transaction(async (tx) => {
+      const entry = await tx.accountEntry.findFirst({
+        where: { id: input.entryId, archivedAt: null, kind: 'INCOME', owed: true },
+        select: { id: true, amountMinor: true, currency: true },
+      });
+      if (!entry) throw new StudioError('NOT_FOUND');
+      const amount = parseAmountInput(input.amount, entry.currency);
+      if (!amount.ok) throw new StudioError('INVALID', undefined, { amount: AMOUNT_MESSAGES[amount.reason] });
+      if (amount.minor <= 0) throw new StudioError('INVALID', undefined, { amount: 'The amount must be more than zero' });
+      const paid = await tx.accountPayment.aggregate({ where: { entryId: entry.id, archivedAt: null }, _sum: { amountMinor: true } });
+      if (amount.minor > entry.amountMinor - (paid._sum.amountMinor ?? 0)) {
+        throw new StudioError('INVALID', undefined, { amount: 'That is more than what is left to receive' });
+      }
+      const row = await tx.accountPayment.create({
+        data: { entryId: entry.id, amountMinor: amount.minor, paidOn: day, note: input.note ?? '', createdById: ctx.actor.userId },
+        select: { id: true },
+      });
+      ctx.audit({ action: 'account.payment.created', entityType: 'AccountPayment', entityId: row.id });
+      return { id: row.id };
+    });
+  },
+});
+
+export const archiveAccountPayment = defineAction({
+  name: 'account.payment.archive',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => PLATFORM,
+  run: (ctx, { id }) =>
+    ctx.transaction(async (tx) => {
+      const found = await tx.accountPayment.findFirst({ where: { id, archivedAt: null }, select: { id: true } });
+      if (!found) throw new StudioError('NOT_FOUND');
+      await tx.accountPayment.update({ where: { id }, data: { archivedAt: new Date() } });
+      ctx.audit({ action: 'account.payment.archived', entityType: 'AccountPayment', entityId: id });
       return { id };
     }),
 });

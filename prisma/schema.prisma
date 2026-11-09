@@ -1112,12 +1112,30 @@ model AccountEntry {
   occurredOn  DateTime       @db.Date
   /// Whole dinars for one dollar on the day it was typed in; a later rate never changes it. Empty before any rate was set.
   rate        Int?
+  /// An income whose money has not all been received: the client owes what the payments leave. False means paid in full (every entry before payments existed).
+  owed        Boolean        @default(false)
   createdById String?
   archivedAt  DateTime?
   createdAt   DateTime       @default(now())
+  payments    AccountPayment[]
 
   @@index([occurredOn])
   @@index([clientId, occurredOn])
+}
+
+/// Money received against an income marked as owed, in that entry's own currency. Archived, never deleted.
+model AccountPayment {
+  id          String       @id @default(cuid())
+  entryId     String
+  entry       AccountEntry @relation(fields: [entryId], references: [id])
+  amountMinor Int
+  paidOn      DateTime     @db.Date
+  note        String       @default("")
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([entryId])
 }
 
 /**

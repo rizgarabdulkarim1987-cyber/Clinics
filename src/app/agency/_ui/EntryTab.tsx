@@ -1,11 +1,11 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { addAccountEntry, archiveAccountEntry, createAccountClient, updateAccountEntry } from '@/app/studio/_actions/accounts';
-import { ACCOUNT_CURRENCIES, inPeriod, slugFromName, summarize, type AccountCurrency, type AccountKind } from '@/lib/accounts';
+import { addAccountEntry, addAccountPayment, archiveAccountEntry, archiveAccountPayment, createAccountClient, updateAccountEntry } from '@/app/studio/_actions/accounts';
+import { ACCOUNT_CURRENCIES, daysBetween, inPeriod, isLate, owedTotals, remainingMinor, slugFromName, summarize, type AccountCurrency, type AccountKind } from '@/lib/accounts';
 import type { Locale } from '@/lib/locale';
 import type { AccountsBook, BookMovement } from '@/server/studio/queries/accounts';
 import { describeFailure } from '@/studio/errors';
@@ -13,6 +13,7 @@ import { formatDate } from '@/studio/format';
 import { useLocale, useT } from '@/studio/i18n';
 import { formatAmountInput, parseAmountInput } from '@/studio/money-input';
 import { Button } from '@/studio/ui/Button';
+import { Checkbox } from '@/studio/ui/Checkbox';
 import { ConfirmDialog } from '@/studio/ui/ConfirmDialog';
 import { cx } from '@/studio/ui/cx';
 import { EmptyState } from '@/studio/ui/EmptyState';
@@ -57,6 +58,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   const [service, setService] = useState('');
   const [day, setDay] = useState(today);
   const [note, setNote] = useState('');
+  const [owed, setOwed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   /** The movement being corrected; the form below holds its values until it is saved or cancelled. */
   const [editing, setEditing] = useState<BookMovement | null>(null);
@@ -70,6 +72,8 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
 
   const [cursor, setCursor] = useState({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) });
   const [removing, setRemoving] = useState<BookMovement | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const paying = book.movements.find((row) => row.id === payingId) ?? null;
 
   const suggestions = (locale === 'en' ? SERVICES : SERVICES_AR)[kind];
 
@@ -83,13 +87,14 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
     }
     setErrors({});
     start(async () => {
-      const fields = { kind, amount, currency, clientId: clientId || null, service, note, occurredOn: day };
+      const fields = { kind, amount, currency, clientId: clientId || null, service, note, occurredOn: day, owed: kind === 'INCOME' && owed };
       const result = editing ? await updateAccountEntry({ id: editing.id, ...fields }) : await addAccountEntry(fields);
       if (result.ok) {
         toast.success(t(editing ? 'accounts.edit.saved' : 'accounts.add.saved'));
         setEditing(null);
         setAmount('');
         setNote('');
+        setOwed(false);
         setDay(today);
         focusAmount();
         router.refresh();
@@ -110,6 +115,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
     setService(row.service);
     setNote(row.note);
     setDay(row.occurredOn);
+    setOwed(row.owed);
     setErrors({});
     formTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     focusAmount();
@@ -120,6 +126,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
     setAmount('');
     setNote('');
     setService('');
+    setOwed(false);
     setDay(today);
     setErrors({});
   };
@@ -150,6 +157,9 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   // with; without one, each currency apart.
   const totals = summarize(month, book.rate);
   const dollarsAndDinars = summarize(month);
+  const owedAll = owedTotals(book.movements, book.rate);
+  const owedCodes = ACCOUNT_CURRENCIES.filter((code) => owedAll[code].income > 0);
+  const lateCount = book.movements.filter((row) => isLate(row, today)).length;
   const shift = (by: number) => {
     const index = cursor.year * 12 + (cursor.month - 1) + by;
     setCursor({ year: Math.floor(index / 12), month: (index % 12) + 1 });
@@ -205,6 +215,11 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
           <Field label={t('accounts.field.note')} className="col-span-2 lg:col-span-7">
             <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} />
           </Field>
+          {kind === 'INCOME' && (
+            <div className="col-span-2 lg:col-span-12">
+              <Checkbox label={t('accounts.owed.label')} checked={owed} onChange={(e) => setOwed(e.target.checked)} />
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="primary" size="lg" pending={pending} icon={editing ? <Pencil aria-hidden /> : <Plus aria-hidden />} className="w-full sm:w-auto">
@@ -254,6 +269,18 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
         </div>
       </form>
 
+      {owedCodes.length > 0 && (
+        <section aria-labelledby="owed-title" className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-line-strong bg-raised px-4 py-3 sm:px-5">
+          <h2 id="owed-title" className="text-md font-semibold">
+            {t('accounts.owed.title')}
+          </h2>
+          {owedCodes.map((code) => (
+            <Money key={code} minor={owedAll[code].income} currency={code} locale={locale} className="text-xl font-semibold" />
+          ))}
+          {lateCount > 0 && <span className="text-sm font-medium text-danger">{t('accounts.owed.lateCount', { count: lateCount })}</span>}
+        </section>
+      )}
+
       <section aria-labelledby="month-title" className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="month-title" className="text-md font-semibold">
@@ -301,22 +328,104 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
         ) : (
           <ul className="divide-y divide-line rounded-lg border border-line bg-raised">
             {book.movements.slice(0, RECENT).map((row) => (
-              <li key={row.id} className={cx('grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-4 py-3', editing?.id === row.id && 'bg-surface')}>
+              <li key={row.id} className={cx('grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-3', editing?.id === row.id && 'bg-surface')}>
                 <div className="min-w-0">
                   <p className="truncate font-medium">{row.service || t(row.kind === 'INCOME' ? 'accounts.kind.income' : 'accounts.kind.expense')}</p>
                   <p className="truncate text-sm text-muted">
                     {row.clientName ?? t('accounts.noClient')} · {formatDate(row.occurredOn, locale)}
                     {row.note ? ` · ${row.note}` : ''}
                   </p>
+                  {row.kind === 'INCOME' && row.owed && (
+                    <p className={cx('text-sm', isLate(row, today) ? 'font-medium text-danger' : 'text-muted')}>
+                      {remainingMinor(row) === 0 ? (
+                        t('accounts.owed.settled')
+                      ) : (
+                        <>
+                          {t('accounts.owed.received')} <Money minor={row.paidMinor} currency={row.currency} locale={locale} /> · {t('accounts.owed.left')}{' '}
+                          <Money minor={remainingMinor(row)} currency={row.currency} locale={locale} />
+                          {isLate(row, today) && ` · ${t('accounts.owed.late', { days: daysBetween(row.occurredOn, today) })}`}
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <Money minor={row.kind === 'INCOME' ? row.amountMinor : -row.amountMinor} currency={row.currency} locale={locale} tone="net" sign className="font-semibold" />
-                <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
-                <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />
+                <div className="flex items-center">
+                  {row.kind === 'INCOME' && row.owed && <IconButton label={t('accounts.payment.add')} onClick={() => setPayingId(row.id)} icon={<HandCoins aria-hidden />} />}
+                  <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
+                  <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />
+                </div>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={paying !== null}
+        onOpenChange={(open) => !open && setPayingId(null)}
+        title={t('accounts.payment.title')}
+        body={t('accounts.payment.body')}
+        confirmLabel={t('accounts.payment.save')}
+        tone="primary"
+        onConfirm={async (form) => {
+          if (!paying) return true;
+          const result = await addAccountPayment({ entryId: paying.id, amount: String(form.get('amount') ?? ''), paidOn: String(form.get('paidOn') ?? ''), note: String(form.get('note') ?? '') });
+          if (!result.ok) {
+            const failure = describeFailure(t, locale, result.error);
+            return { message: failure.message, fields: failure.fields };
+          }
+          toast.success(t('accounts.payment.saved'));
+          router.refresh();
+          return true;
+        }}
+      >
+        {(fieldErrors) =>
+          paying && (
+            <div className="flex flex-col gap-3">
+              <Field label={t('accounts.field.amount')} error={fieldErrors.amount} hint={`${t('accounts.owed.left')}: ${formatAmountInput(remainingMinor(paying), paying.currency)} ${t(`accounts.currency.${paying.currency}`)}`}>
+                <Input name="amount" dir="ltr" inputMode="decimal" autoComplete="off" defaultValue={formatAmountInput(remainingMinor(paying), paying.currency)} className="text-end text-md font-semibold" />
+              </Field>
+              <Field label={t('accounts.field.date')} error={fieldErrors.paidOn}>
+                <Input name="paidOn" type="date" defaultValue={today} />
+              </Field>
+              <Field label={t('accounts.field.note')}>
+                <Input name="note" maxLength={120} />
+              </Field>
+              {paying.payments.length === 0 ? (
+                <p className="text-sm text-muted">{t('accounts.payment.none')}</p>
+              ) : (
+                <ul className="divide-y divide-line rounded-md border border-line">
+                  {paying.payments.map((payment) => (
+                    <li key={payment.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <span className="min-w-0 truncate">
+                        {formatDate(payment.paidOn, locale)}
+                        {payment.note ? ` · ${payment.note}` : ''}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Money minor={payment.amountMinor} currency={paying.currency} locale={locale} className="font-medium" />
+                        <IconButton
+                          label={t('accounts.payment.remove')}
+                          icon={<Trash2 aria-hidden />}
+                          onClick={async () => {
+                            const result = await archiveAccountPayment({ id: payment.id });
+                            if (!result.ok) {
+                              toast.error(describeFailure(t, locale, result.error).message);
+                              return;
+                            }
+                            toast.success(t('accounts.payment.removed'));
+                            router.refresh();
+                          }}
+                        />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )
+        }
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={removing !== null}
