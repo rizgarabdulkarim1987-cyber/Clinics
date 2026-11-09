@@ -22,5 +22,5 @@ export default async function AgencyPage() {
   if (!actor.isSuperAdmin) notFound();
 
   const book = await query(accountsBook, {});
-  return <AgencyBook book={book} today={todayInBaghdad()} userName={actor.name} />;
+  return <AgencyBook book={book} today={todayInBaghdad()} userName={actor.name} appearance={actor.appearance ?? null} />;
 }

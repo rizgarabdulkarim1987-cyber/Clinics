@@ -3727,6 +3727,8 @@ const ar: Messages = {
   'accounts.payment.removed': 'تم حذف الدفعة',
   'accounts.payment.none': 'لا توجد دفعات بعد',
   'accounts.error.tooMuch': 'هذا أكثر من المتبقي للاستلام.',
+  'accounts.theme.dark': 'الوضع الداكن',
+  'accounts.theme.light': 'الوضع الفاتح',
   'accounts.archive.title': 'حذف هذي الحركة؟',
   'accounts.archive.body': 'تطلع من المجاميع. وتبقى بسجل النشاط.',
   'accounts.archived': 'انحذفت',

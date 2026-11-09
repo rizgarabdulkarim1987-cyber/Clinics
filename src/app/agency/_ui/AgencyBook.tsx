@@ -1,6 +1,7 @@
 'use client';
 
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import type { Appearance } from '@/lib/appearance';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
 import { useT } from '@/studio/i18n';
 import { BrandLogo } from '@/studio/shell/BrandLogo';
@@ -9,6 +10,7 @@ import { cx } from '@/studio/ui/cx';
 import { EntryTab } from './EntryTab';
 import { RateBar } from './RateBar';
 import { ReportsTab } from './ReportsTab';
+import { ThemeToggle } from './ThemeToggle';
 
 const TABS = ['entry', 'reports'] as const;
 type Tab = (typeof TABS)[number];
@@ -17,7 +19,7 @@ type Tab = (typeof TABS)[number];
  * The agency's books on one screen: a slim bar, and two tabs, Entry (the default) and Reports. Both stay mounted, so
  * what was typed in Entry is still there after a look at Reports.
  */
-export function AgencyBook({ book, today, userName }: { book: AccountsBook; today: string; userName: string }) {
+export function AgencyBook({ book, today, userName, appearance }: { book: AccountsBook; today: string; userName: string; appearance: Appearance | null }) {
   const t = useT();
   const [tab, setTab] = useState<Tab>('entry');
   const id = useId();
@@ -44,6 +46,7 @@ export function AgencyBook({ book, today, userName }: { book: AccountsBook; toda
           </span>
           <div className="flex items-center gap-4">
             <span className="hidden max-w-[16ch] truncate text-sm text-muted sm:inline">{userName}</span>
+            <ThemeToggle appearance={appearance} />
             <LanguageSwitch signedIn />
           </div>
         </div>
