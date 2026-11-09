@@ -45,11 +45,11 @@ export function RateBar({ rate }: { rate: number | null }) {
   };
 
   return (
-    <form onSubmit={submit} aria-label={t('accounts.rate.label')} className="flex flex-col gap-1.5 rounded-lg border border-line bg-raised px-4 py-3">
+    <form onSubmit={submit} aria-label={t('accounts.rate.label')} className="flex shrink-0 flex-col gap-1.5 rounded-lg border border-line bg-raised px-4 py-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="text-sm font-medium text-text">{t('accounts.rate.label')}</span>
-        <span dir="ltr" className="inline-flex items-center gap-2 text-base tabular-nums">
-          <span className="text-muted">1 USD =</span>
+        <span className="whitespace-nowrap text-sm font-medium text-text">{t('accounts.rate.label')}</span>
+        <span dir="ltr" className="inline-flex shrink-0 items-center gap-2 text-base tabular-nums">
+          <span className="whitespace-nowrap text-muted">1 USD =</span>
           <Input
             aria-label={t('accounts.rate.label')}
             aria-invalid={error ? true : undefined}
@@ -63,7 +63,7 @@ export function RateBar({ rate }: { rate: number | null }) {
             className="w-28 text-end"
             placeholder="1500"
           />
-          <span className="text-muted">IQD</span>
+          <span className="whitespace-nowrap text-muted">IQD</span>
         </span>
         <Button type="submit" variant="secondary" disabled={pending || !changed}>
           {t('accounts.rate.save')}
