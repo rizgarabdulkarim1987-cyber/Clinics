@@ -30,3 +30,7 @@ export async function archiveAccountPayment(input: unknown) {
 export async function setAccountRate(input: unknown) {
   return invoke(accounts.setAccountRate, input);
 }
+
+export async function archiveAccountAttachment(input: unknown) {
+  return invoke(accounts.archiveAccountAttachment, input);
+}

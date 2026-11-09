@@ -1118,9 +1118,26 @@ model AccountEntry {
   archivedAt  DateTime?
   createdAt   DateTime       @default(now())
   payments    AccountPayment[]
+  attachments AccountAttachment[]
 
   @@index([occurredOn])
   @@index([clientId, occurredOn])
+}
+
+/// A receipt, invoice or contract photo kept with an entry. The bytes live in the row (small files, a Super Admin's own books), so there is no storage bucket to set up. Archived, never deleted.
+model AccountAttachment {
+  id          String       @id @default(cuid())
+  entryId     String
+  entry       AccountEntry @relation(fields: [entryId], references: [id])
+  fileName    String
+  mediaType   String
+  sizeBytes   Int
+  data        Bytes
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([entryId])
 }
 
 /// Money received against an income marked as owed, in that entry's own currency. Archived, never deleted.
