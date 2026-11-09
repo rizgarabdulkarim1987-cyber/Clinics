@@ -18,7 +18,7 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
   rate: null,
   owed: false,
   paidMinor: 0,
-  payments: [],
+  payments: [], attachments: [],
   ...over,
 });
 
