@@ -3701,6 +3701,8 @@ const ckb: Messages = {
   'accounts.payment.removed': 'پارەدان لابرا',
   'accounts.payment.none': 'هێشتا هیچ پارەدانێک نییە',
   'accounts.error.tooMuch': 'ئەمە لە ماوەکە زیاترە.',
+  'accounts.theme.dark': 'دۆخی تاریک',
+  'accounts.theme.light': 'دۆخی ڕووناک',
   'accounts.archive.title': 'ئەم جووڵەیە بسڕدرێتەوە؟',
   'accounts.archive.body': 'لە کۆکراوەکان دەرەچێت. لە تۆماری چالاکی دەمێنێتەوە.',
   'accounts.archived': 'سڕایەوە',

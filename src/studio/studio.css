@@ -285,3 +285,8 @@ html[data-tone='dark'] .brand-logo-dark {
 html[data-tone='dark'] .brand-logo-light {
   display: none;
 }
+
+/* A dark page gets the browser's dark form controls too: the date picker's icon, selects and scrollbars. */
+html[data-tone='dark'] {
+  color-scheme: dark;
+}

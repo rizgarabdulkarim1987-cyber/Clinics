@@ -3696,6 +3696,8 @@ const en: Messages = {
   'accounts.payment.removed': 'Payment removed',
   'accounts.payment.none': 'No payments yet',
   'accounts.error.tooMuch': 'That is more than what is left to receive.',
+  'accounts.theme.dark': 'Dark mode',
+  'accounts.theme.light': 'Light mode',
   'accounts.archive.title': 'Remove this movement?',
   'accounts.archive.body': 'It leaves the totals. It stays in the activity log.',
   'accounts.archived': 'Removed',
