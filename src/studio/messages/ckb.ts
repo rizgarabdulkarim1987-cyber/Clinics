@@ -2504,6 +2504,7 @@ const ckb: Messages = {
   'activity.action.account.client.archived': 'کڕیارێکی ئاژانسی ئەرشیف کرد',
   'activity.action.account.entry.created': 'داهات یان خەرجییەکی تۆمار کرد',
   'activity.action.account.entry.archived': 'داهات یان خەرجییەکی ئەرشیف کرد',
+  'activity.action.account.rate.set': 'نرخی ئاڵوگۆڕی ئاژانسی گۆڕی',
   'activity.action.account.two_factor_enabled': 'دووفاکتەری چالاک کرد',
   'activity.action.account.two_factor_disabled': 'دووفاکتەری ناچالاک کرد',
   'activity.action.account.recovery_codes_regenerated': 'کۆدی گەڕاندنەوەی نوێی دروستکرد',
@@ -3714,6 +3715,16 @@ const ckb: Messages = {
   'accounts.error.amount': 'بڕێک لە سفر زیاتر بنووسە: تەنها ژمارە، دینار بێ کەسر، دۆلار بە زیاترین دوو ژمارە دوای خاڵ.',
   'accounts.error.date': 'بەروارێکی ڕاست بەکاربهێنە.',
   'accounts.error.clientName': 'ناوی کڕیارەکە بنووسە.',
+  'accounts.error.rate': 'ژمارەی دینارەکان بۆ یەک دۆلار بنووسە، وەک 1500.',
+  'accounts.rate.label': 'نرخی ئاڵوگۆڕ',
+  'accounts.rate.unit': 'دینار',
+  'accounts.rate.save': 'پاشەکەوتکردنی نرخ',
+  'accounts.rate.saved': 'نرخەکە پاشەکەوت کرا',
+  'accounts.rate.change': 'گۆڕین',
+  'accounts.rate.hint': 'دۆلارەکان بەم نرخە لەگەڵ دینارەکان کۆ دەکرێنەوە لە ڕیزە کۆکراوەکاندا.',
+  'accounts.combined': 'کۆی گشتی بە دینار',
+  'accounts.combined.needRate': 'نرخی ئاڵوگۆڕ بنووسە بۆ ئەوەی هەموو شتێک بە یەک دراو ببینیت.',
+  'accounts.sheet.rate': 'نرخی ئاڵوگۆڕ (دینار بۆ ١ دۆلار)',
 };
 
 export default ckb;

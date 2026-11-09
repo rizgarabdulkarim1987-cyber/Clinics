@@ -129,6 +129,7 @@ export const AUDIT_ACTIONS = [
   'account.client.archived',
   'account.entry.created',
   'account.entry.archived',
+  'account.rate.set',
   'account.two_factor_enabled',
   'account.two_factor_disabled',
   'account.recovery_codes_regenerated',

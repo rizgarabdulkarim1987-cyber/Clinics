@@ -2531,6 +2531,7 @@ const ar: Messages = {
   'activity.action.account.client.archived': 'أرشف عميلًا للوكالة',
   'activity.action.account.entry.created': 'سجّل دخلًا أو مصروفًا',
   'activity.action.account.entry.archived': 'أرشف دخلًا أو مصروفًا',
+  'activity.action.account.rate.set': 'غيّر سعر صرف الوكالة',
   'activity.action.account.two_factor_enabled': 'فعّل التحقق بخطوتين',
   'activity.action.account.two_factor_disabled': 'عطّل التحقق بخطوتين',
   'activity.action.account.recovery_codes_regenerated': 'أنشأ رموز استرداد جديدة',
@@ -3740,6 +3741,16 @@ const ar: Messages = {
   'accounts.error.amount': 'اكتب مبلغ أكبر من صفر: أرقام فقط، الدينار بدون كسور، والدولار بخانتين بعد الفاصلة بالأكثر.',
   'accounts.error.date': 'استخدم تاريخ صحيح.',
   'accounts.error.clientName': 'اكتب اسم العميل.',
+  'accounts.error.rate': 'اكتب عدد الدنانير لدولار واحد، مثل 1500.',
+  'accounts.rate.label': 'سعر الصرف',
+  'accounts.rate.unit': 'دينار',
+  'accounts.rate.save': 'حفظ السعر',
+  'accounts.rate.saved': 'تم حفظ السعر',
+  'accounts.rate.change': 'تغيير',
+  'accounts.rate.hint': 'تُجمع الدولارات مع الدنانير بهذا السعر في السطور المجمّعة.',
+  'accounts.combined': 'المجموع بالدينار',
+  'accounts.combined.needRate': 'اكتب سعر الصرف لترى كل شيء بعملة واحدة.',
+  'accounts.sheet.rate': 'سعر الصرف (دينار لكل دولار)',
 };
 
 export default ar;

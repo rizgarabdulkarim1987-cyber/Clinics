@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nextSlug, slugFromName } from '@/lib/accounts';
+import { nextSlug, parseRate, RATE_SETTING_KEY, slugFromName } from '@/lib/accounts';
 import { defineAction } from '@/server/studio/framework/action';
 import { StudioError } from '@/server/studio/framework/result';
 import { parseAmountInput, type AmountInputProblem } from '@/studio/money-input';
@@ -133,4 +133,24 @@ export const archiveAccountEntry = defineAction({
       ctx.audit({ action: 'account.entry.archived', entityType: 'AccountEntry', entityId: id });
       return { id };
     }),
+});
+
+export const setAccountRate = defineAction({
+  name: 'account.rate.set',
+  permission: 'platform.settings',
+  input: z.object({ rate: z.string().max(20) }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    const parsed = parseRate(input.rate);
+    if (!parsed.ok) throw new StudioError('INVALID', undefined, { rate: 'Type the dinars for one dollar, for example 1500' });
+    return ctx.transaction(async (tx) => {
+      await tx.platformSetting.upsert({
+        where: { key: RATE_SETTING_KEY },
+        create: { key: RATE_SETTING_KEY, value: parsed.rate, updatedById: ctx.actor.userId },
+        update: { value: parsed.rate, updatedById: ctx.actor.userId },
+      });
+      ctx.audit({ action: 'account.rate.set', entityType: 'PlatformSetting', entityId: RATE_SETTING_KEY });
+      return { rate: parsed.rate };
+    });
+  },
 });

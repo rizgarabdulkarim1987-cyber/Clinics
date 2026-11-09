@@ -7,6 +7,7 @@ import { BrandLogo } from '@/studio/shell/BrandLogo';
 import { LanguageSwitch } from '@/studio/shell/LanguageSwitch';
 import { cx } from '@/studio/ui/cx';
 import { EntryTab } from './EntryTab';
+import { RateBar } from './RateBar';
 import { ReportsTab } from './ReportsTab';
 
 const TABS = ['entry', 'reports'] as const;
@@ -53,6 +54,8 @@ export function AgencyBook({ book, today, userName }: { book: AccountsBook; toda
           <h1 className="text-xl font-semibold text-text">{t('accounts.title')}</h1>
           <p className="text-base text-muted">{t('accounts.description')}</p>
         </div>
+
+        <RateBar key={book.rate ?? 'none'} rate={book.rate} />
 
         <div role="tablist" aria-label={t('accounts.tabs.label')} onKeyDown={onKeyDown} className="flex gap-1 border-b border-line">
           {TABS.map((value) => (

@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { ACCOUNT_CURRENCIES, byClient, inPeriod, summarize, type AccountCurrency, type AccountMovement, type Period } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, byClient, combineTotals, inPeriod, summarize, type AccountCurrency, type AccountMovement, type Period } from '@/lib/accounts';
 import type { Locale } from '@/lib/locale';
 import type { Translate } from '@/lib/i18n';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
@@ -41,6 +41,16 @@ export async function buildBookWorkbook(book: AccountsBook, period: Period, t: T
   for (const currency of used.length ? used : ACCOUNT_CURRENCIES) {
     const row = summary.addRow([currency, major(totals[currency].income, currency), major(totals[currency].expense, currency), major(totals[currency].net, currency)]);
     for (let column = 2; column <= 4; column += 1) money(row.getCell(column), currency);
+  }
+
+  // With a rate and dollars in the period, one more row adds them to the dinars at that rate, in dinars.
+  if (book.rate !== null && totals.USD.income + totals.USD.expense !== 0) {
+    const combined = combineTotals(totals, book.rate);
+    const row = summary.addRow([t('accounts.combined'), combined.income, combined.expense, combined.net]);
+    for (let column = 2; column <= 4; column += 1) money(row.getCell(column), 'IQD');
+    row.font = { bold: true };
+    const rateRow = summary.addRow([t('accounts.sheet.rate'), book.rate]);
+    rateRow.getCell(2).numFmt = '#,##0';
   }
 
   // Clients: each client once per currency it moved money in.

@@ -14,3 +14,7 @@ export async function addAccountEntry(input: unknown) {
 export async function archiveAccountEntry(input: unknown) {
   return invoke(accounts.archiveAccountEntry, input);
 }
+
+export async function setAccountRate(input: unknown) {
+  return invoke(accounts.setAccountRate, input);
+}
