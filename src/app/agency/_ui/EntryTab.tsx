@@ -166,7 +166,9 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 lg:h-full lg:gap-0">
+      <div className="flex flex-col gap-6 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-5">
+      <div className="flex flex-col gap-6 lg:min-h-0 lg:gap-4 lg:overflow-y-auto">
       <form ref={formTop} onSubmit={submitEntry} className={cx('flex flex-col gap-4 rounded-lg border bg-raised p-4 sm:p-5', editing ? 'border-accent' : 'border-line-strong')} aria-labelledby="add-title">
         <h2 id="add-title" className="text-md font-semibold">
           {t(editing ? 'accounts.edit.title' : 'accounts.add.title')}
@@ -269,6 +271,8 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
         </div>
       </form>
 
+      </div>
+      <div className="flex flex-col gap-6 lg:min-h-0 lg:gap-4">
       {owedCodes.length > 0 && (
         <section aria-labelledby="owed-title" className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-line-strong bg-raised px-4 py-3 sm:px-5">
           <h2 id="owed-title" className="text-md font-semibold">
@@ -319,14 +323,14 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
         {month.length === 0 && <p className="text-sm text-muted">{t('accounts.summary.nothing')}</p>}
       </section>
 
-      <section aria-labelledby="recent-title" className="flex flex-col gap-2">
+      <section aria-labelledby="recent-title" className="flex flex-col gap-2 lg:min-h-0 lg:flex-1">
         <h2 id="recent-title" className="text-md font-semibold">
           {t('accounts.recent.title')}
         </h2>
         {book.movements.length === 0 ? (
           <EmptyState title={t('accounts.recent.empty')} />
         ) : (
-          <ul className="divide-y divide-line rounded-lg border border-line bg-raised">
+          <ul className="divide-y divide-line rounded-lg border border-line bg-raised lg:overflow-y-auto">
             {book.movements.slice(0, RECENT).map((row) => (
               <li key={row.id} className={cx('grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-3', editing?.id === row.id && 'bg-surface')}>
                 <div className="min-w-0">
@@ -360,6 +364,8 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
           </ul>
         )}
       </section>
+      </div>
+      </div>
 
       <ConfirmDialog
         open={paying !== null}
