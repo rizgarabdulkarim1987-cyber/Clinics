@@ -10,8 +10,9 @@ import { buttonClasses } from '@/studio/ui/Button';
 import { cx } from '@/studio/ui/cx';
 import { Field } from '@/studio/ui/Field';
 import { Select } from '@/studio/ui/Select';
-import { Money, MoneyStack, usedCurrencies } from './money';
+import { MoneyStack } from './money';
 import { RateHint } from './RateHint';
+import { TotalsCard } from './TotalsCard';
 
 const monthLabels = (locale: string, style: 'long' | 'short') =>
   Array.from({ length: 12 }, (_, index) => new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'ar-IQ', { month: style, timeZone: 'UTC' }).format(new Date(Date.UTC(2026, index, 1))));
@@ -85,31 +86,7 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
         </div>
         <p className="text-sm text-muted">{t('accounts.export.note')}</p>
 
-        <div className="flex flex-col divide-y divide-line overflow-hidden rounded-lg border border-line bg-raised">
-          {usedCurrencies(totals).map((code) => (
-            <dl key={code} className="grid grid-cols-1 items-center gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[1fr_1fr_1.2fr] sm:px-5">
-              <div>
-                <dt className="text-sm text-muted">{t('accounts.summary.income')}</dt>
-                <dd className="text-xl font-semibold">
-                  <Money minor={totals[code].income} currency={code} locale={locale} />
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm text-muted">{t('accounts.summary.expense')}</dt>
-                <dd className="text-xl font-semibold">
-                  <Money minor={totals[code].expense} currency={code} locale={locale} />
-                </dd>
-              </div>
-              <div className={cx('rounded-md px-3 py-2', totals[code].net < 0 ? 'bg-danger-wash' : 'bg-success-wash')}>
-                <dt className="text-sm text-muted">{t('accounts.summary.net')}</dt>
-                <dd className="text-xl font-semibold">
-                  <Money minor={totals[code].net} currency={code} locale={locale} tone="net" sign />
-                </dd>
-              </div>
-            </dl>
-          ))}
-          <RateHint totals={dollarsAndDinars} rate={rate} />
-        </div>
+        <TotalsCard totals={totals} footer={<RateHint totals={dollarsAndDinars} rate={rate} />} />
       </section>
 
       <section aria-labelledby="chart-title" className="flex flex-col gap-3">

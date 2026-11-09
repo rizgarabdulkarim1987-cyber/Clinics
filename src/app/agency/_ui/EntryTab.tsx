@@ -1,8 +1,8 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, useTransition, type FormEvent } from 'react';
+import { useRef, useState, useTransition, type FormEvent, type KeyboardEvent } from 'react';
 import { toast } from 'sonner';
 import { addAccountEntry, addAccountPayment, archiveAccountEntry, archiveAccountPayment, createAccountClient, updateAccountEntry } from '@/app/studio/_actions/accounts';
 import { ACCOUNT_CURRENCIES, daysBetween, inPeriod, isLate, owedTotals, remainingMinor, slugFromName, summarize, type AccountCurrency, type AccountKind } from '@/lib/accounts';
@@ -21,8 +21,9 @@ import { Field } from '@/studio/ui/Field';
 import { IconButton } from '@/studio/ui/IconButton';
 import { Input } from '@/studio/ui/Input';
 import { Select } from '@/studio/ui/Select';
-import { Money, usedCurrencies } from './money';
+import { Money } from './money';
 import { RateHint } from './RateHint';
+import { TotalsCard } from './TotalsCard';
 
 /** Names people give the work: offered as suggestions, never forced. */
 const SERVICES = {
@@ -64,6 +65,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   const [editing, setEditing] = useState<BookMovement | null>(null);
   const formTop = useRef<HTMLFormElement>(null);
 
+  const [addingClient, setAddingClient] = useState(false);
   const [clientName, setClientName] = useState('');
   const [clientSlug, setClientSlug] = useState('');
   const [slugEdited, setSlugEdited] = useState(false);
@@ -106,6 +108,13 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
     });
   };
 
+  /** Enter inside the new-client fields adds the client, not the movement above them. */
+  const onClientKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' || clientName.trim() === '') return;
+    event.preventDefault();
+    submitClient();
+  };
+
   const startEdit = (row: BookMovement) => {
     setEditing(row);
     setKind(row.kind);
@@ -131,8 +140,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
     setErrors({});
   };
 
-  const submitClient = (event: FormEvent) => {
-    event.preventDefault();
+  const submitClient = () => {
     start(async () => {
       const result = await createAccountClient({ name: clientName, slug: clientSlug, phone });
       if (result.ok) {
@@ -143,6 +151,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
         setSlugEdited(false);
         setPhone('');
         setClientErrors({});
+        setAddingClient(false);
         router.refresh();
       } else {
         const failure = describeFailure(t, locale, result.error);
@@ -167,204 +176,216 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
 
   return (
     <div className="flex flex-col gap-6 lg:h-full lg:gap-0">
-      <div className="flex flex-col gap-6 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-5">
-      <div className="flex flex-col gap-6 lg:min-h-0 lg:gap-4 lg:overflow-y-auto">
-      <form ref={formTop} onSubmit={submitEntry} className={cx('flex flex-col gap-4 rounded-lg border bg-raised p-4 sm:p-5', editing ? 'border-accent' : 'border-line-strong')} aria-labelledby="add-title">
-        <h2 id="add-title" className="text-md font-semibold">
-          {t(editing ? 'accounts.edit.title' : 'accounts.add.title')}
-        </h2>
-        <div role="radiogroup" aria-label={t('accounts.kind.label')} className="inline-flex w-full self-start rounded-md border border-line bg-surface p-0.5 sm:w-auto">
-          {(['INCOME', 'EXPENSE'] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={kind === value}
-              onClick={() => setKind(value)}
-              className={cx(
-                'h-8 flex-1 rounded-sm px-5 text-base font-medium transition-colors duration-150 sm:flex-none',
-                kind === value ? 'bg-raised text-text shadow-[0_0_0_1px_var(--s-line-strong)]' : 'text-muted hover:text-text',
-                kind === value && (value === 'INCOME' ? 'text-success' : 'text-danger'),
-              )}
-            >
-              {t(value === 'INCOME' ? 'accounts.kind.income' : 'accounts.kind.expense')}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-12">
-          <div ref={amountBox} className="col-span-2 lg:col-span-3">
-            <Field label={t('accounts.field.amount')} error={errors.amount}>
-              <Input dir="ltr" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1,500,000" className="text-end text-md font-semibold" />
-            </Field>
-          </div>
-          <Field label={t('accounts.field.currency')} className="lg:col-span-2">
-            <Select value={currency} onChange={(e) => setCurrency(e.target.value as AccountCurrency)} options={ACCOUNT_CURRENCIES.map((value) => ({ value, label: t(`accounts.currency.${value}`) }))} />
-          </Field>
-          <Field label={t('accounts.field.date')} error={errors.occurredOn} className="lg:col-span-2">
-            <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
-          </Field>
-          <Field label={t('accounts.field.client')} className="col-span-2 lg:col-span-5">
-            <Select value={clientId} onChange={(e) => setClientId(e.target.value)} options={[{ value: '', label: t('accounts.noClient') }, ...book.clients.map((client) => ({ value: client.id, label: client.name }))]} />
-          </Field>
-          <Field label={t('accounts.field.service')} className="col-span-2 lg:col-span-5">
-            <Input list="service-suggestions" value={service} onChange={(e) => setService(e.target.value)} placeholder={t('accounts.service.placeholder')} maxLength={60} />
-            <datalist id="service-suggestions">
-              {suggestions.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-          </Field>
-          <Field label={t('accounts.field.note')} className="col-span-2 lg:col-span-7">
-            <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} />
-          </Field>
-          {kind === 'INCOME' && (
-            <div className="col-span-2 lg:col-span-12">
-              <Checkbox label={t('accounts.owed.label')} checked={owed} onChange={(e) => setOwed(e.target.checked)} />
-            </div>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" size="lg" pending={pending} icon={editing ? <Pencil aria-hidden /> : <Plus aria-hidden />} className="w-full sm:w-auto">
-            {editing ? t('accounts.edit.save') : t(kind === 'INCOME' ? 'accounts.add.submitIncome' : 'accounts.add.submitExpense')}
-          </Button>
-          {editing && (
-            <Button type="button" variant="secondary" size="lg" onClick={cancelEdit} className="w-full sm:w-auto">
-              {t('accounts.edit.cancel')}
-            </Button>
-          )}
-        </div>
-      </form>
+      <div className="flex flex-col gap-6 lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-6">
+        <div className="flex flex-col gap-4 lg:min-h-0 lg:overflow-y-auto">
+          <form ref={formTop} onSubmit={submitEntry} className={cx('flex flex-col gap-5 rounded-lg border bg-raised p-5', editing ? 'border-accent' : 'border-line-strong')} aria-labelledby="add-title">
+            <h2 id="add-title" className="text-md font-semibold">
+              {t(editing ? 'accounts.edit.title' : 'accounts.add.title')}
+            </h2>
 
-      <form onSubmit={submitClient} className="grid grid-cols-2 items-start gap-3 rounded-lg border border-line bg-surface p-4 sm:p-5 lg:grid-cols-12" aria-label={t('accounts.client.title')}>
-        <h2 className="col-span-2 text-md font-semibold lg:col-span-12">{t('accounts.client.title')}</h2>
-        <Field label={t('accounts.client.name')} error={clientErrors.name} className="col-span-2 lg:col-span-4">
-          <Input
-            value={clientName}
-            onChange={(e) => {
-              setClientName(e.target.value);
-              if (!slugEdited) setClientSlug(slugFromName(e.target.value));
-            }}
-            maxLength={120}
-            autoComplete="off"
-          />
-        </Field>
-        <Field label={t('accounts.client.slug')} hint={t('accounts.client.slugHint')} error={clientErrors.slug} className="col-span-2 lg:col-span-4">
-          <Input
-            dir="ltr"
-            value={clientSlug}
-            onChange={(e) => {
-              setSlugEdited(true);
-              setClientSlug(e.target.value);
-            }}
-            maxLength={80}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </Field>
-        <Field label={t('accounts.client.phone')} className="col-span-2 sm:col-span-1 lg:col-span-2">
-          <Input dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={60} />
-        </Field>
-        <div className="col-span-2 flex items-end sm:col-span-1 lg:col-span-2 lg:self-end">
-          <Button type="submit" pending={pending} disabled={clientName.trim() === ''} icon={<Plus aria-hidden />} className="w-full">
-            {t('accounts.client.submit')}
-          </Button>
-        </div>
-      </form>
-
-      </div>
-      <div className="flex flex-col gap-6 lg:min-h-0 lg:gap-4">
-      {owedCodes.length > 0 && (
-        <section aria-labelledby="owed-title" className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-line-strong bg-raised px-4 py-3 sm:px-5">
-          <h2 id="owed-title" className="text-md font-semibold">
-            {t('accounts.owed.title')}
-          </h2>
-          {owedCodes.map((code) => (
-            <Money key={code} minor={owedAll[code].income} currency={code} locale={locale} className="text-xl font-semibold" />
-          ))}
-          {lateCount > 0 && <span className="text-sm font-medium text-danger">{t('accounts.owed.lateCount', { count: lateCount })}</span>}
-        </section>
-      )}
-
-      <section aria-labelledby="month-title" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="month-title" className="text-md font-semibold">
-            {monthName(cursor.year, cursor.month, locale)}
-          </h2>
-          <div className="inline-flex items-center rounded-md border border-line-strong bg-raised">
-            <IconButton label={t('accounts.month.prev')} onClick={() => shift(-1)} icon={<ChevronLeft aria-hidden className="rtl:-scale-x-100" />} />
-            <IconButton label={t('accounts.month.next')} onClick={() => shift(1)} icon={<ChevronRight aria-hidden className="rtl:-scale-x-100" />} />
-          </div>
-        </div>
-        <div className="flex flex-col divide-y divide-line overflow-hidden rounded-lg border border-line bg-raised">
-          {usedCurrencies(totals).map((code) => (
-            <dl key={code} className="grid grid-cols-1 items-center gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[1fr_1fr_1.2fr] sm:px-5">
-              <div>
-                <dt className="text-sm text-muted">{t('accounts.summary.income')}</dt>
-                <dd className="text-xl font-semibold">
-                  <Money minor={totals[code].income} currency={code} locale={locale} />
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm text-muted">{t('accounts.summary.expense')}</dt>
-                <dd className="text-xl font-semibold">
-                  <Money minor={totals[code].expense} currency={code} locale={locale} />
-                </dd>
-              </div>
-              <div className={cx('rounded-md px-3 py-2', totals[code].net < 0 ? 'bg-danger-wash' : 'bg-success-wash')}>
-                <dt className="text-sm text-muted">{t('accounts.summary.net')}</dt>
-                <dd className="text-xl font-semibold">
-                  <Money minor={totals[code].net} currency={code} locale={locale} tone="net" sign />
-                </dd>
-              </div>
-            </dl>
-          ))}
-          <RateHint totals={dollarsAndDinars} rate={book.rate} />
-        </div>
-        {month.length === 0 && <p className="text-sm text-muted">{t('accounts.summary.nothing')}</p>}
-      </section>
-
-      <section aria-labelledby="recent-title" className="flex flex-col gap-2 lg:min-h-0 lg:flex-1">
-        <h2 id="recent-title" className="text-md font-semibold">
-          {t('accounts.recent.title')}
-        </h2>
-        {book.movements.length === 0 ? (
-          <EmptyState title={t('accounts.recent.empty')} />
-        ) : (
-          <ul className="divide-y divide-line rounded-lg border border-line bg-raised lg:overflow-y-auto">
-            {book.movements.slice(0, RECENT).map((row) => (
-              <li key={row.id} className={cx('grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-3', editing?.id === row.id && 'bg-surface')}>
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{row.service || t(row.kind === 'INCOME' ? 'accounts.kind.income' : 'accounts.kind.expense')}</p>
-                  <p className="truncate text-sm text-muted">
-                    {row.clientName ?? t('accounts.noClient')} · {formatDate(row.occurredOn, locale)}
-                    {row.note ? ` · ${row.note}` : ''}
-                  </p>
-                  {row.kind === 'INCOME' && row.owed && (
-                    <p className={cx('text-sm', isLate(row, today) ? 'font-medium text-danger' : 'text-muted')}>
-                      {remainingMinor(row) === 0 ? (
-                        t('accounts.owed.settled')
-                      ) : (
-                        <>
-                          {t('accounts.owed.received')} <Money minor={row.paidMinor} currency={row.currency} locale={locale} /> · {t('accounts.owed.left')}{' '}
-                          <Money minor={remainingMinor(row)} currency={row.currency} locale={locale} />
-                          {isLate(row, today) && ` · ${t('accounts.owed.late', { days: daysBetween(row.occurredOn, today) })}`}
-                        </>
-                      )}
-                    </p>
+            <div role="radiogroup" aria-label={t('accounts.kind.label')} className="grid grid-cols-2 gap-1 rounded-md border border-line bg-surface p-1">
+              {(['INCOME', 'EXPENSE'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={kind === value}
+                  onClick={() => setKind(value)}
+                  className={cx(
+                    'h-9 rounded-sm text-base font-medium transition-colors duration-150',
+                    kind === value ? (value === 'INCOME' ? 'bg-success-wash text-success' : 'bg-danger-wash text-danger') : 'text-muted hover:bg-hover hover:text-text',
                   )}
+                >
+                  {t(value === 'INCOME' ? 'accounts.kind.income' : 'accounts.kind.expense')}
+                </button>
+              ))}
+            </div>
+
+            <div ref={amountBox}>
+              <Field label={t('accounts.field.amount')} error={errors.amount}>
+                <div className="flex items-center gap-2">
+                  <Input size="lg" dir="ltr" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="1,500,000" className="text-end text-xl font-semibold tabular-nums" />
+                  <div role="radiogroup" aria-label={t('accounts.field.currency')} dir="ltr" className="inline-flex shrink-0 rounded-md border border-line bg-surface p-0.5">
+                    {ACCOUNT_CURRENCIES.map((code) => (
+                      <button
+                        key={code}
+                        type="button"
+                        role="radio"
+                        aria-checked={currency === code}
+                        aria-label={t(`accounts.currency.${code}`)}
+                        onClick={() => setCurrency(code)}
+                        className={cx('h-9 rounded-sm px-3 text-base font-medium transition-colors duration-150', currency === code ? 'bg-ink text-on-ink' : 'text-muted hover:bg-hover hover:text-text')}
+                      >
+                        {code}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <Money minor={row.kind === 'INCOME' ? row.amountMinor : -row.amountMinor} currency={row.currency} locale={locale} tone="net" sign className="font-semibold" />
-                <div className="flex items-center">
-                  {row.kind === 'INCOME' && row.owed && <IconButton label={t('accounts.payment.add')} onClick={() => setPayingId(row.id)} icon={<HandCoins aria-hidden />} />}
-                  <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
-                  <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label={t('accounts.field.date')} error={errors.occurredOn}>
+                <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+              </Field>
+              <Field
+                label={t('accounts.field.client')}
+                aside={
+                  <button type="button" onClick={() => setAddingClient((open) => !open)} aria-expanded={addingClient} className="text-sm font-medium text-text underline-offset-2 hover:underline">
+                    {addingClient ? t('accounts.edit.cancel') : `+ ${t('accounts.client.title')}`}
+                  </button>
+                }
+              >
+                <Select value={clientId} onChange={(e) => setClientId(e.target.value)} options={[{ value: '', label: t('accounts.noClient') }, ...book.clients.map((client) => ({ value: client.id, label: client.name }))]} />
+              </Field>
+            </div>
+
+            {addingClient && (
+              <div onKeyDown={onClientKey} className="grid grid-cols-1 gap-3 rounded-md bg-surface p-3 sm:grid-cols-2">
+                <Field label={t('accounts.client.name')} error={clientErrors.name}>
+                  <Input
+                    value={clientName}
+                    onChange={(e) => {
+                      setClientName(e.target.value);
+                      if (!slugEdited) setClientSlug(slugFromName(e.target.value));
+                    }}
+                    maxLength={120}
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </Field>
+                <Field label={t('accounts.client.phone')}>
+                  <Input dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={60} />
+                </Field>
+                <Field label={t('accounts.client.slug')} hint={t('accounts.client.slugHint')} error={clientErrors.slug}>
+                  <Input
+                    dir="ltr"
+                    value={clientSlug}
+                    onChange={(e) => {
+                      setSlugEdited(true);
+                      setClientSlug(e.target.value);
+                    }}
+                    maxLength={80}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </Field>
+                <div className="flex items-start sm:pt-5">
+                  <Button type="button" onClick={submitClient} pending={pending} disabled={clientName.trim() === ''} icon={<Plus aria-hidden />} className="w-full">
+                    {t('accounts.client.submit')}
+                  </Button>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label={t('accounts.field.service')}>
+                <Input list="service-suggestions" value={service} onChange={(e) => setService(e.target.value)} placeholder={t('accounts.service.placeholder')} maxLength={60} />
+                <datalist id="service-suggestions">
+                  {suggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </Field>
+              <Field label={t('accounts.field.note')}>
+                <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={120} />
+              </Field>
+            </div>
+
+            {kind === 'INCOME' && <Checkbox label={t('accounts.owed.label')} checked={owed} onChange={(e) => setOwed(e.target.checked)} />}
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" variant="primary" size="lg" pending={pending} icon={editing ? <Pencil aria-hidden /> : <Plus aria-hidden />} className="w-full sm:w-auto sm:min-w-44">
+                {editing ? t('accounts.edit.save') : t(kind === 'INCOME' ? 'accounts.add.submitIncome' : 'accounts.add.submitExpense')}
+              </Button>
+              {editing && (
+                <Button type="button" variant="secondary" size="lg" onClick={cancelEdit} className="w-full sm:w-auto">
+                  {t('accounts.edit.cancel')}
+                </Button>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <div className="flex flex-col gap-4 lg:min-h-0">
+          <section aria-labelledby="month-title" className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="month-title" className="text-md font-semibold">
+                {monthName(cursor.year, cursor.month, locale)}
+              </h2>
+              <div className="inline-flex items-center rounded-md border border-line-strong bg-raised">
+                <IconButton label={t('accounts.month.prev')} onClick={() => shift(-1)} icon={<ChevronLeft aria-hidden className="rtl:-scale-x-100" />} />
+                <IconButton label={t('accounts.month.next')} onClick={() => shift(1)} icon={<ChevronRight aria-hidden className="rtl:-scale-x-100" />} />
+              </div>
+            </div>
+            <TotalsCard
+              totals={totals}
+              footer={
+                <>
+                  <RateHint totals={dollarsAndDinars} rate={book.rate} />
+                  {owedCodes.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 bg-surface px-4 py-3 sm:px-5">
+                      <span className="text-sm text-muted">{t('accounts.owed.title')}</span>
+                      {owedCodes.map((code) => (
+                        <Money key={code} minor={owedAll[code].income} currency={code} locale={locale} className="text-md font-semibold" />
+                      ))}
+                      {lateCount > 0 && <span className="ms-auto text-sm font-medium text-danger">{t('accounts.owed.lateCount', { count: lateCount })}</span>}
+                    </div>
+                  )}
+                </>
+              }
+            />
+            {month.length === 0 && <p className="text-sm text-muted">{t('accounts.summary.nothing')}</p>}
+          </section>
+
+          <section aria-labelledby="recent-title" className="flex flex-col gap-2 lg:min-h-0 lg:flex-1">
+            <h2 id="recent-title" className="text-md font-semibold">
+              {t('accounts.recent.title')}
+            </h2>
+            {book.movements.length === 0 ? (
+              <EmptyState title={t('accounts.recent.empty')} />
+            ) : (
+              <ul className="divide-y divide-line rounded-lg border border-line bg-raised lg:overflow-y-auto">
+                {book.movements.slice(0, RECENT).map((row) => {
+                  const income = row.kind === 'INCOME';
+                  return (
+                    <li key={row.id} className={cx('grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-3', editing?.id === row.id && 'bg-surface')}>
+                      <span aria-hidden className={cx('grid size-8 place-items-center rounded-full', income ? 'bg-success-wash text-success' : 'bg-danger-wash text-danger')}>
+                        {income ? <ArrowDownLeft className="size-4 rtl:-scale-x-100" /> : <ArrowUpRight className="size-4 rtl:-scale-x-100" />}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{row.service || t(income ? 'accounts.kind.income' : 'accounts.kind.expense')}</p>
+                        <p className="truncate text-sm text-muted">
+                          {row.clientName ?? t('accounts.noClient')} · {formatDate(row.occurredOn, locale)}
+                          {row.note ? ` · ${row.note}` : ''}
+                        </p>
+                        {income && row.owed && (
+                          <p className={cx('text-sm', isLate(row, today) ? 'font-medium text-danger' : 'text-muted')}>
+                            {remainingMinor(row) === 0 ? (
+                              t('accounts.owed.settled')
+                            ) : (
+                              <>
+                                {t('accounts.owed.received')} <Money minor={row.paidMinor} currency={row.currency} locale={locale} /> · {t('accounts.owed.left')}{' '}
+                                <Money minor={remainingMinor(row)} currency={row.currency} locale={locale} />
+                                {isLate(row, today) && ` · ${t('accounts.owed.late', { days: daysBetween(row.occurredOn, today) })}`}
+                              </>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                      <Money minor={income ? row.amountMinor : -row.amountMinor} currency={row.currency} locale={locale} tone="net" sign className="font-semibold" />
+                      <div className="flex items-center">
+                        {income && row.owed && <IconButton label={t('accounts.payment.add')} onClick={() => setPayingId(row.id)} icon={<HandCoins aria-hidden />} />}
+                        <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
+                        <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
       </div>
 
       <ConfirmDialog
