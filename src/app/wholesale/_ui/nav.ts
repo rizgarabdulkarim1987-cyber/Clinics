@@ -1,7 +1,7 @@
 import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Sparkles, Truck, Users, type LucideIcon } from 'lucide-react';
 import { canWh, type WhPermission, type WhRole } from '@/server/domain/wholesale/permissions';
 
-export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'settings' | 'reports' | 'assistant' | 'staff';
+export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'settings' | 'reports' | 'assistant' | 'staff' | 'opening';
 
 export interface WhNavItem {
   key: WhNavKey;
@@ -26,6 +26,7 @@ const ALL: WhNavItem[] = [
   { key: 'expenses', href: '/wholesale/expenses', labelKey: 'wh.nav.expenses', icon: HandCoins, needs: 'expense.submit' },
   { key: 'rates', href: '/wholesale/rates', labelKey: 'wh.nav.rates', icon: Coins, needs: 'rate.set' },
   { key: 'staff', href: '/wholesale/staff', labelKey: 'wh.nav.staff', icon: Users, needs: 'staff.manage' },
+  { key: 'opening', href: '/wholesale/opening', labelKey: 'wh.nav.opening', icon: PackageSearch, needs: 'import.apply' },
   { key: 'settings', href: '/wholesale/settings', labelKey: 'wh.nav.settings', icon: Settings, needs: 'settings.manage' },
 ];
 
@@ -48,7 +49,7 @@ const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers'] },
   { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
   { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
-  { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff'] },
+  { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },
 ];
 
 /** Five sections at most (a rep sees four): the old fourteen places are the few places inside them. */

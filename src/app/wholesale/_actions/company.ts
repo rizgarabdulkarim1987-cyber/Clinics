@@ -141,3 +141,7 @@ export async function saveSettings(input: unknown) {
 export async function askAssistant(input: unknown) {
   return invokeWh(assistant.askAssistantAction, input);
 }
+
+export async function importOpening(input: unknown) {
+  return invokeWh(books.importOpeningAction, input);
+}

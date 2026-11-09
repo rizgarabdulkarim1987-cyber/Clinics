@@ -453,6 +453,23 @@ const wholesale: Messages = {
   'wh.sw.price': 'السعر',
   'wh.sw.payment': 'الدفع',
   'wh.sw.stockOnHand': 'الموجود',
+  'wh.nav.opening': "أرصدة الافتتاح",
+  'wh.opening.title': "أرصدة الافتتاح",
+  'wh.opening.description': "أدخل ما تملكه الشركة في أول يوم: المخزون، ديون الزبائن، ديون الموردين، والنقد. ملف واحد لكل نوع.",
+  'wh.opening.kind': "شنو تدخل؟",
+  'wh.opening.k.STOCK': "المخزون",
+  'wh.opening.k.CUSTOMERS': "ديون الزبائن",
+  'wh.opening.k.SUPPLIERS': "ديون الموردين",
+  'wh.opening.k.CASH': "النقد",
+  'wh.opening.columns': "الأعمدة",
+  'wh.opening.chooseFile': "اختر ملف CSV",
+  'wh.opening.paste': "أو الصق الملف هنا",
+  'wh.opening.import': "استيراد",
+  'wh.opening.rejected': "ما انستورد شي. صحح الصفوف أدناه.",
+  'wh.opening.done': "الصفوف المستوردة",
+  'wh.opening.row': "الصف",
+  'wh.opening.history': "المستورد سابقاً",
+  'wh.opening.none': "ما انستورد شي بعد.",
 };
 
 export default wholesale;

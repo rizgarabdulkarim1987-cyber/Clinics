@@ -453,6 +453,23 @@ const wholesale: Messages = {
   'wh.sw.price': 'نرخ',
   'wh.sw.payment': 'پارەدان',
   'wh.sw.stockOnHand': 'لە کۆگا',
+  'wh.nav.opening': "ماوەی دەستپێک",
+  'wh.opening.title': "ماوەی دەستپێک",
+  'wh.opening.description': "ئەوەی کۆمپانیا لە یەکەم ڕۆژدا هەیەتی بنووسە: کۆگا، قەرزی کڕیاران، قەرزی دابینکەران و کاش. بۆ هەر جۆرێک یەک فایل.",
+  'wh.opening.kind': "چی دەنووسیت؟",
+  'wh.opening.k.STOCK': "کۆگا",
+  'wh.opening.k.CUSTOMERS': "قەرزی کڕیاران",
+  'wh.opening.k.SUPPLIERS': "قەرزی دابینکەران",
+  'wh.opening.k.CASH': "کاش",
+  'wh.opening.columns': "ستوونەکان",
+  'wh.opening.chooseFile': "فایلی CSV هەڵبژێرە",
+  'wh.opening.paste': "یان فایلەکە لێرە بلکێنە",
+  'wh.opening.import': "هاوردە",
+  'wh.opening.rejected': "هیچ هاوردە نەکرا. ڕیزەکانی خوارەوە ڕاست بکەرەوە.",
+  'wh.opening.done': "ڕیزە هاوردەکراوەکان",
+  'wh.opening.row': "ڕیز",
+  'wh.opening.history': "پێشتر هاوردەکراوە",
+  'wh.opening.none': "هێشتا هیچ هاوردە نەکراوە.",
 };
 
 export default wholesale;

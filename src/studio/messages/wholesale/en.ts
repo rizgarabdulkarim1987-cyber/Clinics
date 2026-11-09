@@ -453,6 +453,23 @@ const wholesale: Messages = {
   'wh.sw.price': 'Price',
   'wh.sw.payment': 'Payment',
   'wh.sw.stockOnHand': 'In stock',
+  'wh.nav.opening': "Opening balances",
+  'wh.opening.title': "Opening balances",
+  'wh.opening.description': "Enter what the company already has on its first day: stock, what customers owe, what is owed to suppliers, and cash. One file for each kind.",
+  'wh.opening.kind': "What are you entering?",
+  'wh.opening.k.STOCK': "Stock",
+  'wh.opening.k.CUSTOMERS': "Customer debts",
+  'wh.opening.k.SUPPLIERS': "Supplier debts",
+  'wh.opening.k.CASH': "Cash",
+  'wh.opening.columns': "Columns",
+  'wh.opening.chooseFile': "Choose a CSV file",
+  'wh.opening.paste': "Or paste the file here",
+  'wh.opening.import': "Import",
+  'wh.opening.rejected': "Nothing was imported. Fix the rows below.",
+  'wh.opening.done': "Imported rows",
+  'wh.opening.row': "Row",
+  'wh.opening.history': "Already imported",
+  'wh.opening.none': "Nothing imported yet.",
 };
 
 export default wholesale;
