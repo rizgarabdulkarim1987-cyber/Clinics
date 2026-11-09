@@ -1110,6 +1110,8 @@ model AccountEntry {
   service     String         @default("")
   note        String         @default("")
   occurredOn  DateTime       @db.Date
+  /// Whole dinars for one dollar on the day it was typed in; a later rate never changes it. Empty before any rate was set.
+  rate        Int?
   createdById String?
   archivedAt  DateTime?
   createdAt   DateTime       @default(now())

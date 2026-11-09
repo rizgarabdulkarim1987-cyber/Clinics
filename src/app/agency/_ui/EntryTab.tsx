@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState, useTransition, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { addAccountEntry, archiveAccountEntry, createAccountClient } from '@/app/studio/_actions/accounts';
-import { ACCOUNT_CURRENCIES, convertTotals, inPeriod, slugFromName, summarize, type AccountCurrency, type AccountKind } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, inPeriod, slugFromName, summarize, type AccountCurrency, type AccountKind } from '@/lib/accounts';
 import type { Locale } from '@/lib/locale';
 import type { AccountsBook, BookMovement } from '@/server/studio/queries/accounts';
 import { describeFailure } from '@/studio/errors';
@@ -117,9 +117,10 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   };
 
   const month = inPeriod(book.movements, { kind: 'month', year: cursor.year, month: cursor.month });
+  // With a rate the month is two lines, all of it in dinars and all of it in dollars, each entry at the rate it was typed in
+  // with; without one, each currency apart.
+  const totals = summarize(month, book.rate);
   const dollarsAndDinars = summarize(month);
-  // With a rate the month is two lines, all of it in dinars and all of it in dollars; without one, each currency apart.
-  const totals = book.rate === null ? dollarsAndDinars : convertTotals(dollarsAndDinars, book.rate);
   const shift = (by: number) => {
     const index = cursor.year * 12 + (cursor.month - 1) + by;
     setCursor({ year: Math.floor(index / 12), month: (index % 12) + 1 });

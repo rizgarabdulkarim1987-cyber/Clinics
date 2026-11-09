@@ -3,7 +3,7 @@
  * totals the screen and the Excel file show. Pure functions, so the browser and the server read the money the same way.
  *
  * Money is in each currency's minor unit. Dinars and dollars are always totalled apart; the one exception is the
- * combined line, which adds dollars to dinars at the exchange rate the owner typed (`combineTotals`).
+ * combined line, which adds dollars to dinars at the exchange rate the owner typed (each movement keeps the rate of the day it was typed in).
  */
 
 export type AccountCurrency = 'IQD' | 'USD';
@@ -21,6 +21,8 @@ export interface AccountMovement {
   currency: AccountCurrency;
   clientId: string | null;
   occurredOn: string;
+  /** Whole dinars for one dollar on the day it was typed in; null when no rate had been set yet. */
+  rate?: number | null;
 }
 
 export interface Totals {
@@ -73,11 +75,26 @@ export function nextSlug(slug: string, taken: ReadonlySet<string>): string {
 const emptyTotals = (): Totals => ({ income: 0, expense: 0, net: 0 });
 const emptyCurrencyTotals = (): CurrencyTotals => ({ IQD: emptyTotals(), USD: emptyTotals() });
 
-function add(into: CurrencyTotals, movement: AccountMovement): void {
-  const bucket = into[movement.currency];
-  if (movement.kind === 'INCOME') bucket.income += movement.amountMinor;
-  else bucket.expense += movement.amountMinor;
+function addTo(bucket: Totals, kind: AccountKind, minor: number): void {
+  if (kind === 'INCOME') bucket.income += minor;
+  else bucket.expense += minor;
   bucket.net = bucket.income - bucket.expense;
+}
+
+/**
+ * Adds one movement. With no `rate`, to its own currency. With one, to both lines: `IQD` holds the whole of it in dinars
+ * and `USD` the whole of it in dollars, each movement at the rate it was typed in with (`movement.rate`), or at `rate`
+ * when it was typed in before any rate was set. Each movement is rounded to a whole dinar or a cent.
+ */
+function add(into: CurrencyTotals, movement: AccountMovement, rate: number | null): void {
+  if (rate === null) {
+    addTo(into[movement.currency], movement.kind, movement.amountMinor);
+    return;
+  }
+  const used = movement.rate ?? rate;
+  const isDinar = movement.currency === 'IQD';
+  addTo(into.IQD, movement.kind, isDinar ? movement.amountMinor : Math.round((movement.amountMinor * used) / 100));
+  addTo(into.USD, movement.kind, isDinar ? Math.round((movement.amountMinor * 100) / used) : movement.amountMinor);
 }
 
 /** The movements of a month, a year, or all of them. */
@@ -87,20 +104,20 @@ export function inPeriod<T extends { occurredOn: string }>(movements: readonly T
   return movements.filter((movement) => movement.occurredOn.startsWith(prefix));
 }
 
-/** Income, expense and net, in each currency apart. */
-export function summarize(movements: readonly AccountMovement[]): CurrencyTotals {
+/** Income, expense and net: in each currency apart, or, with a current `rate`, all of it in dinars and all of it in dollars. */
+export function summarize(movements: readonly AccountMovement[], rate: number | null = null): CurrencyTotals {
   const totals = emptyCurrencyTotals();
-  for (const movement of movements) add(totals, movement);
+  for (const movement of movements) add(totals, movement, rate);
   return totals;
 }
 
 /** The twelve months of a year, January first. */
-export function byMonth(movements: readonly AccountMovement[], year: number): CurrencyTotals[] {
+export function byMonth(movements: readonly AccountMovement[], year: number, rate: number | null = null): CurrencyTotals[] {
   const months = Array.from({ length: 12 }, emptyCurrencyTotals);
   for (const movement of movements) {
     if (!movement.occurredOn.startsWith(`${year}-`)) continue;
     const month = Number(movement.occurredOn.slice(5, 7)) - 1;
-    if (month >= 0 && month < 12) add(months[month]!, movement);
+    if (month >= 0 && month < 12) add(months[month]!, movement, rate);
   }
   return months;
 }
@@ -116,7 +133,7 @@ export interface ClientRow {
  * What each client brought in and cost, best dinar profit first (then dollar profit), and last the movements that belong
  * to no client (gear, subscriptions) when there are any.
  */
-export function byClient(movements: readonly AccountMovement[], names: ReadonlyMap<string, string>): ClientRow[] {
+export function byClient(movements: readonly AccountMovement[], names: ReadonlyMap<string, string>, rate: number | null = null): ClientRow[] {
   const rows = new Map<string | null, ClientRow>();
   for (const movement of movements) {
     const key = movement.clientId;
@@ -125,7 +142,7 @@ export function byClient(movements: readonly AccountMovement[], names: ReadonlyM
       row = { clientId: key, name: key === null ? null : (names.get(key) ?? null), totals: emptyCurrencyTotals() };
       rows.set(key, row);
     }
-    add(row.totals, movement);
+    add(row.totals, movement, rate);
   }
   const all = [...rows.values()];
   const general = all.filter((row) => row.clientId === null);
@@ -170,24 +187,4 @@ export function parseRate(text: string): { ok: true; rate: number } | { ok: fals
   if (!/^\d{1,7}$/.test(digits)) return { ok: false };
   const rate = Number(digits);
   return rate >= 1 && rate <= RATE_MAX ? { ok: true, rate } : { ok: false };
-}
-
-/** Income, expense and net in dinars: the dollars at `rate` dinars each, rounded to a whole dinar, plus the dinars. */
-export function combineTotals(totals: CurrencyTotals, rate: number): Totals {
-  const dinars = (cents: number) => Math.round((cents * rate) / 100);
-  const income = totals.IQD.income + dinars(totals.USD.income);
-  const expense = totals.IQD.expense + dinars(totals.USD.expense);
-  return { income, expense, net: income - expense };
-}
-
-/**
- * Everything in one currency, then in the other, at `rate` dinars per dollar: `IQD` holds the whole of it in dinars and
- * `USD` the whole of it in dollars, so a screen can show two lines whatever mix of currencies was recorded.
- */
-export function convertTotals(totals: CurrencyTotals, rate: number): CurrencyTotals {
-  const inDinars = combineTotals(totals, rate);
-  const cents = (dinars: number) => Math.round((dinars * 100) / rate);
-  const income = totals.USD.income + cents(totals.IQD.income);
-  const expense = totals.USD.expense + cents(totals.IQD.expense);
-  return { IQD: inDinars, USD: { income, expense, net: income - expense } };
 }

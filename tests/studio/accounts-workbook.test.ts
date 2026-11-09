@@ -15,6 +15,7 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
   note: '',
   occurredOn: '2026-11-05',
   recordedAt: '2026-11-05T09:30:00.000Z',
+  rate: null,
   ...over,
 });
 
@@ -119,7 +120,8 @@ describe('the movements sheet in full', () => {
     expect(rows[0]!.slice(9, 11)).toEqual([1_000_000, 666.67]);
     expect(rows[1]!.slice(9, 11)).toEqual([-250_000, -166.67]);
     expect(rows[2]!.slice(9, 11)).toEqual([188_250, 125.5]);
-    expect(rows[0]![11]).toBeInstanceOf(Date);
+    expect(rows[0]![12]).toBeInstanceOf(Date);
+    expect(rows.map((row) => row[11])).toEqual([1500, 1500, 1500]);
   });
   it('still lists every movement with its date, client, service and note, and when typed in, without a rate', async () => {
     const sheet = (await open({ kind: 'all' })).worksheets[2]!;
@@ -127,5 +129,26 @@ describe('the movements sheet in full', () => {
     expect(first).toHaveLength(9);
     expect(first[0]).toBeInstanceOf(Date);
     expect(first[8]).toBeInstanceOf(Date);
+  });
+});
+
+describe('a movement keeps its own rate', () => {
+  it('converts each movement at the rate it was typed in with, not the current one', async () => {
+    const own: AccountsBook = {
+      rate: 1400,
+      clients: [],
+      movements: [
+        move({ id: 'a', currency: 'USD', amountMinor: 10_000, rate: 1500, occurredOn: '2026-11-01', clientId: null, clientName: null }), // $100 at 1,500
+        move({ id: 'b', currency: 'USD', amountMinor: 10_000, rate: 1400, occurredOn: '2026-11-02', clientId: null, clientName: null }), // $100 at 1,400
+      ],
+    };
+    const bytes = await buildBookWorkbook(own, { kind: 'month', year: 2026, month: 11 }, getStudioTranslator('en'), 'en');
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
+    const rows = workbook.worksheets[2]!.getRows(2, 2)!.map((row) => row.values as unknown[]);
+    expect(rows.map((row) => [row[9], row[11]])).toEqual([[150_000, 1500], [140_000, 1400]]);
+    const summary = workbook.worksheets[0]!;
+    const iqd = summary.getRows(1, summary.rowCount)!.map((row) => (row.values as unknown[]).slice(1)).find((row) => row[0] === 'IQD')!;
+    expect(iqd[1]).toBe(290_000);
   });
 });

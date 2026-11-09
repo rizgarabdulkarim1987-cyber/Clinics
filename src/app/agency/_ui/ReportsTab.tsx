@@ -2,7 +2,7 @@
 
 import { Download } from 'lucide-react';
 import { useState } from 'react';
-import { ACCOUNT_CURRENCIES, byClient, convertTotals, byMonth, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, byClient, byMonth, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
 import { numberFormat } from '@/studio/format';
 import { useLocale, useT } from '@/studio/i18n';
@@ -28,15 +28,14 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
   const years = [...new Set([thisYear, ...book.movements.map((row) => Number(row.occurredOn.slice(0, 4)))])].sort((a, b) => b - a);
   const period: Period = kind === 'all' ? { kind: 'all' } : kind === 'year' ? { kind: 'year', year } : { kind: 'month', year, month };
   const rows = inPeriod(book.movements, period);
-  const dollarsAndDinars = summarize(rows);
   const rate = book.rate;
-  const convert = (value: ReturnType<typeof summarize>) => (rate === null ? value : convertTotals(value, rate));
-  const totals = convert(dollarsAndDinars);
+  const dollarsAndDinars = summarize(rows);
+  const totals = summarize(rows, rate);
   const names = new Map(book.movements.flatMap((row) => (row.clientId && row.clientName ? [[row.clientId, row.clientName] as const] : [])));
-  const byName = byClient(rows, names).map((row) => ({ ...row, totals: convert(row.totals) }));
+  const byName = byClient(rows, names, rate);
   // With a rate the best client is the one with the best profit in all the money together.
   const clients = rate === null ? byName : [...byName].sort((a, b) => Number(a.clientId === null) - Number(b.clientId === null) || b.totals.IQD.net - a.totals.IQD.net);
-  const sumsOfYear = byMonth(book.movements, year).map(convert);
+  const sumsOfYear = byMonth(book.movements, year, rate);
   const yearCurrencies = ACCOUNT_CURRENCIES.filter((code) => sumsOfYear.some((entry) => entry[code].income !== 0 || entry[code].expense !== 0));
   const compact = numberFormat(locale, { notation: 'compact', maximumFractionDigits: 1, signDisplay: 'exceptZero' });
   const short = monthLabels(locale, 'short');

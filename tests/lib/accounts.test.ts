@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byClient, byMonth, combineTotals, convertTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
+import { byClient, byMonth, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
 
 const move = (over: Partial<AccountMovement>): AccountMovement => ({
   kind: 'INCOME',
@@ -152,39 +152,41 @@ describe('parseRate', () => {
   });
 });
 
-describe('combineTotals', () => {
-  it('adds dollars to dinars at the rate, in dinars', () => {
-    const totals = summarize([
-      move({ kind: 'INCOME', amountMinor: 1_000_000, currency: 'IQD' }),
-      move({ kind: 'INCOME', amountMinor: 20_000, currency: 'USD' }), // $200.00
-      move({ kind: 'EXPENSE', amountMinor: 50_000, currency: 'IQD' }),
-      move({ kind: 'EXPENSE', amountMinor: 1_050, currency: 'USD' }), // $10.50
-    ]);
-    expect(combineTotals(totals, 1500)).toEqual({ income: 1_300_000, expense: 65_750, net: 1_234_250 });
-  });
-  it('is just the dinars when there are no dollars, and zero when empty', () => {
-    expect(combineTotals(summarize([move({ amountMinor: 700 })]), 1500)).toEqual({ income: 700, expense: 0, net: 700 });
-    expect(combineTotals(summarize([]), 1500)).toEqual({ income: 0, expense: 0, net: 0 });
-  });
-  it('rounds each dollar total to a whole dinar', () => {
-    expect(combineTotals(summarize([move({ amountMinor: 1, currency: 'USD' })]), 1480)).toEqual({ income: 15, expense: 0, net: 15 });
-  });
-});
+describe('totals with exchange rates', () => {
+  const rows = [
+    move({ kind: 'INCOME', amountMinor: 1_500_000, currency: 'IQD', rate: 1500 }),
+    move({ kind: 'INCOME', amountMinor: 155_000, currency: 'USD', rate: 1500 }), // $1,550.00
+    move({ kind: 'EXPENSE', amountMinor: 750_000, currency: 'IQD', rate: 1500 }),
+    move({ kind: 'EXPENSE', amountMinor: 48_000, currency: 'USD', rate: 1500 }), // $480.00
+  ];
 
-describe('convertTotals', () => {
-  it('gives the whole of it in dinars and the whole of it in dollars, at the rate', () => {
-    const totals = summarize([
-      move({ kind: 'INCOME', amountMinor: 1_500_000, currency: 'IQD' }),
-      move({ kind: 'INCOME', amountMinor: 155_000, currency: 'USD' }), // $1,550.00
-      move({ kind: 'EXPENSE', amountMinor: 750_000, currency: 'IQD' }),
-      move({ kind: 'EXPENSE', amountMinor: 48_000, currency: 'USD' }), // $480.00
-    ]);
-    const all = convertTotals(totals, 1500);
+  it('gives the whole of it in dinars and the whole of it in dollars', () => {
+    const all = summarize(rows, 1500);
     expect(all.IQD).toEqual({ income: 1_500_000 + 2_325_000, expense: 750_000 + 720_000, net: 2_355_000 });
-    // $1,000 from the dinars and $1,550 already in dollars; $500 and $480.
     expect(all.USD).toEqual({ income: 255_000, expense: 98_000, net: 157_000 });
   });
+
+  it('uses the rate each movement was typed in with, so a later rate changes none of them', () => {
+    const old = move({ kind: 'INCOME', amountMinor: 10_000, currency: 'USD', rate: 1500 }); // $100 at 1,500
+    const fresh = move({ kind: 'INCOME', amountMinor: 10_000, currency: 'USD', rate: 1400 }); // $100 at 1,400
+    expect(summarize([old, fresh], 1400).IQD.income).toBe(150_000 + 140_000);
+  });
+
+  it('uses the current rate for a movement typed in before any rate was set', () => {
+    expect(summarize([move({ amountMinor: 10_000, currency: 'USD', rate: null })], 1480).IQD.income).toBe(148_000);
+  });
+
+  it('is the currencies apart when there is no rate at all', () => {
+    expect(summarize(rows, null).IQD.income).toBe(1_500_000);
+    expect(summarize(rows, null).USD.income).toBe(155_000);
+  });
+
+  it('carries the same conversion into months and clients', () => {
+    expect(byMonth(rows, 2026, 1500)[10]!.IQD.net).toBe(2_355_000);
+    expect(byClient(rows, new Map(), 1500)[0]!.totals.USD.net).toBe(157_000);
+  });
+
   it('is all zeros when empty', () => {
-    expect(convertTotals(summarize([]), 1500).USD).toEqual({ income: 0, expense: 0, net: 0 });
+    expect(summarize([], 1500).USD).toEqual({ income: 0, expense: 0, net: 0 });
   });
 });
