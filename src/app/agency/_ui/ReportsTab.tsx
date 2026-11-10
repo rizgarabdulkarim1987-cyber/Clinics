@@ -1,15 +1,14 @@
 'use client';
 
-import { Download } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
 import { useState } from 'react';
 import { ACCOUNT_CURRENCIES, byClient, byMonth, byService, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
-import { numberFormat } from '@/studio/format';
 import { useLocale, useT } from '@/studio/i18n';
 import { buttonClasses } from '@/studio/ui/Button';
 import { cx } from '@/studio/ui/cx';
 import { Select } from '@/studio/ui/Select';
-import { Money, MoneyStack } from './money';
+import { formatBook, Money, MoneyStack } from './money';
 import { RateHint } from './RateHint';
 import { TotalsCard } from './TotalsCard';
 
@@ -28,6 +27,8 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
   const [kind, setKind] = useState<Period['kind']>('month');
   const [year, setYear] = useState(thisYear);
   const [month, setMonth] = useState(Number(today.slice(5, 7)));
+  const [chartCurrency, setChartCurrency] = useState<AccountCurrency>('IQD');
+  const [focusMonth, setFocusMonth] = useState<number | null>(null);
 
   const years = [...new Set([thisYear, ...book.movements.map((row) => Number(row.occurredOn.slice(0, 4)))])].sort((a, b) => b - a);
   const period: Period = kind === 'all' ? { kind: 'all' } : kind === 'year' ? { kind: 'year', year } : { kind: 'month', year, month };
@@ -48,9 +49,13 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
       : services.some((row) => row.totals.IQD.income > 0)
         ? [{ basis: 'IQD', show: ['IQD', 'USD'] }]
         : [];
-  const compact = numberFormat(locale, { notation: 'compact', maximumFractionDigits: 1, signDisplay: 'exceptZero' });
-  const short = monthLabels(locale, 'short');
   const long = monthLabels(locale, 'long');
+  // One chart for the year, one currency at a time; the readout under the title follows the hovered month.
+  const chartCode = yearCurrencies.includes(chartCurrency) ? chartCurrency : (yearCurrencies[0] ?? 'IQD');
+  const peak = Math.max(1, ...sumsOfYear.flatMap((entry) => [entry[chartCode].income, entry[chartCode].expense]));
+  const lastWithMoney = sumsOfYear.findLastIndex((entry) => entry[chartCode].income !== 0 || entry[chartCode].expense !== 0);
+  const focusIndex = focusMonth ?? (kind === 'month' ? month - 1 : Math.max(0, lastWithMoney));
+  const focused = sumsOfYear[focusIndex]![chartCode];
 
   const toolbarSelect = 'w-auto min-w-28';
 
@@ -78,49 +83,66 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
         <TotalsCard totals={totals} footer={<RateHint totals={dollarsAndDinars} rate={rate} />} />
 
         <section aria-labelledby="chart-title" className="flex flex-col gap-2">
-          <h2 id="chart-title" className="text-md font-semibold">
-            {t('accounts.chart.title', { year: String(year) })}
-          </h2>
-          {yearCurrencies.length === 0 && <p className="text-sm text-muted">{t('accounts.chart.empty', { year: String(year) })}</p>}
-          <div className="flex flex-col gap-3">
-            {yearCurrencies.map((code: AccountCurrency) => {
-              const peak = Math.max(1, ...sumsOfYear.flatMap((entry) => [entry[code].income, entry[code].expense]));
-              return (
-                <figure key={code} className="flex flex-col rounded-lg border border-line bg-raised px-4 py-3" aria-label={`${t('accounts.chart.label')} · ${code}`}>
-                  <figcaption className="mb-2 flex items-center justify-between text-sm text-muted">
-                    <span dir="ltr">{code}</span>
-                    <span className="flex gap-4">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span aria-hidden className="size-2.5 rounded-sm bg-ink" />
-                        {t('accounts.chart.income')}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <span aria-hidden className="size-2.5 rounded-sm bg-line-strong" />
-                        {t('accounts.chart.expense')}
-                      </span>
-                    </span>
-                  </figcaption>
-                  <ol className="grid grid-cols-12 gap-1.5 sm:gap-2" dir="ltr">
-                    {sumsOfYear.map((entry, index) => {
-                      const here = kind === 'month' && index + 1 === month;
-                      return (
-                        <li key={index} className={cx('flex flex-col items-center gap-1 rounded-sm px-0.5 pt-1', here && 'bg-accent-wash')}>
-                          <div className="flex h-20 w-full items-end justify-center gap-0.5" role="img" aria-label={`${long[index]}: ${t('accounts.summary.income')} ${entry[code].income}, ${t('accounts.summary.expense')} ${entry[code].expense}`}>
-                            <span className="w-1/2 max-w-3 rounded-t-sm bg-ink" style={{ height: `${Math.max(entry[code].income ? 3 : 0, (entry[code].income / peak) * 100)}%` }} />
-                            <span className="w-1/2 max-w-3 rounded-t-sm bg-line-strong" style={{ height: `${Math.max(entry[code].expense ? 3 : 0, (entry[code].expense / peak) * 100)}%` }} />
-                          </div>
-                          <span className="text-xs text-muted">{short[index]}</span>
-                          <span className={cx('text-xs font-medium tabular-nums', entry[code].net > 0 && 'text-success', entry[code].net < 0 && 'text-danger', entry[code].net === 0 && 'text-muted')}>
-                            {entry[code].net === 0 ? '·' : compact.format(code === 'IQD' ? entry[code].net : entry[code].net / 100)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </figure>
-              );
-            })}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="chart-title" className="text-md font-semibold">
+              {t('accounts.chart.title', { year: String(year) })}
+            </h2>
+            {yearCurrencies.length > 1 && (
+              <div role="group" aria-label={t('accounts.chart.label')} dir="ltr" className="inline-flex rounded-md border border-line bg-surface p-0.5">
+                {yearCurrencies.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={value === chartCode}
+                    onClick={() => setChartCurrency(value)}
+                    className={cx('min-h-8 rounded-sm px-3 text-sm font-medium transition-colors duration-150', value === chartCode ? 'bg-ink text-on-ink' : 'text-muted hover:text-text')}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+          {yearCurrencies.length === 0 && <p className="text-sm text-muted">{t('accounts.chart.empty', { year: String(year) })}</p>}
+          {yearCurrencies.length > 0 && (
+            <figure className="flex flex-col gap-3 rounded-lg border border-line bg-raised px-4 py-3" aria-label={`${t('accounts.chart.label')} · ${chartCode}`}>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+                <span className="font-medium">{long[focusIndex]}</span>
+                <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                  <span className="inline-flex items-center gap-1.5 text-muted">
+                    <span aria-hidden className="size-2.5 rounded-sm bg-ink" />
+                    {t('accounts.chart.income')} <Money minor={focused.income} currency={chartCode} locale={locale} className="font-medium text-text" />
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-muted">
+                    <span aria-hidden className="size-2.5 rounded-sm bg-line-strong" />
+                    {t('accounts.chart.expense')} <Money minor={focused.expense} currency={chartCode} locale={locale} className="font-medium text-text" />
+                  </span>
+                  <Money minor={focused.net} currency={chartCode} locale={locale} tone="net" sign className="font-semibold" />
+                </span>
+              </div>
+              <ol className="grid grid-cols-12 gap-1 border-b border-line sm:gap-1.5" dir="ltr">
+                {sumsOfYear.map((entry, index) => (
+                  <li key={index} className="min-w-0">
+                    <button
+                      type="button"
+                      onMouseEnter={() => setFocusMonth(index)}
+                      onFocus={() => setFocusMonth(index)}
+                      onClick={() => setFocusMonth(index)}
+                      aria-label={`${long[index]}: ${t('accounts.summary.income')} ${formatBook(entry[chartCode].income, chartCode)}, ${t('accounts.summary.expense')} ${formatBook(entry[chartCode].expense, chartCode)}`}
+                      aria-current={index === focusIndex ? 'true' : undefined}
+                      className={cx('group flex w-full flex-col items-center gap-1 rounded-sm px-0.5 pt-1 transition-colors duration-150', index === focusIndex ? 'bg-accent-wash' : 'hover:bg-surface')}
+                    >
+                      <span className="flex h-24 w-full items-end justify-center gap-0.5">
+                        <span className="w-1/2 max-w-3 rounded-t-sm bg-ink" style={{ height: `${Math.max(entry[chartCode].income ? 3 : 0, (entry[chartCode].income / peak) * 100)}%` }} />
+                        <span className="w-1/2 max-w-3 rounded-t-sm bg-line-strong" style={{ height: `${Math.max(entry[chartCode].expense ? 3 : 0, (entry[chartCode].expense / peak) * 100)}%` }} />
+                      </span>
+                      <span className={cx('pb-1 text-xs tabular-nums', index === focusIndex ? 'font-semibold text-text' : 'text-muted')}>{index + 1}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </figure>
+          )}
         </section>
       </div>
 
@@ -145,6 +167,9 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                     <th scope="col" className="h-9 px-4 text-end">
                       {t('accounts.col.net')}
                     </th>
+                    <th scope="col" className="w-10 p-0">
+                      <span className="sr-only">{t('accounts.statement')}</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,17 +177,25 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                     <tr key={row.clientId ?? 'none'} className="border-b border-line align-top hover:bg-surface">
                       <th scope="row" className={cx('px-4 py-2.5 text-start font-medium', row.clientId === null && 'text-muted')}>
                         {row.name ?? t('accounts.noClient')}
-                        {row.clientId && (
-                          <a href={`/agency/statement?client=${row.clientId}`} download className="ms-3 text-sm font-normal text-muted underline-offset-2 hover:text-text hover:underline">
-                            {t('accounts.statement')}
-                          </a>
-                        )}
                       </th>
                       <td className="px-3 py-2.5 text-end">
                         <MoneyStack totals={row.totals} pick="income" locale={locale} />
                       </td>
                       <td className="px-4 py-2.5 text-end font-semibold">
                         <MoneyStack totals={row.totals} pick="net" locale={locale} tone="net" sign />
+                      </td>
+                      <td className="w-10 ps-0 pe-3 py-1.5 text-end">
+                        {row.clientId && (
+                          <a
+                            href={`/agency/statement?client=${row.clientId}`}
+                            download
+                            aria-label={`${t('accounts.statement')}: ${row.name ?? ''}`}
+                            title={t('accounts.statement')}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-surface hover:text-text"
+                          >
+                            <FileSpreadsheet aria-hidden className="size-4" />
+                          </a>
+                        )}
                       </td>
                     </tr>
                   ))}
