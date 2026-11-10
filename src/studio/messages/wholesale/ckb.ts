@@ -105,6 +105,7 @@ const wholesale: Messages = {
   'wh.sw.editStop': 'وازهێنان لە دەستکاری',
   'wh.sw.editPostFail': 'پسوولە کۆنەکە هەڵوەشایەوە بەڵام نوێیەکە تۆمار نەکرا. هێڵەکان ڕاست بکەرەوە و دووبارە تۆمار بکە.',
   'wh.sw.deleted': 'پسوولە سڕایەوە',
+  'wh.reports.bySeller': 'فرۆشتن بەپێی فرۆشیار',
   'wh.stock.qty': 'بەردەست',
   'wh.stock.avgCost': 'تێکڕای تێچوو (دینار)',
   'wh.stock.kind.MAIN': 'سەرەکی',

@@ -105,6 +105,7 @@ const wholesale: Messages = {
   'wh.sw.editStop': 'Stop editing',
   'wh.sw.editPostFail': 'The old invoice was cancelled but the new one was not posted. Fix the lines and post again.',
   'wh.sw.deleted': 'Invoice deleted',
+  'wh.reports.bySeller': 'Sales by seller',
   'wh.stock.qty': 'On hand',
   'wh.stock.avgCost': 'Average cost (IQD)',
   'wh.stock.kind.MAIN': 'Main',
