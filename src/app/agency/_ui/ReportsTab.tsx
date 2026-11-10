@@ -9,7 +9,7 @@ import { useLocale, useT } from '@/studio/i18n';
 import { buttonClasses } from '@/studio/ui/Button';
 import { cx } from '@/studio/ui/cx';
 import { Select } from '@/studio/ui/Select';
-import { MoneyStack } from './money';
+import { Money, MoneyStack } from './money';
 import { RateHint } from './RateHint';
 import { TotalsCard } from './TotalsCard';
 
@@ -42,6 +42,12 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
   const clients = rate === null ? byName : [...byName].sort((a, b) => Number(a.clientId === null) - Number(b.clientId === null) || b.totals.IQD.net - a.totals.IQD.net);
   const sumsOfYear = byMonth(book.movements, year, rate);
   const yearCurrencies = ACCOUNT_CURRENCIES.filter((code) => sumsOfYear.some((entry) => entry[code].income !== 0 || entry[code].expense !== 0));
+  const serviceCharts: { basis: AccountCurrency; show: AccountCurrency[] }[] =
+    rate === null
+      ? ACCOUNT_CURRENCIES.filter((code) => services.some((row) => row.totals[code].income > 0)).map((code) => ({ basis: code, show: [code] }))
+      : services.some((row) => row.totals.IQD.income > 0)
+        ? [{ basis: 'IQD', show: ['IQD', 'USD'] }]
+        : [];
   const compact = numberFormat(locale, { notation: 'compact', maximumFractionDigits: 1, signDisplay: 'exceptZero' });
   const short = monthLabels(locale, 'short');
   const long = monthLabels(locale, 'long');
@@ -68,19 +74,19 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
         </span>
       </div>
 
-      <div className="flex flex-col gap-3 lg:min-h-0">
+      <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
         <TotalsCard totals={totals} footer={<RateHint totals={dollarsAndDinars} rate={rate} />} />
 
-        <section aria-labelledby="chart-title" className="flex flex-col gap-2 lg:min-h-0 lg:flex-1">
+        <section aria-labelledby="chart-title" className="flex flex-col gap-2">
           <h2 id="chart-title" className="text-md font-semibold">
             {t('accounts.chart.title', { year: String(year) })}
           </h2>
           {yearCurrencies.length === 0 && <p className="text-sm text-muted">{t('accounts.chart.empty', { year: String(year) })}</p>}
-          <div className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
+          <div className="flex flex-col gap-3">
             {yearCurrencies.map((code: AccountCurrency) => {
               const peak = Math.max(1, ...sumsOfYear.flatMap((entry) => [entry[code].income, entry[code].expense]));
               return (
-                <figure key={code} className="flex flex-col rounded-lg border border-line bg-raised px-4 py-3 lg:min-h-0 lg:flex-1" aria-label={`${t('accounts.chart.label')} · ${code}`}>
+                <figure key={code} className="flex flex-col rounded-lg border border-line bg-raised px-4 py-3" aria-label={`${t('accounts.chart.label')} · ${code}`}>
                   <figcaption className="mb-2 flex items-center justify-between text-sm text-muted">
                     <span dir="ltr">{code}</span>
                     <span className="flex gap-4">
@@ -94,12 +100,12 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                       </span>
                     </span>
                   </figcaption>
-                  <ol className="grid grid-cols-12 gap-1.5 lg:min-h-0 lg:flex-1 sm:gap-2" dir="ltr">
+                  <ol className="grid grid-cols-12 gap-1.5 sm:gap-2" dir="ltr">
                     {sumsOfYear.map((entry, index) => {
                       const here = kind === 'month' && index + 1 === month;
                       return (
-                        <li key={index} className={cx('flex flex-col items-center gap-1 rounded-sm px-0.5 pt-1 lg:min-h-0', here && 'bg-accent-wash')}>
-                          <div className="flex h-24 w-full items-end justify-center gap-0.5 lg:h-auto lg:min-h-0 lg:flex-1" role="img" aria-label={`${long[index]}: ${t('accounts.summary.income')} ${entry[code].income}, ${t('accounts.summary.expense')} ${entry[code].expense}`}>
+                        <li key={index} className={cx('flex flex-col items-center gap-1 rounded-sm px-0.5 pt-1', here && 'bg-accent-wash')}>
+                          <div className="flex h-20 w-full items-end justify-center gap-0.5" role="img" aria-label={`${long[index]}: ${t('accounts.summary.income')} ${entry[code].income}, ${t('accounts.summary.expense')} ${entry[code].expense}`}>
                             <span className="w-1/2 max-w-3 rounded-t-sm bg-ink" style={{ height: `${Math.max(entry[code].income ? 3 : 0, (entry[code].income / peak) * 100)}%` }} />
                             <span className="w-1/2 max-w-3 rounded-t-sm bg-line-strong" style={{ height: `${Math.max(entry[code].expense ? 3 : 0, (entry[code].expense / peak) * 100)}%` }} />
                           </div>
@@ -118,7 +124,7 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
         </section>
       </div>
 
-      <div className="flex flex-col gap-4 lg:grid lg:min-h-0 lg:grid-rows-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-3">
+      <div className="flex flex-col gap-4 lg:grid lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_auto] lg:gap-3">
         <section aria-labelledby="clients-title" className="flex flex-col gap-2 lg:min-h-0">
           <h2 id="clients-title" className="text-md font-semibold">
             {t('accounts.clients.title')}
@@ -173,17 +179,36 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
           {services.length === 0 ? (
             <p className="text-sm text-muted">{t('accounts.services.empty')}</p>
           ) : (
-            <ol className="divide-y divide-line rounded-lg border border-line bg-raised lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-              {services.map((row, index) => (
-                <li key={row.service || 'none'} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5">
-                  <span className="w-5 text-sm tabular-nums text-muted">{index + 1}</span>
-                  <span className={cx('truncate font-medium', row.service === '' && 'text-muted')}>{row.service || t('accounts.services.none')}</span>
-                  <span className="font-semibold">
-                    <MoneyStack totals={row.totals} pick="income" locale={locale} />
-                  </span>
-                </li>
-              ))}
-            </ol>
+            <div className="flex flex-col gap-3 lg:max-h-72 lg:min-h-0 lg:overflow-y-auto">
+              {serviceCharts.map((chart) => {
+                const peak = Math.max(1, ...services.map((row) => row.totals[chart.basis].income));
+                return (
+                  <figure key={chart.basis} className="rounded-lg border border-line bg-raised px-4 py-3" aria-label={`${t('accounts.services.title')} · ${chart.basis}`}>
+                    <figcaption className="mb-1 text-sm text-muted" dir="ltr">
+                      {chart.basis}
+                    </figcaption>
+                    <ol className="flex flex-col">
+                      {services.filter((row) => row.totals[chart.basis].income > 0).map((row) => (
+                        <li key={row.service || 'none'} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-3 py-1.5">
+                          <span className={cx('truncate text-sm font-medium', row.service === '' && 'text-muted')}>{row.service || t('accounts.services.none')}</span>
+                          <span aria-hidden className="h-2.5 rounded-full bg-line" dir="ltr">
+                            <span className="block h-full rounded-full bg-ink" style={{ width: `${Math.max(3, (row.totals[chart.basis].income / peak) * 100)}%` }} />
+                          </span>
+                          <span className="text-sm font-semibold">
+                            {chart.show.map((code, index) => (
+                              <span key={code}>
+                                {index > 0 && <span className="px-1 text-muted">·</span>}
+                                <Money minor={row.totals[code].income} currency={code} locale={locale} />
+                              </span>
+                            ))}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </figure>
+                );
+              })}
+            </div>
           )}
         </section>
       </div>
