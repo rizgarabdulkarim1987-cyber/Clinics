@@ -63,6 +63,8 @@ const ar: Messages = {
   'nav.myMenu': 'إعدادات المنيو',
   'nav.openPharmacy': 'فتح الصيدلية',
   'nav.myPharmacy': 'صيدليتي',
+  'nav.openWholesale': 'فتح الجملة',
+  'nav.myWholesale': 'شركتي',
   'nav.cashier': 'الكاشير',
   'error.text.posCashRequired': 'يجب أن يبقى الدفع النقدي مفعّلاً',
   'error.text.posNotSelf': 'لا يمكنك تغيير دورك أو صلاحيتك بنفسك',

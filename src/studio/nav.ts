@@ -18,7 +18,7 @@ export type NavIcon =
   | 'wholesale'
   | RetailSpaceId;
 
-export type NavKey = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'platformIntro' | 'activity' | 'settings' | 'myRestaurant' | 'myMenu' | 'cashier' | 'cashierOverview' | 'pharmacies' | 'pharmacyOverview' | 'pharmacyBilling' | 'pharmacyPeople' | 'pharmacyAnnouncements' | 'pharmacyActivity' | 'pharmacySettings' | 'team' | 'teamSettings' | 'retail' | 'retailOverview' | 'retailBilling' | 'retailPeople' | 'retailAnnouncements' | 'retailActivity' | 'retailSettings' | 'wholesale' | 'wholesaleOverview' | 'wholesaleBilling' | 'wholesalePeople' | 'wholesaleAnnouncements' | 'wholesaleActivity' | 'wholesaleSettings' | 'openRetail' | 'openPharmacy';
+export type NavKey = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'platformIntro' | 'activity' | 'settings' | 'myRestaurant' | 'myMenu' | 'cashier' | 'cashierOverview' | 'pharmacies' | 'pharmacyOverview' | 'pharmacyBilling' | 'pharmacyPeople' | 'pharmacyAnnouncements' | 'pharmacyActivity' | 'pharmacySettings' | 'team' | 'teamSettings' | 'retail' | 'retailOverview' | 'retailBilling' | 'retailPeople' | 'retailAnnouncements' | 'retailActivity' | 'retailSettings' | 'wholesale' | 'wholesaleOverview' | 'wholesaleBilling' | 'wholesalePeople' | 'wholesaleAnnouncements' | 'wholesaleActivity' | 'wholesaleSettings' | 'openRetail' | 'openPharmacy' | 'openWholesale';
 
 export interface NavItem {
   key: NavKey;
@@ -204,15 +204,19 @@ export function visibleNav(actor: Actor, owned: readonly OwnedRestaurant[] = [])
       key: 'myRestaurant',
       href: restaurantPath,
       // A pharmacy is never called a restaurant.
-      labelKey: known?.sector === 'PHARMACY' ? 'nav.myPharmacy' : 'nav.myRestaurant',
+      labelKey: known?.sector === 'PHARMACY' ? 'nav.myPharmacy' : known?.sector === 'WHOLESALE' ? 'nav.myWholesale' : 'nav.myRestaurant',
       ...(name ? { label: name } : {}),
-      icon: known?.sector === 'PHARMACY' ? 'pharmacy' : 'store',
+      icon: known?.sector === 'PHARMACY' ? 'pharmacy' : known?.sector === 'WHOLESALE' ? 'wholesale' : 'store',
       match: [restaurantPath],
       // The Menus tab belongs to the menu item below.
       exclude: [menusPath],
     };
     if (known?.sector === 'PHARMACY') {
       return [restaurantItem, { key: 'openPharmacy', href: '/pharmacy/home', labelKey: 'nav.openPharmacy', ...(name ? { scope: name } : {}), icon: 'pharmacy' }];
+    }
+    // A wholesale company has no menus: the second item opens the Wholesale app, so the owner never has to type its address.
+    if (known?.sector === 'WHOLESALE') {
+      return [restaurantItem, { key: 'openWholesale', href: '/wholesale/home', labelKey: 'nav.openWholesale', ...(name ? { scope: name } : {}), icon: 'wholesale' }];
     }
     // Two items so the owner reaches the restaurant's own pages without going back through the menu: the restaurant
     // (profile, branches, plan...) and the menu's settings. One menu opens at once; otherwise the Menus tab does.
@@ -237,7 +241,7 @@ export function visibleNav(actor: Actor, owned: readonly OwnedRestaurant[] = [])
  */
 export function landingPath(actor: Actor, owned: readonly OwnedRestaurant[]): string | null {
   if (!isOwnerOnly(actor) || new Set(actor.memberships.map((m) => m.restaurantId)).size !== 1) return null;
-  return visibleNav(actor, owned).find((item) => item.key === 'myMenu' || item.key === 'openPharmacy')?.href ?? null;
+  return visibleNav(actor, owned).find((item) => item.key === 'myMenu' || item.key === 'openPharmacy' || item.key === 'openWholesale')?.href ?? null;
 }
 
 const within = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);

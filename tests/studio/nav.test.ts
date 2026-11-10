@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Actor } from '@/server/studio/auth/actor';
-import { isNavItemActive, NAV_ITEMS, openRetailNavItem, posNavItem, safeNextPath, spaceNav, visibleNav } from '@/studio/nav';
+import { isNavItemActive, landingPath, NAV_ITEMS, openRetailNavItem, posNavItem, safeNextPath, spaceNav, visibleNav } from '@/studio/nav';
 import { spaceOfPath, type SpaceId } from '@/studio/spaces';
 
 function actor(overrides: Partial<Actor>): Actor {
@@ -125,6 +125,15 @@ describe('visibleNav', () => {
     expect(keys(items)).toEqual(['myRestaurant', 'openPharmacy']);
     expect(items[0]).toMatchObject({ labelKey: 'nav.myPharmacy', icon: 'pharmacy' });
     expect(items[1]).toMatchObject({ href: '/pharmacy/home', labelKey: 'nav.openPharmacy', icon: 'pharmacy' });
+  });
+
+  it("gives a wholesale company's owner a link into the Wholesale app, with no menu settings", () => {
+    const owner = actor({ memberships: [{ restaurantId: 'r1', role: 'OWNER' }] });
+    const items = visibleNav(owner, [{ id: 'r1', name: 'Nare Company', menuIds: [], sector: 'WHOLESALE' }]);
+    expect(keys(items)).toEqual(['myRestaurant', 'openWholesale']);
+    expect(items[0]).toMatchObject({ labelKey: 'nav.myWholesale', icon: 'wholesale' });
+    expect(items[1]).toMatchObject({ href: '/wholesale/home', labelKey: 'nav.openWholesale', icon: 'wholesale' });
+    expect(landingPath(owner, [{ id: 'r1', name: 'Nare Company', menuIds: [], sector: 'WHOLESALE' }])).toBe('/wholesale/home');
   });
 
   it('sends an owner whose restaurant has exactly one menu straight to that menu', () => {

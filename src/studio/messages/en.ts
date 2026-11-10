@@ -62,6 +62,8 @@ const en: Messages = {
   'nav.myMenu': 'Menu settings',
   'nav.openPharmacy': 'Open the pharmacy',
   'nav.myPharmacy': 'My pharmacy',
+  'nav.openWholesale': 'Open Wholesale',
+  'nav.myWholesale': 'My company',
   'nav.cashier': 'Cashier',
   'error.text.posCashRequired': 'Cash must stay switched on',
   'error.text.posNotSelf': 'You cannot change your own role or access',
