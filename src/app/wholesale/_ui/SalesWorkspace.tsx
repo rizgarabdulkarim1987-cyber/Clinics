@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, CalendarClock, ChevronDown, Minus, Plus, Receipt, Search, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, CalendarClock, HandCoins, ChevronDown, Minus, Plus, Receipt, Search, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
@@ -20,6 +20,7 @@ import { Button, cx } from '@/studio/ui';
 
 export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string> };
 export type SaleCustomer = { id: string; name: string; phone: string | null };
+export type DebtRow = { id: string; name: string; phone: string | null; totals: Record<string, string>; due: string | null; overdue: boolean };
 /** The numbers kept in view on the sell screen. */
 export type SellInfo = {
   todayCount: number;
@@ -77,9 +78,9 @@ function Segmented<T extends string>({ value, onChange, options, label, tone = (
   );
 }
 
-function InfoStrip({ info, t }: { info: SellInfo; t: (k: string, p?: Record<string, string | number>) => string }) {
+function InfoStrip({ info, t, debtCount, onDebts }: { info: SellInfo; t: (k: string, p?: Record<string, string | number>) => string; debtCount: number; onDebts: () => void }) {
   const cash = info.cash ? (['IQD', 'USD', 'IRT'] as const).filter((c) => Number(info.cash![c] ?? 0) !== 0) : [];
-  const stat = 'flex min-w-0 items-center gap-2.5 px-3.5 py-2';
+  const stat = 'flex min-w-0 items-center gap-2.5 px-3.5 py-1.5';
   const icon = 'grid size-8 shrink-0 place-items-center rounded-full';
   return (
     <div className="flex shrink-0 flex-wrap divide-x divide-line rounded-lg border border-line bg-raised shadow-[0_1px_2px_rgb(15_42_74/0.06)] rtl:divide-x-reverse xl:flex-nowrap">
@@ -124,6 +125,15 @@ function InfoStrip({ info, t }: { info: SellInfo; t: (k: string, p?: Record<stri
           )}
         </p>
       </div>
+      <button type="button" onClick={onDebts} className={cx(stat, 'text-start hover:bg-hover')}>
+        <span className={cx(icon, debtCount > 0 ? 'bg-wh-amber-wash text-wh-amber' : 'bg-wh-teal-wash text-wh-teal')}>
+          <HandCoins aria-hidden className="size-4" />
+        </span>
+        <p className="min-w-0">
+          <span className="block text-xs text-muted">{t('wh.sw.debts')}</span>
+          <span className="block whitespace-nowrap text-base font-bold">{debtCount > 0 ? t('wh.sw.debtsN', { n: debtCount }) : t('wh.sw.debtsNone')}</span>
+        </p>
+      </button>
     </div>
   );
 }
@@ -138,6 +148,7 @@ export function SalesWorkspace({
   debt,
   attention,
   info,
+  debts,
   children,
 }: {
   customers: SaleCustomer[];
@@ -151,6 +162,7 @@ export function SalesWorkspace({
   /** Sales waiting for approval (a dot on the account button). */
   attention: number;
   info: SellInfo;
+  debts: DebtRow[];
   children: ReactNode;
 }) {
   const t = useT();
@@ -164,6 +176,7 @@ export function SalesWorkspace({
   const [listOpen, setListOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [paidNow, setPaidNow] = useState('');
+  const [debtsOpen, setDebtsOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
@@ -291,10 +304,10 @@ export function SalesWorkspace({
     <div className="flex flex-col gap-3 p-3 md:p-4 lg:min-h-0 lg:flex-1">
       <div className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-stretch">
       {/* customer bar */}
-      <div className={cx(card, 'p-2.5 xl:flex-1 xl:justify-center')}>
+      <div className={cx(card, 'p-1.5 xl:flex-1 xl:justify-center')}>
         {current && !changing ? (
           <div className="flex flex-wrap items-center gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-wh-blue-wash text-wh-blue">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-wh-blue-wash text-wh-blue">
               <UserRound aria-hidden className="size-5" />
             </span>
             <p className="min-w-0 flex-1">
@@ -312,7 +325,7 @@ export function SalesWorkspace({
                 {debt}
               </span>
             )}
-            <button type="button" onClick={() => setPanel(true)} className="relative inline-flex min-h-11 items-center gap-2 rounded-md bg-wh-blue-wash px-4 text-base font-semibold text-wh-blue hover:bg-wh-blue hover:text-white">
+            <button type="button" onClick={() => setPanel(true)} className="relative inline-flex min-h-9 items-center gap-2 rounded-md bg-wh-blue-wash px-3 text-base font-semibold text-wh-blue hover:bg-wh-blue hover:text-white">
               <Wallet aria-hidden className="size-4" />
               {t('wh.sw.account')}
               {attention > 0 && <span className="absolute -end-1 -top-1 size-3 rounded-full border-2 border-raised bg-wh-rose" aria-hidden />}
@@ -341,7 +354,7 @@ export function SalesWorkspace({
                 onClick={() => setListOpen(true)}
                 onKeyDown={onCustomerKey}
                 placeholder={t('wh.sw.pickCustomer')}
-                className={cx(field, 'ps-9 pe-9')}
+                className="min-h-9 w-full rounded-md border border-line-strong bg-raised px-3 ps-9 pe-9 text-base focus:border-wh-blue"
                 dir="auto"
                 autoFocus={!current}
               />
@@ -390,7 +403,7 @@ export function SalesWorkspace({
           </div>
         )}
       </div>
-      <InfoStrip info={info} t={t} />
+      <InfoStrip info={info} t={t} debtCount={debts.length} onDebts={() => setDebtsOpen(true)} />
       </div>
 
       <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_30rem]">
@@ -585,6 +598,48 @@ export function SalesWorkspace({
             </Button>
           </div>
           {children}
+        </aside>
+      </div>
+
+      <div className={cx('fixed inset-0 z-40', !debtsOpen && 'hidden')}>
+        <button type="button" aria-label={t('wh.sw.close')} className="absolute inset-0 bg-overlay" onClick={() => setDebtsOpen(false)} />
+        <aside aria-label={t('wh.sw.debts')} className="absolute inset-y-0 end-0 flex w-full max-w-md flex-col gap-3 bg-wh-canvas p-3 shadow-dialog">
+          <div className="flex items-center justify-between">
+            <h2 className="text-md font-semibold">{t('wh.sw.debts')}</h2>
+            <Button type="button" variant="secondary" onClick={() => setDebtsOpen(false)}>
+              {t('wh.sw.close')}
+            </Button>
+          </div>
+          {debts.length === 0 ? (
+            <p className="py-8 text-center text-base text-muted">{t('wh.sw.debtsNone')}</p>
+          ) : (
+            <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto rounded-lg border border-line bg-raised">
+              {debts.map((d) => {
+                const late = d.due ? Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${d.due}T00:00:00Z`)) / 86_400_000) : 0;
+                return (
+                  <li key={d.id}>
+                    <button type="button" onClick={() => { pickCustomer(d.id); setDebtsOpen(false); setPanel(true); }} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-start hover:bg-hover">
+                      <span className="min-w-0">
+                        <span className="block truncate text-base font-semibold" dir="auto">
+                          {d.name}
+                        </span>
+                        <span className={cx('mt-0.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold', d.overdue ? 'bg-wh-rose-wash text-wh-rose' : d.due ? 'bg-wh-blue-wash text-wh-blue' : 'bg-hover text-muted')}>
+                          <CalendarClock aria-hidden className="size-3" />
+                          {d.overdue ? t('wh.sw.overdueDays', { n: late }) : d.due ? t('wh.sw.dueOn', { d: d.due }) : t('wh.sw.noDue')}
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-base font-bold tabular-nums" dir="ltr">
+                        {Object.entries(d.totals).map(([cur, v]) => `${money(Number(v))} ${cur}`).join(' · ')}
+                      </span>
+                      <span className="rounded-md bg-wh-green px-2.5 py-0.5 text-sm font-semibold text-white">{t('wh.sw.repay')}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </aside>
       </div>
     </div>

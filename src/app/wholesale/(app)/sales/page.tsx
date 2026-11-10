@@ -5,7 +5,7 @@ import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery } from '@/server/wholesale/queries/catalog';
 import { sellInfoQuery } from '@/server/wholesale/queries/reports';
-import { customerStatementQuery, pendingSalesQuery, saleQuery, saleWarehousesQuery, salesQuery } from '@/server/wholesale/queries/sale';
+import { customerStatementQuery, debtsListQuery, pendingSalesQuery, saleQuery, saleWarehousesQuery, salesQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
 import { cx } from '@/studio/ui';
 import { ApproveButtons, CancelSaleForm, CollectForm, ReturnSaleForm } from '../../_ui/SaleForms';
@@ -29,7 +29,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const t = getStudioTranslator(actor!.locale);
   const locale = actor!.locale;
   const isRep = actor!.role === 'REP';
-  const [sales, customers, warehouses, items, pending, info] = await Promise.all([
+  const [sales, customers, warehouses, items, pending, info, debtList] = await Promise.all([
     queryWh(salesQuery),
     queryWh(customersQuery),
     queryWh(saleWarehousesQuery),
@@ -37,6 +37,10 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
     canWh(actor!.role, 'sale.override') ? queryWh(pendingSalesQuery) : Promise.resolve([]),
     queryWh(sellInfoQuery).catch((error) => {
       console.error('wholesale sell info failed', error);
+      return null;
+    }),
+    queryWh(debtsListQuery).catch((error) => {
+      console.error('wholesale debts failed', error);
       return null;
     }),
   ]);
@@ -62,6 +66,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       customerId={customerId}
       debt={owed.map(([cur, v]) => `${money(v!)} ${cur}`).join(' · ')}
       attention={pending.length}
+      debts={debtList?.rows ?? []}
       info={{
         todayCount: soldToday.length,
         todayTotals: Object.entries(todayTotals).map(([currency, amount]) => ({ currency, amount })),
