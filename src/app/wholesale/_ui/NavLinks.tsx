@@ -49,9 +49,9 @@ export function SectionLinks({ groups }: { groups: NavGroup[] }) {
   const path = usePathname();
   const group = groups.find((g) => g.match.some((m) => within(path, m)));
   const tabs = group?.places.filter((p) => p.tab) ?? [];
-  if (!group || tabs.length < 2) return null;
+  if (!group || tabs.length < 2 || path === '/wholesale/home') return null;
   return (
-    <nav aria-label={group.label} className="flex gap-1 overflow-x-auto px-4 pt-3 md:px-6">
+    <nav aria-label={group.label} className="flex gap-1 overflow-x-auto px-4 pt-3 md:px-6 print:hidden">
       {tabs.map((p) => {
         const here = within(path, p.href);
         return (

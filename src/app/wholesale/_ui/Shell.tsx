@@ -45,7 +45,7 @@ export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?:
       <main id="main" className="flex min-w-0 flex-1 flex-col md:overflow-y-auto">
         {notice}
         <ContentFrame>
-          <div className="print:hidden"><SectionLinks groups={groups} /></div>
+          <SectionLinks groups={groups} />
           {children}
         </ContentFrame>
       </main>

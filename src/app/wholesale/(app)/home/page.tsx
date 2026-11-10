@@ -9,7 +9,7 @@ import { alertsQuery, dashboardQuery, expiryQuery } from '@/server/wholesale/que
 import { getStudioTranslator } from '@/studio/messages';
 import { Alert } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
-import { HeaderLink, PageHeader } from '../../_ui/PageHeader';
+import { PageHeader } from '../../_ui/PageHeader';
 import { SetupButton } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'Home' };
@@ -76,7 +76,6 @@ export default async function HomePage() {
       <PageHeader
         title={t('wh.home.hello', { name: actor!.name })}
         description={isRep ? t('wh.home.repHint') : undefined}
-        actions={canWh(actor!.role, 'ai.use') ? <HeaderLink href="/wholesale/assistant">{t('wh.nav.assistant')}</HeaderLink> : undefined}
       />
       <div className="flex flex-col gap-3 px-4 pb-4 md:min-h-0 md:flex-1 md:px-6">
         <LiveRefresh />
@@ -197,7 +196,14 @@ export default async function HomePage() {
                 )}
               </div>
               <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-4 py-3">
-                <h2 className="text-sm font-semibold">{t('wh.alert.title')}</h2>
+                <h2 className="flex items-center justify-between gap-2 text-sm font-semibold">
+                  {t('wh.alert.title')}
+                  {canWh(actor!.role, 'ai.use') && (
+                    <Link href="/wholesale/assistant" className="rounded-md border border-line-strong px-2 py-0.5 text-xs font-medium hover:bg-hover">
+                      {t('wh.nav.assistant')}
+                    </Link>
+                  )}
+                </h2>
                 {watchRows.length === 0 ? (
                   <p className="mt-2 text-sm text-muted">{t('wh.home.allClear')}</p>
                 ) : (

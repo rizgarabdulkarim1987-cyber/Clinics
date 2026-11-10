@@ -9,6 +9,6 @@ import type { ReactNode } from 'react';
  */
 export function ContentFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const full = pathname === '/wholesale/sales';
-  return <div className={full ? 'flex min-h-0 flex-1 flex-col' : 'mx-auto flex w-full max-w-5xl flex-1 flex-col'}>{children}</div>;
+  void pathname;
+  return <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>;
 }
