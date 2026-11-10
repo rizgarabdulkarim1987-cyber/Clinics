@@ -8,6 +8,7 @@ import { BrandLogo } from '@/studio/shell/BrandLogo';
 import { LanguageSwitch } from '@/studio/shell/LanguageSwitch';
 import { cx } from '@/studio/ui/cx';
 import { EntryTab } from './EntryTab';
+import { InvoiceButton } from './InvoiceButton';
 import { RateBar } from './RateBar';
 import { ReportsTab } from './ReportsTab';
 import { ThemeToggle } from './ThemeToggle';
@@ -69,6 +70,7 @@ export function AgencyBook({ book, today, userName, appearance }: { book: Accoun
           </div>
 
           <div className="ms-auto flex items-center gap-4 py-2">
+            <InvoiceButton book={book} today={today} />
             <RateBar key={book.rate ?? 'none'} rate={book.rate} />
             <span className="hidden max-w-[16ch] truncate text-sm text-muted xl:inline">{userName}</span>
             <ThemeToggle appearance={appearance} />
