@@ -2,7 +2,7 @@
 
 import { Banknote, CalendarClock, HandCoins, ChevronDown, Minus, Plus, Printer, Pencil, Receipt, Search, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { cancelSale, collectPayment, postSale } from '@/app/wholesale/_actions/company';
@@ -138,6 +138,11 @@ export function SalesWorkspace({
   info,
   debts,
   todaySales,
+  period,
+  range,
+  by,
+  sellerOptions,
+  rangeTotals,
   children,
 }: {
   customers: SaleCustomer[];
@@ -153,11 +158,26 @@ export function SalesWorkspace({
   info: SellInfo;
   debts: DebtRow[];
   todaySales: TodaySale[];
+  period: string;
+  range: { from: string; to: string };
+  by: string;
+  sellerOptions: { id: string; label: string }[];
+  rangeTotals: { currency: string; amount: number }[];
   children: ReactNode;
 }) {
   const t = useT();
   const { locale } = useLocale();
   const router = useRouter();
+  const params = useSearchParams();
+  const setFilter = (next: Record<string, string | null>) => {
+    const q = new URLSearchParams(params.toString());
+    q.delete('s');
+    for (const [k, v] of Object.entries(next)) {
+      if (v) q.set(k, v);
+      else q.delete(k);
+    }
+    router.replace(`?${q.toString()}`, { scroll: false });
+  };
   const [pending, start] = useTransition();
   const [customer, setCustomer] = useState<string | null>(customerId);
   const [changing, setChanging] = useState(customerId === null);
@@ -498,16 +518,37 @@ export function SalesWorkspace({
           <div className="mt-3 flex min-h-0 flex-[2] flex-col border-t border-line pt-3">
             <h3 className="mb-2 flex shrink-0 items-center gap-2 text-base font-semibold">
               <Receipt aria-hidden className="size-4 text-wh-blue" />
-              {t('wh.sw.salesToday')}
+              {t('wh.sw.salesList')}
               <span className="rounded-full bg-hover px-2 text-sm tabular-nums">{todaySales.length}</span>
-              {info.todayTotals.length > 0 && (
+              {rangeTotals.length > 0 && (
                 <span className="ms-auto text-sm font-bold tabular-nums text-wh-blue" dir="ltr">
-                  {info.todayTotals.map((x) => `${money(x.amount)} ${x.currency}`).join(' · ')}
+                  {rangeTotals.map((x) => `${money(x.amount)} ${x.currency}`).join(' · ')}
                 </span>
               )}
             </h3>
+            <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2">
+              <div role="radiogroup" aria-label={t('wh.sw.salesList')} className="inline-flex rounded-md border border-line-strong bg-raised p-0.5">
+                {(['today', 'week', 'month', 'year'] as const).map((k) => (
+                  <button key={k} type="button" role="radio" aria-checked={period === k} onClick={() => setFilter({ p: k === 'today' ? null : k, from: null, to: null })} className={cx('min-h-9 rounded px-3 text-sm font-semibold', period === k ? 'bg-wh-blue text-white' : 'hover:bg-hover')}>
+                    {t(`wh.sw.p.${k}`)}
+                  </button>
+                ))}
+              </div>
+              <input type="date" aria-label={t('wh.reports.from')} value={range.from} max={range.to} onChange={(e) => e.target.value && setFilter({ p: 'custom', from: e.target.value, to: range.to })} className="min-h-9 rounded-md border border-line-strong bg-raised px-2 text-sm" dir="ltr" />
+              <input type="date" aria-label={t('wh.reports.to')} value={range.to} min={range.from} onChange={(e) => e.target.value && setFilter({ p: 'custom', from: range.from, to: e.target.value })} className="min-h-9 rounded-md border border-line-strong bg-raised px-2 text-sm" dir="ltr" />
+              {sellerOptions.length > 1 && (
+                <select value={by} onChange={(e) => setFilter({ by: e.target.value || null })} aria-label={t('wh.sales.seller')} className="min-h-9 rounded-md border border-line-strong bg-raised px-2 text-sm">
+                  <option value="">{t('wh.sw.allSellers')}</option>
+                  {sellerOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
             {todaySales.length === 0 ? (
-              <p className="py-4 text-center text-base text-muted">{t('wh.home.noSales')}</p>
+              <p className="py-4 text-center text-base text-muted">{t('wh.sw.noSalesPeriod')}</p>
             ) : (
               <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
                 {todaySales.map((x) => (
@@ -540,9 +581,13 @@ export function SalesWorkspace({
                         </button>
                       </>
                     )}
-                    <Link href={`/wholesale/sales/${x.id}/print`} target="_blank" aria-label={t('wh.print.open')} className="grid size-9 shrink-0 place-items-center rounded-md border border-line-strong text-muted hover:bg-hover hover:text-ink">
-                      <Printer aria-hidden className="size-4" />
-                    </Link>
+                    {x.status === 'POSTED' ? (
+                      <Link href={`/wholesale/sales/${x.id}/print`} target="_blank" aria-label={t('wh.print.open')} className="grid size-9 shrink-0 place-items-center rounded-md border border-line-strong text-muted hover:bg-hover hover:text-ink">
+                        <Printer aria-hidden className="size-4" />
+                      </Link>
+                    ) : (
+                      <span aria-hidden className="size-9 shrink-0" />
+                    )}
                   </li>
                 ))}
               </ul>
