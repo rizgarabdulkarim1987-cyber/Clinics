@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: 'Desk' };
 const money = (v: string) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
 type Names = { ckb: string; ar: string; en: string };
 const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : locale === 'ckb' ? names.ckb : names.en) || names.ckb || names.ar || names.en;
-const tile = 'flex min-w-0 flex-col justify-center rounded-lg border border-line border-s-4 bg-raised px-3 py-1.5 shadow-[0_1px_2px_rgb(15_23_42/0.05)]';
+const cell = 'flex min-w-0 flex-col justify-center gap-0.5 px-4 py-2';
 
 /**
  * The whole company on one screen, nothing to switch to: one slim strip of numbers, then the AI assistant, customers and stock, then
@@ -35,21 +35,24 @@ export default async function DeskPage() {
   const watch = board ? await queryWh(alertsQuery) : null;
   const expiry = board ? await queryWh(expiryQuery) : null;
   const owed = (m: Record<string, string>) => (Object.keys(m).length === 0 ? '0' : Object.entries(m).map(([c, v]) => `${money(v)} ${c}`).join(' · '));
-  const stat = (label: string, value: ReactNode, tone: string, href?: string) => {
+  const stat = (label: string, value: ReactNode, dot: string, href?: string) => {
     const inner = (
       <>
-        <span className="truncate text-xs text-muted">{label}</span>
-        <span className="truncate text-base font-semibold tabular-nums" dir="ltr">
+        <span className="flex items-center gap-1.5 truncate text-xs font-medium text-muted">
+          <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
+          {label}
+        </span>
+        <span className="truncate text-lg font-semibold leading-tight tabular-nums text-text" dir="ltr">
           {value}
         </span>
       </>
     );
     return href ? (
-      <Link key={label} href={href} className={`${tile} ${tone} hover:bg-hover`}>
+      <Link key={label} href={href} className={`${cell} hover:bg-hover`}>
         {inner}
       </Link>
     ) : (
-      <div key={label} className={`${tile} ${tone}`}>
+      <div key={label} className={cell}>
         {inner}
       </div>
     );
@@ -92,14 +95,14 @@ export default async function DeskPage() {
   return (
     <div className="flex flex-col gap-2 px-4 py-2 md:min-h-0 md:flex-1 md:px-6">
       {board && (
-        <section className="grid shrink-0 grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
-          {stat(t('wh.home.cash'), `${money(board.cash.IQD ?? '0')} IQD${Number(board.cash.USD ?? 0) ? ` · ${money(board.cash.USD ?? '0')} USD` : ''}`, 'border-s-wh-green')}
-          {stat(t('wh.home.todaySales'), money(board.todaySales.iqd), 'border-s-wh-blue', '/wholesale/reports?tab=profit')}
-          {stat(t('wh.home.monthProfit'), money(board.monthProfit.netIqd), 'border-s-wh-violet', '/wholesale/reports?tab=profit')}
-          {stat(t('wh.home.receivable'), owed(board.receivable), 'border-s-wh-amber', '/wholesale/reports?tab=debts')}
-          {stat(t('wh.home.payable'), owed(board.payable), 'border-s-wh-rose', '/wholesale/reports?tab=debts')}
-          {stat(t('wh.home.stockValue'), `${money(board.stockValueIqd)} IQD`, 'border-s-wh-teal', '/wholesale/reports?tab=stock')}
-          {stat(t('wh.nav.reports'), '→', 'border-s-wh-violet', '/wholesale/reports')}
+        <section className="grid shrink-0 grid-cols-2 overflow-hidden rounded-xl border border-line bg-raised shadow-[0_1px_2px_rgb(15_23_42/0.06),0_8px_24px_-12px_rgb(15_23_42/0.12)] md:grid-cols-4 xl:grid-cols-7 [&>*:not(:first-child)]:xl:border-s [&>*]:border-line">
+          {stat(t('wh.home.cash'), `${money(board.cash.IQD ?? '0')} IQD${Number(board.cash.USD ?? 0) ? ` · ${money(board.cash.USD ?? '0')} USD` : ''}`, 'bg-wh-green')}
+          {stat(t('wh.home.todaySales'), money(board.todaySales.iqd), 'bg-wh-blue', '/wholesale/reports?tab=profit')}
+          {stat(t('wh.home.monthProfit'), money(board.monthProfit.netIqd), 'bg-wh-violet', '/wholesale/reports?tab=profit')}
+          {stat(t('wh.home.receivable'), owed(board.receivable), 'bg-wh-amber', '/wholesale/reports?tab=debts')}
+          {stat(t('wh.home.payable'), owed(board.payable), 'bg-wh-rose', '/wholesale/reports?tab=debts')}
+          {stat(t('wh.home.stockValue'), `${money(board.stockValueIqd)} IQD`, 'bg-wh-teal', '/wholesale/reports?tab=stock')}
+          {stat(t('wh.nav.reports'), '→', 'bg-wh-violet', '/wholesale/reports')}
         </section>
       )}
       <div className="grid gap-2 md:min-h-0 md:flex-[3] md:grid-cols-2 xl:grid-cols-4">
