@@ -296,9 +296,14 @@ export default async function HomePage() {
           </div>
         )}
 
-        {ok && goals && goals.reps.length > 0 && (
+        {ok && goals && (goals.reps.length > 0 || canWh(actor!.role, 'staff.manage')) && (
           <Block icon={Target} tone="violet" title={`${t('wh.target.title')} · ${goals.month.split('-').reverse().join('/')}`} href={canWh(actor!.role, 'staff.manage') ? '/wholesale/targets' : undefined} more={t('wh.target.setLink')}>
             <div className={`grid gap-x-6 gap-y-4 px-3.5 py-3 ${goals.reps.length > 1 ? 'lg:grid-cols-2 xl:grid-cols-3' : ''}`}>
+              {goals.reps.length === 0 && (
+                <p className="text-sm text-muted">
+                  {t('wh.target.noReps')} <Link href="/wholesale/staff" className="font-semibold text-wh-blue underline">{t('wh.staff.addTitle')}</Link>
+                </p>
+              )}
               {goals.reps.map((r) => (
                 <div key={r.userId} className="flex min-w-0 flex-col gap-2">
                   <p className="flex items-baseline justify-between gap-2 text-sm font-semibold">
