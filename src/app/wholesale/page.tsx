@@ -9,5 +9,5 @@ export default async function WholesaleEntryPage() {
   const access = await getWhAccess();
   if (!access.signedIn) redirect(WH_SIGN_IN);
   if (!access.actor) notFound();
-  redirect('/wholesale/desk');
+  redirect('/wholesale/home');
 }

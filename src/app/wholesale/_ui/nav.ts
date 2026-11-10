@@ -13,7 +13,7 @@ export interface WhNavItem {
 }
 
 const ALL: WhNavItem[] = [
-  { key: 'home', href: '/wholesale/desk', labelKey: 'wh.nav.home', icon: Home, needs: 'catalog.view' },
+  { key: 'home', href: '/wholesale/home', labelKey: 'wh.nav.home', icon: Home, needs: 'catalog.view' },
   { key: 'catalog', href: '/wholesale/catalog', labelKey: 'wh.nav.catalog', icon: PackageSearch, needs: 'catalog.view' },
   { key: 'stock', href: '/wholesale/stock', labelKey: 'wh.nav.stock', icon: Boxes, needs: 'stock.view' },
   { key: 'customers', href: '/wholesale/customers', labelKey: 'wh.nav.customers', icon: Contact, needs: 'catalog.view' },
@@ -37,21 +37,21 @@ export function whNav(role: WhRole): WhNavItem[] {
 
 /** What a section is called, where it leads, which paths belong to it, and the few places inside it. */
 export interface WhGroup {
-  key: 'home' | 'sales' | 'stock' | 'money' | 'admin' | 'reports';
+  key: 'home' | 'sales' | 'stock' | 'money' | 'admin';
   href: string;
   labelKey: string;
   match: string[];
   places: { key: WhNavKey; href: string; labelKey: string; tab: boolean }[];
 }
 
-/** A section's own screen when it has several parts: they sit side by side on it instead of in tabs. */
-const HUBS: Partial<Record<WhGroup['key'], string>> = { money: '/wholesale/money', stock: '/wholesale/inventory', admin: '/wholesale/admin' };
-
+/** Places reached by a link inside another page, not by a tab: fewer tabs, the same places. */
+const LINKED: ReadonlySet<WhNavKey> = new Set(['assistant', 'opening', 'rates', 'suppliers', 'catalog']);
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
-  { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'customers', 'stock', 'catalog', 'purchases', 'suppliers', 'treasury', 'expenses', 'rates', 'assistant'] },
-  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales'] },
-  { key: 'reports', labelKey: 'wh.nav.reports', keys: ['reports'] },
+  { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
+  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers'] },
+  { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
+  { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
   { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },
 ];
 
@@ -61,11 +61,9 @@ export function whGroups(role: WhRole): WhGroup[] {
   return GROUPS.flatMap((g) => {
     const places = g.keys.flatMap((k) => {
       const i = visible.get(k);
-      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey, tab: false }] : [];
+      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey, tab: !LINKED.has(i.key) }] : [];
     });
     if (places.length === 0) return [];
-    const hub = HUBS[g.key];
-    const hrefs = places.map((p) => p.href);
-    return [{ key: g.key, href: hub && places.length > 1 ? hub : places[0]!.href, labelKey: g.labelKey, match: hub ? [hub, ...hrefs] : hrefs, places }];
+    return [{ key: g.key, href: places[0]!.href, labelKey: g.labelKey, match: places.map((p) => p.href), places }];
   });
 }

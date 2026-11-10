@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: 'Home' };
 const money = (v: string) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
 type Names = { ckb: string; ar: string; en: string };
 const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : locale === 'ckb' ? names.ckb : names.en) || names.ckb || names.ar || names.en;
-const card = 'flex min-w-0 flex-col justify-center gap-1 rounded-md border border-line bg-raised px-3 py-2 hover:bg-hover';
+const card = 'flex min-w-0 flex-col justify-center gap-1 rounded-md border border-line bg-raised px-4 py-3 hover:bg-hover';
 
 /**
  * The first screen, built to fit one screen with no scrolling: the money in four tiles, what is owed in four more, the week
@@ -57,7 +57,7 @@ export default async function HomePage() {
       <p className="text-md text-muted">0</p>
     ) : (
       Object.entries(m).map(([c, v]) => (
-        <p key={c} className="truncate text-md font-semibold tabular-nums" dir="ltr">
+        <p key={c} className="truncate text-md font-semibold tabular-nums md:text-xl" dir="ltr">
           {money(v)} {c}
         </p>
       ))
@@ -77,7 +77,7 @@ export default async function HomePage() {
         title={t('wh.home.hello', { name: actor!.name })}
         description={isRep ? t('wh.home.repHint') : undefined}
       />
-      <div className="flex flex-col gap-2 px-4 pb-2 md:px-6">
+      <div className="flex flex-col gap-3 px-4 pb-4 md:min-h-0 md:flex-1 md:px-6">
         <LiveRefresh />
         {needsSetup && (
           <Alert tone="neutral">
@@ -101,14 +101,14 @@ export default async function HomePage() {
         )}
         {board && (
           <>
-            <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-              <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-line bg-raised px-3 py-2">
+            <section className="grid grid-cols-2 gap-3 md:min-h-0 md:flex-1 lg:grid-cols-4">
+              <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-line bg-raised px-4 py-3">
                 <p className="text-sm text-muted">{t('wh.home.cash')}</p>
                 <div className="flex flex-wrap gap-x-8 gap-y-1">
                   {(['IQD', 'USD', 'IRT'] as const).map((c) => (
                     <div key={c}>
                       <p className="text-xs text-muted">{t(`wh.currency.${c}`)}</p>
-                      <p className="text-xl font-semibold tabular-nums" dir="ltr">
+                      <p className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
                         {money(board.cash[c] ?? '0')}
                       </p>
                     </div>
@@ -117,7 +117,7 @@ export default async function HomePage() {
               </div>
               <Link href="/wholesale/reports?tab=profit" className={`${card}`}>
                 <span className="text-sm text-muted">{t('wh.home.todaySales')}</span>
-                <span className="text-xl font-semibold tabular-nums" dir="ltr">
+                <span className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
                   {money(board.todaySales.iqd)}
                 </span>
                 <span className="text-xs text-muted">
@@ -126,13 +126,13 @@ export default async function HomePage() {
               </Link>
               <Link href="/wholesale/reports?tab=profit" className={`${card}`}>
                 <span className="text-sm text-muted">{t('wh.home.monthProfit')}</span>
-                <span className="text-xl font-semibold tabular-nums" dir="ltr">
+                <span className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
                   {money(board.monthProfit.netIqd)}
                 </span>
                 <span className="text-xs text-muted">IQD</span>
               </Link>
             </section>
-            <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <section className="grid grid-cols-2 gap-3 md:min-h-0 md:flex-1 lg:grid-cols-4">
               <Link href="/wholesale/reports?tab=debts" className={`${card}`}>
                 <p className="text-sm text-muted">{t('wh.home.receivable')}</p>
                 {owed(board.receivable)}
@@ -143,7 +143,7 @@ export default async function HomePage() {
               </Link>
               <Link href="/wholesale/reports?tab=stock" className={`${card}`}>
                 <p className="text-sm text-muted">{t('wh.home.stockValue')}</p>
-                <p className="truncate text-md font-semibold tabular-nums" dir="ltr">
+                <p className="truncate text-md font-semibold tabular-nums md:text-xl" dir="ltr">
                   {money(board.stockValueIqd)} IQD
                 </p>
                 {Object.entries(board.repCustody).map(([c, v]) => (
@@ -158,7 +158,7 @@ export default async function HomePage() {
               <div className="flex min-w-0 items-center justify-around gap-2 rounded-md border border-line bg-raised px-3 py-3">
                 {counts.map((c) => (
                   <Link key={c.href} href={c.href} className="flex min-w-0 flex-col items-center rounded-md px-2 py-1 hover:bg-hover">
-                    <span className="text-xl font-semibold tabular-nums" dir="ltr">
+                    <span className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
                       {c.value}
                     </span>
                     <span className="max-w-full truncate text-xs text-muted">{c.label}</span>
@@ -166,10 +166,10 @@ export default async function HomePage() {
                 ))}
               </div>
             </section>
-            <section className="grid gap-2 md:h-44 lg:grid-cols-3">
-              <div className="flex flex-col rounded-md border border-line bg-raised px-3 py-2 lg:col-span-2">
+            <section className="grid gap-3 md:min-h-0 md:flex-[2] lg:grid-cols-4">
+              <div className="flex flex-col rounded-md border border-line bg-raised px-4 py-3 lg:col-span-2">
                 <h2 className="text-sm font-semibold">{t('wh.home.last7')}</h2>
-                <ul className="mt-2 grid h-28 grid-cols-7 items-end gap-2 md:h-auto md:min-h-0 md:flex-1" dir="ltr">
+                <ul className="mt-2 grid h-28 grid-cols-7 items-end gap-2 md:h-auto md:min-h-24 md:flex-1" dir="ltr">
                   {week.map((d) => (
                     <li key={d.date} className="flex h-full min-w-0 flex-col items-center justify-end gap-1" title={`${d.date}: ${money(String(d.iqd))}`}>
                       <span className="w-full max-w-10 rounded-sm bg-wh-blue" style={{ height: d.iqd > 0 ? `${Math.max(6, (d.iqd / maxDay) * 100)}%` : '3px', opacity: d.iqd > 0 ? 1 : 0.25 }} />
@@ -178,8 +178,7 @@ export default async function HomePage() {
                   ))}
                 </ul>
               </div>
-              <div className="grid min-h-0 gap-2 md:grid-rows-2">
-              <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-3 py-2">
+              <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-4 py-3">
                 <h2 className="text-sm font-semibold">{t('wh.expiry.title')}</h2>
                 {expiring.length === 0 ? (
                   <p className="mt-2 text-sm text-muted">{expiry && expiry.rows.length > 0 ? t('wh.home.allClear') : t('wh.expiry.none')}</p>
@@ -196,7 +195,7 @@ export default async function HomePage() {
                   </ul>
                 )}
               </div>
-              <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-3 py-2">
+              <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-4 py-3">
                 <h2 className="flex items-center justify-between gap-2 text-sm font-semibold">
                   {t('wh.alert.title')}
                   {canWh(actor!.role, 'ai.use') && (
@@ -218,7 +217,6 @@ export default async function HomePage() {
                     ))}
                   </ul>
                 )}
-              </div>
               </div>
             </section>
           </>
