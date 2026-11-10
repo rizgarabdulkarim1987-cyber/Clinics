@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { addAccountRecurring, archiveAccountRecurring, removeAccountBudget, setAccountBudget } from '@/app/studio/_actions/accounts';
-import type { AccountCurrency } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, monthlyCommitments, owedTotals, type AccountCurrency } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
 import { describeFailure } from '@/studio/errors';
 import { useLocale, useT } from '@/studio/i18n';
@@ -110,10 +110,57 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
       } else toast.error(describeFailure(t, locale, result.error).message);
     });
 
+  const commitments = monthlyCommitments(book.recurring);
+  const owed = owedTotals(book.movements);
+  const forecastCodes = ACCOUNT_CURRENCIES.filter((code) => commitments[code].income !== 0 || commitments[code].expense !== 0 || owed[code].income !== 0);
+
   const card = 'flex flex-col gap-4 rounded-lg border border-line bg-raised p-5 lg:max-h-full lg:min-h-0 lg:self-start lg:overflow-y-auto';
 
   return (
-    <div className="flex flex-col gap-4 lg:grid lg:h-full lg:grid-cols-2 lg:gap-5">
+    <div className="flex flex-col gap-4 lg:grid lg:h-full lg:grid-cols-2 lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-5">
+      <section aria-labelledby="forecast-title" className="flex flex-col gap-3 rounded-lg border border-line bg-raised p-5 lg:col-span-2">
+        <div>
+          <h2 id="forecast-title" className="text-md font-semibold">
+            {t('accounts.plan.forecast.title')}
+          </h2>
+          <p className="text-sm text-muted">{t('accounts.plan.forecast.hint')}</p>
+        </div>
+        {forecastCodes.length === 0 ? (
+          <p className="text-sm text-muted">{t('accounts.plan.recurring.empty')}</p>
+        ) : (
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+            {(
+              [
+                ['income', 'accounts.plan.forecast.income'],
+                ['expense', 'accounts.plan.forecast.expense'],
+                ['net', 'accounts.plan.forecast.net'],
+              ] as const
+            ).map(([pick, label]) => (
+              <div key={pick} className="flex flex-col gap-0.5">
+                <dt className="text-sm text-muted">{t(label)}</dt>
+                <dd className="flex flex-col">
+                  {forecastCodes.map((code) => (
+                    <span key={code} dir="ltr" className={cx('text-md font-semibold tabular-nums', pick === 'net' && commitments[code].net > 0 && 'text-success', pick === 'net' && commitments[code].net < 0 && 'text-danger')}>
+                      {formatBook(commitments[code][pick], code)}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+            ))}
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted">{t('accounts.plan.forecast.owed')}</dt>
+              <dd className="flex flex-col">
+                {forecastCodes.map((code) => (
+                  <span key={code} dir="ltr" className="text-md font-semibold tabular-nums">
+                    {formatBook(owed[code].income, code)}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          </dl>
+        )}
+      </section>
+
       <datalist id="plan-services">
         {EXPENSE_SERVICES.map((name) => (
           <option key={name} value={name} />
