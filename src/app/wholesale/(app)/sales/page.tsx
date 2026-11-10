@@ -5,13 +5,14 @@ import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery, stockQuery } from '@/server/wholesale/queries/catalog';
-import { sellInfoQuery } from '@/server/wholesale/queries/reports';
+import { expiryQuery, repAccountsQuery, sellInfoQuery } from '@/server/wholesale/queries/reports';
 import { repTargetsQuery } from '@/server/wholesale/queries/targets';
 import { customerStatementQuery, debtsListQuery, pendingSalesQuery, saleQuery, saleWarehousesQuery, salesQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
 import { cx } from '@/studio/ui';
 import { ApproveButtons, CancelSaleForm, CollectForm, ReturnSaleForm } from '../../_ui/SaleForms';
 import { SalesWorkspace } from '../../_ui/SalesWorkspace';
+import { RepAccounts } from '../../_ui/RepAccounts';
 import { TargetBars } from '../../_ui/TargetBars';
 
 export const metadata: Metadata = { title: 'Sales' };
@@ -49,7 +50,13 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   ]);
   const goal = isRep ? await queryWh(repTargetsQuery).catch(() => null) : null;
   const mine = goal?.reps[0] ?? null;
-  const stock = isRep ? await queryWh(stockQuery).catch(() => null) : null;
+  const myAccount = isRep ? ((await queryWh(repAccountsQuery).catch(() => []))[0] ?? null) : null;
+  const stock = await queryWh(stockQuery).catch(() => null);
+  const expiryRows = await queryWh(expiryQuery).catch(() => null);
+  const nextExpiry = new Map<string, { date: string; status: string }>();
+  for (const r of expiryRows?.rows ?? []) if (!nextExpiry.has(r.itemId)) nextExpiry.set(r.itemId, { date: r.expiry, status: r.status });
+  const stockOf: Record<string, Record<string, string>> = {};
+  for (const r of stock ?? []) (stockOf[r.itemId] ??= {})[r.warehouseId] = r.qtyBase;
   const stockRows = new Map<string, { name: string; unit: string; mine: number }>();
   for (const r of stock ?? []) {
     const row = stockRows.get(r.itemId) ?? { name: nameOf(r.itemNames as Names, locale), unit: r.baseUnit, mine: 0 };
@@ -65,6 +72,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const today = baghdadDate();
   const owed = statement ? Object.entries(statement.balances).filter(([, v]) => Number(v) !== 0) : [];
   const shownSales = (customerId ? sales.filter((x) => x.customer.id === customerId) : sales).slice(0, 12);
+  const sellerOf = (x: { seller: { name: string; role: string } | null }) => (x.seller ? `${x.seller.name} (${t(`wh.role.${x.seller.role}`)})` : '');
   const usable = items.filter((i) => i.active);
   const soldToday = sales.filter((x) => x.status === 'POSTED' && x.date === today);
   const todayTotals: Record<string, number> = {};
@@ -79,6 +87,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       debt={owed.map(([cur, v]) => `${money(v!)} ${cur}`).join(' · ')}
       attention={pending.length}
       debts={debtList?.rows ?? []}
+      todaySales={sales.filter((x) => x.date === today).map((x) => ({ id: x.id, number: x.number === null ? null : Number(x.number), customer: x.customer.name, total: x.totalFinal, currency: x.currency, mode: x.paymentMode, status: x.status, seller: sellerOf(x) }))}
       info={{
         todayCount: soldToday.length,
         todayTotals: Object.entries(todayTotals).map(([currency, amount]) => ({ currency, amount })),
@@ -97,8 +106,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
         units: i.units.map((u) => ({ unit: u.unit, barcode: u.barcode })),
         prices: Object.fromEntries(i.prices.map((p) => [p.unit, p.priceIqd])),
         marketPrices: Object.fromEntries(i.prices.flatMap((p) => (p.marketPriceIqd ? [[p.unit, p.marketPriceIqd]] : []))),
+        stock: stockOf[i.id] ?? {},
+        expiry: nextExpiry.get(i.id) ?? null,
       }))}
     >
+      {isRep && myAccount && <RepAccounts reps={[myAccount]} t={t} />}
       {isRep && goal && (
         <details className="rounded-md border border-line bg-raised" open={Boolean(mine?.target)}>
           <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base font-semibold">{t('wh.target.mine')}</summary>
@@ -206,6 +218,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
                         {x.date} · {x.paymentMode === 'CREDIT' ? t('wh.purchases.credit') : t('wh.purchases.cash')}
                         {x.status !== 'POSTED' ? ` · ${t(`wh.sales.status.${x.status}`)}` : ''}
                       </span>
+                      {x.seller && (
+                        <span className="block truncate text-sm text-wh-blue" dir="auto">
+                          {t('wh.sales.seller')}: {sellerOf(x)}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 text-base font-semibold tabular-nums" dir="ltr">
                       {money(x.totalFinal)} {x.currency}

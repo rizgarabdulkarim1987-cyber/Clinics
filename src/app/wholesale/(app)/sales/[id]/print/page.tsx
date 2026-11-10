@@ -49,6 +49,14 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               {s.date}
             </dd>
           </div>
+          {s.seller && (
+            <div className="flex gap-2">
+              <dt className="text-muted">{t('wh.sales.seller')}</dt>
+              <dd dir="auto">
+                {s.seller.name} ({t(`wh.role.${s.seller.role}`)})
+              </dd>
+            </div>
+          )}
           <div className="flex gap-2">
             <dt className="text-muted">{t('wh.print.payment')}</dt>
             <dd>{s.paymentMode === 'CREDIT' ? t('wh.purchases.credit') : t('wh.purchases.cash')}</dd>
