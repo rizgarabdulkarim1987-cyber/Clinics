@@ -16,7 +16,7 @@ import { whGroups } from './nav';
 export function Shell({ actor, notice, t, children, info }: { actor: WhActor; notice?: ReactNode; t: Translate; children: ReactNode; info?: NavInfo | null }) {
   if (actor.role === 'REP') {
     return (
-      <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col">
+      <div className="flex min-h-dvh w-full flex-col">
         <header className="flex items-center gap-2.5 bg-wh-rail px-3 py-2 text-white print:hidden">
           <Link href="/wholesale/sales" className="flex min-w-0 flex-1 items-center gap-2.5">
             <span className="grid size-9 shrink-0 place-items-center rounded-md bg-wh-blue text-white">
