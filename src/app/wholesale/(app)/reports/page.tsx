@@ -5,7 +5,8 @@ import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { debtorsReportQuery, expensesReportQuery, forecastQuery, profitReportQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader } from '@/studio/ui';
+import { EmptyState } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
 
 export const metadata: Metadata = { title: 'Reports' };
@@ -33,7 +34,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title={t('wh.reports.title')} description={t('wh.reports.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <LiveRefresh seconds={60} />
         <nav aria-label={t('wh.reports.title')} className="flex gap-6 border-b border-line">
           {tabs.map((x) => (
@@ -42,9 +43,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </Link>
           ))}
         </nav>
-        {tab === 'profit' && <Profit from={from} to={to} t={t} locale={actor!.locale} />}
-        {tab === 'stock' && <StockTab t={t} locale={actor!.locale} />}
-        {tab === 'debts' && <Debts t={t} />}
+        <div className="flex flex-col gap-4 md:max-h-[calc(100dvh-12.5rem)] md:overflow-y-auto md:pe-1">
+          {tab === 'profit' && <Profit from={from} to={to} t={t} locale={actor!.locale} />}
+          {tab === 'stock' && <StockTab t={t} locale={actor!.locale} />}
+          {tab === 'debts' && <Debts t={t} />}
+        </div>
       </div>
     </>
   );

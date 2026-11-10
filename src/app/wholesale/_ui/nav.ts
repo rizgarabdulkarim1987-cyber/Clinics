@@ -41,8 +41,11 @@ export interface WhGroup {
   href: string;
   labelKey: string;
   match: string[];
-  places: { key: WhNavKey; href: string; labelKey: string }[];
+  places: { key: WhNavKey; href: string; labelKey: string; tab: boolean }[];
 }
+
+/** Places reached by a link inside another page, not by a tab: fewer tabs, the same places. */
+const LINKED: ReadonlySet<WhNavKey> = new Set(['assistant', 'opening', 'rates', 'suppliers']);
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
@@ -58,7 +61,7 @@ export function whGroups(role: WhRole): WhGroup[] {
   return GROUPS.flatMap((g) => {
     const places = g.keys.flatMap((k) => {
       const i = visible.get(k);
-      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey }] : [];
+      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey, tab: !LINKED.has(i.key) }] : [];
     });
     if (places.length === 0) return [];
     return [{ key: g.key, href: places[0]!.href, labelKey: g.labelKey, match: places.map((p) => p.href), places }];

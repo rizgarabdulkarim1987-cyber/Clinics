@@ -6,7 +6,8 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery } from '@/server/wholesale/queries/catalog';
 import { customerStatementQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader } from '@/studio/ui';
+import { EmptyState } from '@/studio/ui';
+import { PageHeader } from '../../../_ui/PageHeader';
 import { CollectForm } from '../../../_ui/SaleForms';
 
 export const metadata: Metadata = { title: 'Customer statement' };
@@ -28,7 +29,7 @@ export default async function CustomerStatementPage({ params }: { params: Promis
           {t('wh.print.statementOpen')}
         </Link>
       </div>
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <section className="flex flex-wrap gap-x-8 gap-y-2 rounded-md border border-line bg-raised p-4">
           {Object.keys(balances).length === 0 ? (
             <p className="text-base text-muted">{t('wh.cstatement.settled')}</p>

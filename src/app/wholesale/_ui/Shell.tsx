@@ -13,7 +13,7 @@ import { whGroups } from './nav';
  * places the role may use, and the page. A state notice (read-only) sits above the page.
  */
 export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?: ReactNode; t: Translate; children: ReactNode }) {
-  const groups = whGroups(actor.role).map((g) => ({ key: g.key, href: g.href, label: t(g.labelKey), match: g.match, places: g.places.map((p) => ({ key: p.key, href: p.href, label: t(p.labelKey) })) }));
+  const groups = whGroups(actor.role).map((g) => ({ key: g.key, href: g.href, label: t(g.labelKey), match: g.match, places: g.places.map((p) => ({ key: p.key, href: p.href, label: t(p.labelKey), tab: p.tab })) }));
   return (
     <div className="flex min-h-dvh flex-col md:h-dvh md:flex-row md:overflow-hidden">
       <a href="#main" className="sr-only rounded-md bg-ink px-3 py-2 text-on-ink focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50">

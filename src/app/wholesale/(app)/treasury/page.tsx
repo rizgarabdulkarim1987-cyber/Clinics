@@ -4,7 +4,8 @@ import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { conversionsQuery, myCustodyQuery, pendingHandoversQuery } from '@/server/wholesale/queries/treasury';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader } from '@/studio/ui';
+import { EmptyState } from '@/studio/ui';
+import { HeaderLink, PageHeader } from '../../_ui/PageHeader';
 import { ConfirmHandover, ConvertForm, HandoverForm } from '../../_ui/TreasuryForms';
 
 export const metadata: Metadata = { title: 'Treasury' };
@@ -23,8 +24,8 @@ export default async function TreasuryPage() {
   ]);
   return (
     <>
-      <PageHeader title={t('wh.treasury.title')} description={isRep ? t('wh.treasury.descriptionRep') : t('wh.treasury.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <PageHeader title={t('wh.treasury.title')} description={isRep ? t('wh.treasury.descriptionRep') : t('wh.treasury.description')} actions={canWh(actor!.role, 'rate.set') ? <HeaderLink href="/wholesale/rates">{t('wh.nav.rates')}</HeaderLink> : undefined} />
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {isRep && (
           <>
             <section className="flex flex-wrap gap-x-8 gap-y-2 rounded-md border border-line bg-raised p-4">

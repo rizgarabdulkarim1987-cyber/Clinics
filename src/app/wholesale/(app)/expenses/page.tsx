@@ -4,7 +4,8 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { expensesQuery } from '@/server/wholesale/queries/treasury';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader, StatusBadge } from '@/studio/ui';
+import { EmptyState, StatusBadge } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { ExpenseDecision, ExpenseForm } from '../../_ui/TreasuryForms';
 
 export const metadata: Metadata = { title: 'Expenses' };
@@ -21,7 +22,7 @@ export default async function ExpensesPage() {
   return (
     <>
       <PageHeader title={t('wh.expenses.title')} description={isRep ? t('wh.expenses.descriptionRep') : t('wh.expenses.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {pending.length > 0 && (
           <section className="flex flex-col gap-3 rounded-md border border-line bg-raised p-4">
             <h2 className="text-md font-semibold">{t('wh.sales.pending')}</h2>

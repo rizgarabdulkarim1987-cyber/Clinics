@@ -12,7 +12,7 @@ export interface NavGroup {
   href: string;
   label: string;
   match: string[];
-  places: { key: string; href: string; label: string }[];
+  places: { key: string; href: string; label: string; tab: boolean }[];
 }
 
 const within = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
@@ -48,17 +48,18 @@ export function NavLinks({ groups, label }: { groups: NavGroup[]; label: string 
 export function SectionLinks({ groups }: { groups: NavGroup[] }) {
   const path = usePathname();
   const group = groups.find((g) => g.match.some((m) => within(path, m)));
-  if (!group || group.places.length < 2) return null;
+  const tabs = group?.places.filter((p) => p.tab) ?? [];
+  if (!group || tabs.length < 2) return null;
   return (
-    <nav aria-label={group.label} className="flex gap-1 overflow-x-auto px-3 pt-3 md:px-6">
-      {group.places.map((p) => {
+    <nav aria-label={group.label} className="flex gap-1 overflow-x-auto px-4 pt-3 md:px-6">
+      {tabs.map((p) => {
         const here = within(path, p.href);
         return (
           <Link
             key={p.key}
             href={p.href}
             aria-current={here ? 'page' : undefined}
-            className={cx('flex min-h-10 shrink-0 items-center rounded-full border px-4 text-base whitespace-nowrap', here ? 'border-wh-blue bg-wh-blue text-white' : 'border-line-strong bg-raised hover:bg-wh-blue-wash')}
+            className={cx('flex min-h-9 shrink-0 items-center rounded-full border px-4 text-sm font-medium whitespace-nowrap', here ? 'border-wh-blue bg-wh-blue text-white' : 'border-line-strong bg-raised hover:bg-wh-blue-wash')}
           >
             {p.label}
           </Link>

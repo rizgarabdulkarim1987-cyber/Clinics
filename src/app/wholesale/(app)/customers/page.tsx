@@ -3,7 +3,8 @@ import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { cityListQuery, customersQuery, staffQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader } from '@/studio/ui';
+import { EmptyState } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { CustomerForm } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'Customers' };
@@ -21,7 +22,7 @@ export default async function CustomersPage() {
   return (
     <>
       <PageHeader title={t('wh.customers.title')} description={t('wh.customers.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {canManage && cityOptions.length > 0 && (
           <details className="rounded-md border border-line bg-raised">
             <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.customers.new')}</summary>

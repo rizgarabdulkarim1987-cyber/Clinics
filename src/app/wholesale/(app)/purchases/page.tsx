@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
+import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { itemsQuery, suppliersQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
 import { purchasesQuery } from '@/server/wholesale/queries/purchase';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader, StatusBadge } from '@/studio/ui';
+import { EmptyState, StatusBadge } from '@/studio/ui';
+import { HeaderLink, PageHeader } from '../../_ui/PageHeader';
 import { PurchaseForm } from '../../_ui/PurchaseForms';
 
 export const metadata: Metadata = { title: 'Purchases' };
@@ -20,8 +22,8 @@ export default async function PurchasesPage() {
   const [purchases, suppliers, items, warehouses] = await Promise.all([queryWh(purchasesQuery), queryWh(suppliersQuery), queryWh(itemsQuery), queryWh(warehousesQuery)]);
   return (
     <>
-      <PageHeader title={t('wh.purchases.title')} description={t('wh.purchases.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <PageHeader title={t('wh.purchases.title')} description={t('wh.purchases.description')} actions={canWh(actor!.role, 'catalog.manage') ? <HeaderLink href="/wholesale/suppliers">{t('wh.nav.suppliers')}</HeaderLink> : undefined} />
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <details className="rounded-md border border-line bg-raised">
           <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.purchases.new')}</summary>
           <div className="border-t border-line p-4">

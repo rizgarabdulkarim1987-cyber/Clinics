@@ -536,6 +536,7 @@ const wholesale: Messages = {
   'wh.demo.confirmRemove': "دابینکەر و کڕیار و کاڵای تاقیکردنەوە بسڕدرێنەوە؟ هەرچی پسوڵە یان پارەدانی ڕاستەقینەی لەسەر بێت دەمێنێتەوە.",
   'wh.demo.removed': "زانیاری تاقیکردنەوە سڕایەوە.",
   'wh.demo.removedKept': "سڕایەوە. {n} مایەوە چونکە بەڵگەی ڕاستەقینەیان لەسەرە.",
+  'wh.home.allClear': "هیچ شتێک پێویستی بە سەرنج نییە.",
 };
 
 export default wholesale;

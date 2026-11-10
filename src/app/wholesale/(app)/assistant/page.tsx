@@ -3,7 +3,7 @@ import { ASSISTANT_MONTHLY_LIMIT } from '@/server/domain/wholesale/assistant';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { assistantUsageQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
-import { PageHeader } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { AssistantChat } from '../../_ui/AssistantChat';
 import { InvoicePhoto } from '../../_ui/InvoicePhoto';
 
@@ -16,7 +16,7 @@ export default async function AssistantPage() {
   return (
     <>
       <PageHeader title={t('wh.assistant.title')} description={t('wh.assistant.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <InvoicePhoto limit={ASSISTANT_MONTHLY_LIMIT} used={used} />
         <AssistantChat limit={ASSISTANT_MONTHLY_LIMIT} used={used} />
       </div>

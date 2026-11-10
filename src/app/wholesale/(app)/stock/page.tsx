@@ -3,7 +3,8 @@ import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { itemsQuery, stockQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader } from '@/studio/ui';
+import { EmptyState } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { StockCountForm } from '../../_ui/StockCountForm';
 import { TransferForm } from '../../_ui/PeopleForms';
 
@@ -28,20 +29,22 @@ export default async function StockPage() {
   return (
     <>
       <PageHeader title={t('wh.stock.title')} description={t('wh.stock.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {canTransfer && (
-          <section className="rounded-md border border-line bg-raised p-4">
-            <h2 className="text-md font-semibold">{t('wh.stock.transferTitle')}</h2>
+          <details className="rounded-md border border-line bg-raised">
+            <summary className="flex min-h-10 cursor-pointer items-center px-4 text-md font-semibold">{t('wh.stock.transferTitle')}</summary>
+            <div className="border-t border-line p-4">
             <p className="mb-3 text-sm text-muted">{t('wh.stock.transferBody')}</p>
             <TransferForm
               items={items.filter((i) => i.active).map((i) => ({ id: i.id, label: `${nameOf(i.names, actor!.locale)} · ${i.code}` }))}
               warehouses={warehouses.filter((w) => w.kind === 'REP').map((w) => ({ id: w.id, label: w.name }))}
             />
-          </section>
+            </div>
+          </details>
         )}
         {canCount && (
           <details className="rounded-md border border-line bg-raised">
-            <summary className="flex min-h-12 cursor-pointer items-center px-4 text-md font-semibold">{t('wh.count.title')}</summary>
+            <summary className="flex min-h-10 cursor-pointer items-center px-4 text-md font-semibold">{t('wh.count.title')}</summary>
             <div className="border-t border-line p-4">
               <p className="mb-3 text-sm text-muted">{t('wh.count.body')}</p>
               <StockCountForm warehouses={warehouses.filter((w) => w.kind !== 'DAMAGE').map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))} rows={countRows} unitLabels={unitLabels} />
@@ -51,10 +54,10 @@ export default async function StockPage() {
         {rows.length === 0 ? (
           <EmptyState title={t('wh.stock.empty')} />
         ) : (
-          <div className="overflow-x-auto rounded-md border border-line bg-raised">
+          <div className="overflow-auto rounded-md border border-line bg-raised md:max-h-[calc(100dvh-15rem)]">
             <table className="w-full text-base">
               <caption className="sr-only">{t('wh.stock.caption')}</caption>
-              <thead className="border-b border-line text-start text-sm text-muted">
+              <thead className="sticky top-0 border-b border-line bg-raised text-start text-sm text-muted">
                 <tr>
                   <th scope="col" className="px-4 py-2 text-start font-medium">{t('wh.stock.warehouse')}</th>
                   <th scope="col" className="px-4 py-2 text-start font-medium">{t('wh.stock.item')}</th>

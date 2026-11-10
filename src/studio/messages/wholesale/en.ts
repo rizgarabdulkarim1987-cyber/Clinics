@@ -536,6 +536,7 @@ const wholesale: Messages = {
   'wh.demo.confirmRemove': "Remove the sample suppliers, customers and items? Anything with real invoices or payments on it is kept.",
   'wh.demo.removed': "Sample data removed.",
   'wh.demo.removedKept': "Sample data removed. {n} were kept because they have real documents.",
+  'wh.home.allClear': "Nothing needs a look.",
 };
 
 export default wholesale;

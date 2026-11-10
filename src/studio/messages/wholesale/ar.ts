@@ -536,6 +536,7 @@ const wholesale: Messages = {
   'wh.demo.confirmRemove': "مسح الموردين والعملاء والمواد التجريبية؟ أي شيء عليه فواتير أو دفعات حقيقية يبقى.",
   'wh.demo.removed': "تم مسح البيانات التجريبية.",
   'wh.demo.removedKept': "تم المسح. بقي {n} لأن عليها مستندات حقيقية.",
+  'wh.home.allClear': "لا شيء يحتاج انتباهك.",
 };
 
 export default wholesale;

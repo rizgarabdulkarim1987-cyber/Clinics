@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { ratesQuery } from '@/server/wholesale/queries/purchase';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader } from '@/studio/ui';
+import { EmptyState } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { RateForm } from '../../_ui/PurchaseForms';
 
 export const metadata: Metadata = { title: 'Exchange rates' };
@@ -15,7 +16,7 @@ export default async function RatesPage() {
   return (
     <>
       <PageHeader title={t('wh.rates.title')} description={t('wh.rates.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {(!haveToday.has('USD') || !haveToday.has('IRT')) && (
           <p role="status" className="rounded-md border border-line bg-raised p-4 text-base">
             {t('wh.rates.missingToday')}

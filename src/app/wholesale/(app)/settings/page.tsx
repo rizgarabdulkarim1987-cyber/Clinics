@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { DEMO_CUSTOMER_NAMES, DEMO_ITEM_CODES, DEMO_SUPPLIER_NAMES } from '@/server/wholesale/demoFill';
+import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { periodsQuery, settingsQuery } from '@/server/wholesale/queries/books';
 import { customersQuery, itemsQuery, suppliersQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
-import { PageHeader, StatusBadge } from '@/studio/ui';
+import { StatusBadge } from '@/studio/ui';
+import { HeaderLink, PageHeader } from '../../_ui/PageHeader';
 import { PeriodButton, SettingsForm } from '../../_ui/BooksForms';
 import { DemoFill } from '../../_ui/DemoFill';
 
@@ -21,18 +23,19 @@ export default async function SettingsPage() {
   const canRemove = items.some((i) => demoItems.has(i.code) && i.active) || suppliers.some((s) => demoSuppliers.has(s.name)) || customers.some((c) => demoCustomers.has(c.name));
   return (
     <>
-      <PageHeader title={t('wh.settings.title')} description={t('wh.settings.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <PageHeader title={t('wh.settings.title')} description={t('wh.settings.description')} actions={canWh(actor!.role, 'import.apply') ? <HeaderLink href="/wholesale/opening">{t('wh.nav.opening')}</HeaderLink> : undefined} />
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <section className="rounded-md border border-line bg-raised p-4">
           <SettingsForm values={settings} />
         </section>
         {(canAdd || canRemove) && <DemoFill canAdd={canAdd} canRemove={canRemove} />}
-        <section className="flex flex-col gap-3">
-          <h2 className="text-md font-semibold">{t('wh.periods.title')}</h2>
+        <details className="rounded-md border border-line bg-raised">
+          <summary className="flex min-h-10 cursor-pointer items-center px-4 text-md font-semibold">{t('wh.periods.title')}</summary>
+          <div className="flex flex-col gap-3 border-t border-line p-4">
           <p className="text-sm text-muted">{t('wh.periods.hint')}</p>
-          <ul className="flex flex-col gap-3">
+          <ul className="grid gap-2 overflow-y-auto md:max-h-[40dvh] md:grid-cols-2">
             {periods.map((p) => (
-              <li key={p.month} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-raised p-4">
+              <li key={p.month} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-raised px-4 py-2">
                 <span className="flex items-center gap-3">
                   <span className="text-base font-semibold tabular-nums" dir="ltr">
                     {p.month}
@@ -46,7 +49,8 @@ export default async function SettingsPage() {
               </li>
             ))}
           </ul>
-        </section>
+          </div>
+        </details>
       </div>
     </>
   );

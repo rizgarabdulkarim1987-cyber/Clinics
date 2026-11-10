@@ -5,7 +5,8 @@ import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { purchaseQuery } from '@/server/wholesale/queries/purchase';
 import { getStudioTranslator } from '@/studio/messages';
-import { PageHeader, StatusBadge } from '@/studio/ui';
+import { StatusBadge } from '@/studio/ui';
+import { PageHeader } from '../../../_ui/PageHeader';
 import { CancelPurchaseForm, LandedCostForm, PayForm, ReturnPurchaseForm } from '../../../_ui/PurchaseForms';
 
 export const metadata: Metadata = { title: 'Purchase' };
@@ -25,7 +26,7 @@ export default async function PurchasePage({ params }: { params: Promise<{ id: s
   return (
     <>
       <PageHeader title={`${t('wh.purchases.number')} ${p.number}`} description={`${p.supplier.name} · ${p.date}`} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <section className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-md border border-line bg-raised p-4">
           <div>
             <p className="text-sm text-muted">{t('wh.purchases.total')}</p>

@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { suppliersQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader, StatusBadge } from '@/studio/ui';
+import { EmptyState, StatusBadge } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { SupplierForm } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'Suppliers' };
@@ -15,7 +16,7 @@ export default async function SuppliersPage() {
   return (
     <>
       <PageHeader title={t('wh.suppliers.title')} description={t('wh.suppliers.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <details className="rounded-md border border-line bg-raised">
           <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.suppliers.new')}</summary>
           <div className="border-t border-line p-4">
@@ -25,21 +26,22 @@ export default async function SuppliersPage() {
         {suppliers.length === 0 ? (
           <EmptyState title={t('wh.suppliers.empty')} />
         ) : (
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col divide-y divide-line overflow-y-auto rounded-md border border-line bg-raised md:max-h-[calc(100dvh-12.5rem)]">
             {suppliers.map((s) => (
-              <li key={s.id} className="rounded-md border border-line bg-raised p-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <p className="text-base font-semibold" dir="auto">{s.name}</p>
-                  <StatusBadge tone={s.isForeign ? 'ink' : 'neutral'}>{s.isForeign ? t('wh.suppliers.foreign') : t('wh.suppliers.local')}</StatusBadge>
+              <li key={s.id} className="px-4 py-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                  <p className="min-w-0 text-base font-semibold" dir="auto">
+                    {s.name} <span className="font-normal text-muted">· {[s.country, s.phone].filter(Boolean).join(' · ')}</span>
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <StatusBadge tone={s.isForeign ? 'ink' : 'neutral'}>{s.isForeign ? t('wh.suppliers.foreign') : t('wh.suppliers.local')}</StatusBadge>
+                    <Link href={`/wholesale/suppliers/${s.id}`} className="text-sm font-medium underline">
+                      {t('wh.suppliers.statement')}
+                    </Link>
+                  </div>
                 </div>
-                <p className="text-sm text-muted" dir="auto">
-                  {[s.country, s.phone].filter(Boolean).join(' · ')}
-                </p>
-                <Link href={`/wholesale/suppliers/${s.id}`} className="mt-2 inline-flex min-h-11 items-center text-base underline">
-                  {t('wh.suppliers.statement')}
-                </Link>
-                <details className="mt-3 rounded-md border border-line">
-                  <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base">{t('wh.common.edit')}</summary>
+                <details className="mt-1.5 rounded-md border border-line">
+                  <summary className="flex min-h-9 cursor-pointer items-center px-3 text-sm font-medium">{t('wh.common.edit')}</summary>
                   <div className="border-t border-line p-3">
                     <SupplierForm supplier={s} />
                   </div>

@@ -3,7 +3,7 @@ import { OPENING_COLUMNS, OPENING_KINDS } from '@/server/wholesale/import/openin
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { openingImportsQuery } from '@/server/wholesale/queries/books';
 import { getStudioTranslator } from '@/studio/messages';
-import { PageHeader } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { OpeningForm } from '../../_ui/OpeningForm';
 
 export const metadata: Metadata = { title: 'Opening balances' };
@@ -18,7 +18,7 @@ export default async function OpeningPage() {
   return (
     <>
       <PageHeader title={t('wh.opening.title')} description={t('wh.opening.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <section className="rounded-md border border-line bg-raised p-4">
           <OpeningForm done={imports.map((i) => i.kind)} columns={columns} />
         </section>

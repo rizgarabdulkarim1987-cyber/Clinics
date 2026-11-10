@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { staffQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
-import { EmptyState, PageHeader, StatusBadge } from '@/studio/ui';
+import { EmptyState, StatusBadge } from '@/studio/ui';
+import { PageHeader } from '../../_ui/PageHeader';
 import { AddStaffForm, StaffActions } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'People' };
@@ -14,7 +15,7 @@ export default async function StaffPage() {
   return (
     <>
       <PageHeader title={t('wh.staff.title')} description={t('wh.staff.description')} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <details className="rounded-md border border-line bg-raised">
           <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.staff.addTitle')}</summary>
           <div className="border-t border-line p-4">

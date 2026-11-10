@@ -7,7 +7,8 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { itemsQuery } from '@/server/wholesale/queries/catalog';
 import { saleQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
-import { PageHeader, StatusBadge } from '@/studio/ui';
+import { StatusBadge } from '@/studio/ui';
+import { PageHeader } from '../../../_ui/PageHeader';
 import { CancelSaleForm, CollectForm, ReturnSaleForm } from '../../../_ui/SaleForms';
 
 export const metadata: Metadata = { title: 'Sale' };
@@ -30,7 +31,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
   return (
     <>
       <PageHeader title={`${t('wh.sales.number')} ${s.number}`} description={`${s.customer.name} · ${s.date}`} />
-      <div className="flex flex-col gap-6 px-4 pb-10 md:px-8">
+      <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <section className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-md border border-line bg-raised p-4">
           <div>
             <p className="text-sm text-muted">{t('wh.purchases.total')}</p>
