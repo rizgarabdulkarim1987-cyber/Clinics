@@ -9,24 +9,29 @@ import { LanguageSwitch } from '@/studio/shell/LanguageSwitch';
 import { cx } from '@/studio/ui/cx';
 import { EntryTab } from './EntryTab';
 import { InvoiceButton } from './InvoiceButton';
+import { LogTab, type LogData } from './LogTab';
 import { PlanTab } from './PlanTab';
 import { QuotesTab } from './QuotesTab';
 import { RateBar } from './RateBar';
 import { ReportsTab } from './ReportsTab';
 import { ThemeToggle } from './ThemeToggle';
 
-const TABS = ['entry', 'reports', 'plan', 'quotes'] as const;
-type Tab = (typeof TABS)[number];
+const ALL_TABS = ['entry', 'reports', 'plan', 'quotes', 'log'] as const;
+type Tab = (typeof ALL_TABS)[number];
+/** An accountant sees the first two: the rest change settings or remove things. */
+const ACCOUNTANT_TABS: readonly Tab[] = ['entry', 'reports'];
 
 /**
  * The agency's books on one screen: a slim bar, and two tabs, Entry (the default) and Reports. Both stay mounted, so
  * what was typed in Entry is still there after a look at Reports.
  */
-export function AgencyBook({ book, today, userName, appearance }: { book: AccountsBook; today: string; userName: string; appearance: Appearance | null }) {
+export function AgencyBook({ book, today, userName, appearance, admin }: { book: AccountsBook; today: string; userName: string; appearance: Appearance | null; /** Present only for a Super Admin: the log, the backups and the accountants. */ admin?: LogData }) {
   const t = useT();
+  const canManage = admin !== undefined;
+  const TABS = canManage ? ALL_TABS : ACCOUNTANT_TABS;
   const [tab, setTab] = useState<Tab>('entry');
   const id = useId();
-  const refs = useRef<Record<Tab, HTMLButtonElement | null>>({ entry: null, reports: null, plan: null, quotes: null });
+  const refs = useRef<Record<Tab, HTMLButtonElement | null>>({ entry: null, reports: null, plan: null, quotes: null, log: null });
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
@@ -73,7 +78,7 @@ export function AgencyBook({ book, today, userName, appearance }: { book: Accoun
 
           <div className="ms-auto flex items-center gap-4 py-2">
             <InvoiceButton book={book} today={today} />
-            <RateBar key={book.rate ?? 'none'} rate={book.rate} />
+            {canManage && <RateBar key={book.rate ?? 'none'} rate={book.rate} />}
             <span className="hidden max-w-[16ch] truncate text-sm text-muted xl:inline">{userName}</span>
             <ThemeToggle appearance={appearance} />
             <LanguageSwitch signedIn />
@@ -83,17 +88,24 @@ export function AgencyBook({ book, today, userName, appearance }: { book: Accoun
 
       <main className="flex w-full flex-col px-4 pb-16 pt-5 sm:px-10 lg:min-h-0 lg:flex-1 lg:pb-5">
         <div role="tabpanel" id={`${id}-panel-entry`} aria-labelledby={`${id}-tab-entry`} hidden={tab !== 'entry'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-          <EntryTab book={book} today={today} />
+          <EntryTab book={book} today={today} canManage={canManage} />
         </div>
         <div role="tabpanel" id={`${id}-panel-reports`} aria-labelledby={`${id}-tab-reports`} hidden={tab !== 'reports'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           <ReportsTab book={book} today={today} />
         </div>
-        <div role="tabpanel" id={`${id}-panel-plan`} aria-labelledby={`${id}-tab-plan`} hidden={tab !== 'plan'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-          <PlanTab book={book} today={today} />
-        </div>
-        <div role="tabpanel" id={`${id}-panel-quotes`} aria-labelledby={`${id}-tab-quotes`} hidden={tab !== 'quotes'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
-          <QuotesTab book={book} today={today} />
-        </div>
+        {admin && (
+          <>
+            <div role="tabpanel" id={`${id}-panel-plan`} aria-labelledby={`${id}-tab-plan`} hidden={tab !== 'plan'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              <PlanTab book={book} today={today} />
+            </div>
+            <div role="tabpanel" id={`${id}-panel-quotes`} aria-labelledby={`${id}-tab-quotes`} hidden={tab !== 'quotes'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              <QuotesTab book={book} today={today} />
+            </div>
+            <div role="tabpanel" id={`${id}-panel-log`} aria-labelledby={`${id}-tab-log`} hidden={tab !== 'log'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              <LogTab data={admin} />
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
