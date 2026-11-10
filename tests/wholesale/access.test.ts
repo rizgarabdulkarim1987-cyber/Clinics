@@ -162,8 +162,7 @@ describe('what each role may do', () => {
     expect(codeOf(await act(rep, catalogActions.transferToRepAction, { restaurantId: A, itemId: item.id, toWarehouseId: repWh.id, qtyBase: '1' }))).toBe('FORBIDDEN');
 
     const asRep = dataOf(await ask(rep, catalogQueries.stockQuery, { restaurantId: A }));
-    expect(asRep.map((r) => r.qtyBase).sort()).toEqual(['40', '60']);
-    expect(asRep.every((r) => r.warehouseKind !== 'DAMAGE')).toBe(true);
+    expect(asRep.map((r) => [r.warehouseName, r.qtyBase])).toEqual([['Rep', '40']]);
     expect(asRep[0]).not.toHaveProperty('avgCostIqd');
     const asPartner = dataOf(await ask(partner, catalogQueries.stockQuery, { restaurantId: A }));
     expect(asPartner.map((r) => r.qtyBase).sort()).toEqual(['40', '60']);

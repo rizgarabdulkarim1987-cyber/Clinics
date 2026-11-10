@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ArrowLeftRight, ClipboardList, Package, PackagePlus } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, ClipboardList, Package, PackagePlus, Pencil, Tag } from 'lucide-react';
 import { Chip, Fold } from '../../_ui/Ui';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
@@ -70,60 +70,77 @@ export default async function StockPage() {
             {all.map((item) => {
               const stock = byItem.get(item.id) ?? [];
               return (
-                <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
-                  <Chip icon={Package} tone="blue" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <p className="min-w-0 text-base font-semibold" dir="auto">
-                      {nameOf(item.names, locale)} <span className="font-normal text-muted">· {item.code}</span>
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <p className="flex flex-wrap gap-x-3 text-sm" aria-label={t('wh.stock.qty')}>
-                        {stock.length === 0 ? (
-                          <span className="text-muted">0</span>
-                        ) : (
-                          stock.map((r) => (
-                            <span key={r.warehouseId} className="tabular-nums" dir="ltr">
-                              <span className="text-muted">{where(r)} </span>
-                              <strong>{number(r.qtyBase)}</strong> <span className="text-muted">{t(`wh.unit.${item.baseUnit}`)}</span>
-                              {showCost && 'avgCostIqd' in r ? <span className="text-muted"> @ {number(r.avgCostIqd as string)}</span> : null}
+                <li key={item.id}>
+                  <details className="group">
+                    <summary className={`flex list-none items-start gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden ${canManage ? 'cursor-pointer hover:bg-hover' : ''}`}>
+                      <Chip icon={Package} tone="blue" />
+                      <span className="grid min-w-0 flex-1 gap-x-4 gap-y-1.5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1.2fr)]">
+                        <span className="min-w-0">
+                          <span className="block truncate text-base font-semibold" dir="auto">
+                            {nameOf(item.names, locale)}
+                          </span>
+                          <span className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+                            <span dir="ltr">{item.code}</span>
+                            {nextExpiry.has(item.id) && (
+                              <StatusBadge tone={nextExpiry.get(item.id)!.status === 'expired' ? 'danger' : nextExpiry.get(item.id)!.status === 'soon' ? 'ink' : 'neutral'}>
+                                {t('wh.expiry.next')} <span dir="ltr">{nextExpiry.get(item.id)!.expiry}</span>
+                              </StatusBadge>
+                            )}
+                            {!item.active && <StatusBadge tone="neutral">{t('wh.common.archived')}</StatusBadge>}
+                          </span>
+                        </span>
+                        <span className="flex flex-wrap content-start gap-1.5" aria-label={t('wh.stock.qty')}>
+                          {stock.length === 0 ? (
+                            <span className="rounded-md bg-hover px-2 py-1 text-sm text-muted tabular-nums">0</span>
+                          ) : (
+                            stock.map((r) => (
+                              <span key={r.warehouseId} className={`inline-flex items-baseline gap-1.5 rounded-md px-2 py-1 text-sm ${r.warehouseKind === 'MAIN' ? 'bg-wh-blue-wash text-wh-blue' : 'bg-wh-teal-wash text-wh-teal'}`}>
+                                <span>{where(r)}</span>
+                                <strong className="tabular-nums" dir="ltr">
+                                  {number(r.qtyBase)}
+                                </strong>
+                                <span className="opacity-70">{t(`wh.unit.${item.baseUnit}`)}</span>
+                              </span>
+                            ))
+                          )}
+                        </span>
+                        <span className="flex flex-wrap content-start gap-x-4 gap-y-0.5 text-sm">
+                          {item.units.map((u) => (
+                            <span key={u.unit} className="inline-flex items-baseline gap-1.5">
+                              <span className="text-muted">{t(`wh.unit.${u.unit}`)}</span>
+                              <strong className="tabular-nums" dir="ltr">
+                                {item.prices.find((p) => p.unit === u.unit) ? Number(item.prices.find((p) => p.unit === u.unit)!.priceIqd).toLocaleString('en-US') : '—'}
+                              </strong>
                             </span>
-                          ))
+                          ))}
+                        </span>
+                      </span>
+                      {canManage && <ChevronDown aria-hidden className="mt-2 size-4 shrink-0 text-muted group-open:rotate-180" />}
+                    </summary>
+                    {canManage && (
+                      <div className="grid gap-4 border-t border-line bg-bg p-4 lg:grid-cols-2">
+                        {showCost && stock.some((r) => 'avgCostIqd' in r) && (
+                          <p className="text-sm text-muted lg:col-span-2">
+                            {stock.filter((r) => 'avgCostIqd' in r).map((r) => `${where(r)}: ${number(r.avgCostIqd as string)} IQD`).join(' · ')}
+                          </p>
                         )}
-                      </p>
-                      <dl className="flex flex-wrap gap-x-3 text-sm text-muted">
-                        {item.units.map((u) => (
-                          <div key={u.unit} className="flex gap-1">
-                            <dt>{t(`wh.unit.${u.unit}`)}</dt>
-                            <dd className="tabular-nums" dir="ltr">
-                              {item.prices.find((p) => p.unit === u.unit) ? Number(item.prices.find((p) => p.unit === u.unit)!.priceIqd).toLocaleString('en-US') : u.factorToBase}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                      {nextExpiry.has(item.id) && (
-                        <StatusBadge tone={nextExpiry.get(item.id)!.status === 'expired' ? 'danger' : nextExpiry.get(item.id)!.status === 'soon' ? 'ink' : 'neutral'}>
-                          {t('wh.expiry.next')} <span dir="ltr">{nextExpiry.get(item.id)!.expiry}</span>
-                        </StatusBadge>
-                      )}
-                      {!item.active && <StatusBadge tone="neutral">{t('wh.common.archived')}</StatusBadge>}
-                      {canManage && (
-                        <>
-                          <details className="rounded-md border border-line open:basis-full">
-                            <summary className="flex min-h-9 cursor-pointer items-center px-3 text-sm font-medium">{t('wh.common.edit')}</summary>
-                            <div className="border-t border-line p-3">
-                              <ItemForm item={item} />
-                            </div>
-                          </details>
-                          <details className="rounded-md border border-line open:basis-full">
-                            <summary className="flex min-h-9 cursor-pointer items-center px-3 text-sm font-medium">{t('wh.catalog.prices')}</summary>
-                            <div className="border-t border-line p-3">
-                              <PricesForm item={item} />
-                            </div>
-                          </details>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                        <div>
+                          <h3 className="mb-2 flex items-center gap-2 text-base font-semibold">
+                            <Pencil aria-hidden className="size-4 text-muted" />
+                            {t('wh.common.edit')}
+                          </h3>
+                          <ItemForm item={item} />
+                        </div>
+                        <div>
+                          <h3 className="mb-2 flex items-center gap-2 text-base font-semibold">
+                            <Tag aria-hidden className="size-4 text-muted" />
+                            {t('wh.catalog.prices')}
+                          </h3>
+                          <PricesForm item={item} />
+                        </div>
+                      </div>
+                    )}
+                  </details>
                 </li>
               );
             })}
