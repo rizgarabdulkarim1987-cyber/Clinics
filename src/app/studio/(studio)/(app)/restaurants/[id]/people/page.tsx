@@ -5,6 +5,7 @@ import { loadRestaurant, tabMetadata } from '../load';
 import { PeoplePanel } from './PeoplePanel';
 import { PermissionSwitches } from './PermissionSwitches';
 import { TillStaffPanel } from './TillStaffPanel';
+import { WholesaleStaffPanel } from './WholesaleStaffPanel';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   return tabMetadata((await params).id, 'people');
@@ -39,6 +40,7 @@ export default async function RestaurantPeoplePage({ params }: { params: Promise
         invitations={invitations.rows.map((row) => ({ id: row.id, email: row.email, expiresAt: row.expiresAt }))}
       />
       {tillStaff && <TillStaffPanel restaurantId={restaurant.id} staff={tillStaff} />}
+      {restaurant.can.manage && restaurant.sector === 'WHOLESALE' && <WholesaleStaffPanel restaurantId={restaurant.id} />}
       {policy && (
         // Remounted when the version moves, so the switches always start from what is saved.
         <PermissionSwitches key={policy.version} restaurantId={restaurant.id} version={policy.version} policy={policy.policy} />

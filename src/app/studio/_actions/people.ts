@@ -29,6 +29,10 @@ export async function addTillStaff(input: unknown) {
   return invoke(people.addTillStaff, input);
 }
 
+export async function addWholesaleStaff(input: unknown) {
+  return invoke(people.addWholesaleStaff, input);
+}
+
 export async function unassignMember(input: unknown) {
   return invoke(people.unassignMember, input);
 }

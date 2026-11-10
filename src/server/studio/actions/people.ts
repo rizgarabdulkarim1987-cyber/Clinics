@@ -4,6 +4,7 @@ import { delegates, type ScopedTx } from '@/server/data/tenant-db';
 import { parsePolicy } from '@/server/domain/permissions';
 import { POS_ROLES } from '@/server/domain/pos/permissions';
 import { addPosStaff } from '@/server/pos/staff';
+import { createRepWarehouse } from '@/server/wholesale/warehouses';
 import { bumpRetailForUser, bumpRetailState } from '@/server/retail/outbox';
 import { assertRetailOwnersKept, retailShopsOwnedBy } from '@/server/retail/owners';
 import { sendAfterResponse } from '@/server/studio/auth/auth';
@@ -253,6 +254,55 @@ export const addTillStaff = defineAction({
       });
     } catch (error) {
       // The account was made a moment ago for this till row; without the row it would be an orphan.
+      await ctx.db.user.delete({ where: { id: userId } }).catch(() => undefined);
+      throw error;
+    }
+  },
+});
+
+/**
+ * Makes a wholesale account: a new person with a password and a role in the company (partner or rep), who is not a Studio
+ * member. A rep also gets his own warehouse, so he can sell the moment he signs in. Made by a Super Admin, like a till account.
+ */
+export const addWholesaleStaff = defineAction({
+  name: 'people.addWholesaleStaff',
+  permission: 'people.manage',
+  input: z.object({
+    restaurantId: idField,
+    name: z.string().trim().min(1, 'Enter a name').max(120, 'Use at most 120 characters'),
+    email: emailField,
+    role: z.enum(['PARTNER', 'REP']),
+    password: z.string().min(1, 'Choose a password').max(1024, 'Use at most 128 characters'),
+    space: optionalSpace,
+  }),
+  target: (i) => atRestaurant(i.restaurantId),
+  run: async (ctx, input) => {
+    await requireSpace(ctx, input.space);
+    const restaurantId = restaurantOf(ctx);
+    const company = await ctx.db.restaurant.findUnique({ where: { id: restaurantId }, select: { sector: true } });
+    if (company?.sector !== 'WHOLESALE') throw new StudioError('INVALID', 'This is not a wholesale company');
+    let userId: string;
+    try {
+      ({ userId } = await createPasswordUser(ctx.db, { email: input.email, name: input.name, password: input.password, locale: ctx.actor.locale }));
+    } catch (error) {
+      if (error instanceof PasswordPolicyError) throw new StudioError('INVALID', undefined, { password: passwordProblemMessage(error.reason) });
+      if (error instanceof EmailTakenError) throw new StudioError('CONFLICT', 'An account with this email already exists', { email: 'An account with this email already exists' });
+      throw error;
+    }
+    try {
+      return await ctx.transaction(async (tx) => {
+        const row = await tx.whStaff.create({ data: { restaurantId, userId, role: input.role }, select: { id: true } });
+        if (input.role === 'REP') await createRepWarehouse(tx, restaurantId, userId);
+        ctx.audit({
+          action: 'wh.staff.create',
+          entityType: 'WhStaff',
+          entityId: row.id,
+          changes: { role: { before: null, after: input.role }, email: { before: null, after: input.email } },
+        });
+        return { staffId: row.id };
+      });
+    } catch (error) {
+      // The account was made a moment ago for this row; without the row it would be an orphan.
       await ctx.db.user.delete({ where: { id: userId } }).catch(() => undefined);
       throw error;
     }

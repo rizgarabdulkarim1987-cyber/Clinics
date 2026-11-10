@@ -610,6 +610,28 @@ describe('till staff from the restaurant page', () => {
   });
 });
 
+describe('wholesale staff from the restaurant page', () => {
+  const wh = (email: string, role = 'REP') => ({ restaurantId: atelier.id, name: 'Karwan', email, role, password: GOOD });
+
+  it('refuses a company that is not wholesale', async () => {
+    expect(codeOf(await run(admin, people.addWholesaleStaff, wh(address('w0'))))).toBe('INVALID');
+    expect(await prisma().whStaff.count()).toBe(0);
+  });
+
+  it('makes a rep with a warehouse and a partner, for Super Admins only', async () => {
+    await prisma().restaurant.update({ where: { id: atelier.id }, data: { sector: 'WHOLESALE' } });
+    expect(codeOf(await run(olive, people.addWholesaleStaff, wh(address('w1'))))).toBe('FORBIDDEN');
+    expect(codeOf(await run(admin, people.addWholesaleStaff, wh(address('w2'))))).toBe('OK');
+    expect(codeOf(await run(admin, people.addWholesaleStaff, wh(address('w3'), 'PARTNER')))).toBe('OK');
+    const rep = await prisma().user.findUniqueOrThrow({ where: { email: address('w2').toLowerCase() } });
+    expect(await prisma().whStaff.findFirstOrThrow({ where: { userId: rep.id } })).toMatchObject({ role: 'REP' });
+    expect(await prisma().membership.count({ where: { userId: rep.id } })).toBe(0);
+    expect(codeOf(await run(admin, people.addWholesaleStaff, wh(address('w2'))))).toBe('CONFLICT');
+    expect(codeOf(await run(admin, people.addWholesaleStaff, { ...wh(address('w4')), role: 'OWNER' }))).toBe('INVALID');
+    expect(await prisma().whStaff.count()).toBe(2);
+  });
+});
+
 describe('deleting an account', () => {
   it('deletes a deactivated account for good, with its memberships and till rows, and records it', async () => {
     const till = await person('till', { memberships: [[atelier.id, 'DESIGNER']] });
