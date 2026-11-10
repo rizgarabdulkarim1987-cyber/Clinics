@@ -442,3 +442,64 @@ export const movementsExportQuery = defineQuery({
     return plain({ sales, purchases });
   },
 });
+
+/**
+ * Each rep's account in one read: the cash he holds (custody: what he owes the company until he hands it over), what the
+ * shops of his route owe, and what he collected (this month and the latest receipts). A partner sees every rep, a rep only himself.
+ */
+export const repAccountsQuery = defineQuery({
+  name: 'wh.reps.accounts',
+  permission: null,
+  wh: 'sale.create',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    const { db, user } = scoped(ctx);
+    const rid = ctx.wh!.restaurantId;
+    const manage = canWh(user.role, 'custody.confirm');
+    const monthStart = `${baghdadDate().slice(0, 7)}-01`;
+    const reps = await db.whStaff.findMany({
+      where: { restaurantId: rid, role: 'REP', deactivatedAt: null, ...(manage ? {} : { userId: user.id }) },
+      select: { userId: true, user: { select: { name: true } } },
+    });
+    const customers = await listCustomers(db, rid, { role: user.role, userId: user.id });
+    const addTo = (totals: Record<string, number>, currency: string, amount: number) => {
+      totals[currency] = (totals[currency] ?? 0) + amount;
+    };
+    const out = [];
+    for (const rep of reps) {
+      const mine = customers.filter((c) => c.repId === rep.userId);
+      const debtors = [];
+      const owed: Record<string, number> = {};
+      for (const c of mine) {
+        const open = (await receivables(db, rid, c.id)).filter((d) => d.open.gt(0));
+        if (open.length === 0) continue;
+        const totals: Record<string, number> = {};
+        for (const d of open) {
+          addTo(totals, d.currency as string, Number(d.open.toFixed()));
+          addTo(owed, d.currency as string, Number(d.open.toFixed()));
+        }
+        debtors.push({ id: c.id, name: c.name, totals });
+      }
+      const payments = await db.whCustomerPayment.findMany({
+        where: { restaurantId: rid, userId: rep.userId, receivedByRep: true },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: 200,
+        select: { id: true, amount: true, currency: true, date: true, customer: { select: { name: true } } },
+      });
+      const collected: Record<string, number> = {};
+      for (const p of payments) if (String(p.date.toISOString()).slice(0, 10) >= monthStart) addTo(collected, p.currency as string, Number(p.amount.toFixed()));
+      const custody = await getCustody(db, rid, user, rep.userId);
+      out.push({
+        userId: rep.userId,
+        name: rep.user.name,
+        custody: custody.map((c) => ({ currency: c.currency as string, balance: c.balance.toFixed(), reserved: c.reserved.toFixed() })),
+        owed: Object.fromEntries(Object.entries(owed).map(([k, v]) => [k, String(v)])),
+        debtors: debtors.sort((a, b) => Object.values(b.totals).reduce((s, v) => s + v, 0) - Object.values(a.totals).reduce((s, v) => s + v, 0)).map((d) => ({ ...d, totals: Object.fromEntries(Object.entries(d.totals).map(([k, v]) => [k, String(v)])) })),
+        collected: Object.fromEntries(Object.entries(collected).map(([k, v]) => [k, String(v)])),
+        recent: payments.slice(0, 8).map((p) => ({ id: p.id, customer: p.customer.name, amount: p.amount.toFixed(), currency: p.currency as string, date: p.date.toISOString().slice(0, 10) })),
+      });
+    }
+    return plain(out);
+  },
+});

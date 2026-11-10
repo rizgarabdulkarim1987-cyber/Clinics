@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderInvoicePage, formatInvoiceMoney } from '@/server/accounts/invoice';
-import { addAccountEntry, addAccountPayment, createAccountClient, issueAccountInvoice } from '@/server/studio/actions/accounts';
+import { addAccountEntry, addAccountPayment, createAccountClient, issueAccountClientInvoice, issueAccountInvoice } from '@/server/studio/actions/accounts';
 import { renderClientInvoicePage } from '@/server/accounts/client-invoice';
 import { accountClientInvoice, accountInvoice } from '@/server/studio/queries/accounts';
 import { getStudioTranslator } from '@/studio/messages';
@@ -132,10 +132,22 @@ describe('one invoice for a whole client', () => {
     expect(codeOf(await ask(cashier, accountClientInvoice, { clientId, period: 'all' }))).toBe('FORBIDDEN');
   });
 
+  it('numbers a client invoice once per client and period, and a new period gets the next number', async () => {
+    const clientId = await setup();
+    const first = dataOf(await run(admin, issueAccountClientInvoice, { clientId, period: 'month:2026-11' }));
+    expect(dataOf(await run(admin, issueAccountClientInvoice, { clientId, period: 'month:2026-11' }))).toEqual(first);
+    expect(dataOf(await run(admin, issueAccountClientInvoice, { clientId, period: 'all' })).number).toBe(first.number + 1);
+    expect(await prisma().auditLog.count({ where: { action: 'account.clientInvoice.issued' } })).toBe(2);
+    expect(codeOf(await run(admin, issueAccountClientInvoice, { clientId, period: 'nope' }))).toBe('INVALID');
+    expect(codeOf(await run(admin, issueAccountClientInvoice, { clientId: 'zzz', period: 'all' }))).toBe('NOT_FOUND');
+    expect(codeOf(await run(cashier, issueAccountClientInvoice, { clientId, period: 'all' }))).toBe('FORBIDDEN');
+  });
+
   it('prints each currency on its own, with what was received in the period and what is still owed', async () => {
     const clientId = await setup();
     const data = dataOf(await ask(admin, accountClientInvoice, { clientId, period: 'month:2026-11' }));
-    const html = renderClientInvoicePage(data, getStudioTranslator('en'), 'en', { clientId, period: 'month:2026-11' });
+    const html = renderClientInvoicePage(data, getStudioTranslator('en'), 'en', { clientId, period: 'month:2026-11', number: 3 });
+    expect(html).toContain('INV-C0003');
     expect(html).toContain('November 2026');
     expect(html).toContain('Website');
     expect(html).toContain('2026-11-10');

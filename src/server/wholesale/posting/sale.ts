@@ -720,6 +720,14 @@ function saleScope(user: WhUser): Prisma.WhSaleWhereInput {
 }
 
 /** Sales visible to the user, newest first (no cost fields for anyone: the list does not need them). */
+/** Who sold: the name and role (owner, partner or rep) of each user id, so every list of sales can say who made them. */
+export async function sellersOf(tx: Db, userIds: string[]): Promise<Map<string, { name: string; role: string }>> {
+  const ids = [...new Set(userIds)]
+  if (ids.length === 0) return new Map()
+  const rows = await tx.whStaff.findMany({ where: { userId: { in: ids } }, select: { userId: true, role: true, user: { select: { name: true } } } })
+  return new Map(rows.map((r) => [r.userId, { name: r.user.name, role: r.role as string }]))
+}
+
 export async function listSales(tx: Db, user: WhUser) {
   const rows = await tx.whSale.findMany({
     where: saleScope(user),
@@ -733,10 +741,12 @@ export async function listSales(tx: Db, user: WhUser) {
       paymentMode: true,
       status: true,
       totalFinal: true,
+      userId: true,
       customer: { select: { id: true, name: true } },
     },
   })
-  return rows.map((r) => ({ ...r, number: r.number.toString(), date: isoOf(r.date) }))
+  const sellers = await sellersOf(tx, rows.map((r) => r.userId))
+  return rows.map((r) => ({ ...r, number: r.number.toString(), date: isoOf(r.date), seller: sellers.get(r.userId) ?? null }))
 }
 
 /** Sales waiting for price approval (sale:approve). */
@@ -841,15 +851,20 @@ export async function getSale(db: Db, user: WhUser, id: string) {
       open: s.paymentMode === 'CREDIT' && s.status === 'POSTED' ? dec(s.totalFinal).minus(paid).minus(offset) : new D(0),
     }
   }
+  const withSeller = async <T extends { userId: string }>(s: T | null) => {
+    if (!s) return null
+    const seller = (await sellersOf(db, [s.userId])).get(s.userId) ?? null
+    return { ...(shape(s as unknown as Row & T) as object), seller } as ReturnType<typeof shape<Row & T>> & { seller: { name: string; role: string } | null }
+  }
   if (canWh(user.role, 'cost.view')) {
     const s = await db.whSale.findFirst({
       where,
       select: { ...saleBase, totalCostIqd: true, journalEntryId: true, cancelEntryId: true, lines: { orderBy: { lineNo: 'asc' }, select: { ...saleLineBase, unitCostIqd: true } } },
     })
-    return s ? shape(s) : null
+    return withSeller(s)
   }
   const s = await db.whSale.findFirst({ where, select: { ...saleBase, lines: { orderBy: { lineNo: 'asc' }, select: saleLineBase } } })
-  return s ? shape(s) : null
+  return withSeller(s)
 }
 
 export type CustomerStatementRow = {

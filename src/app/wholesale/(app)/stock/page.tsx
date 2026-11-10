@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { ArrowLeftRight, ChevronDown, ClipboardList, Package, PackagePlus, Pencil, Tag } from 'lucide-react';
-import { Chip, Fold } from '../../_ui/Ui';
+import { ChevronDown, Package, Pencil, Printer, Tag, UserRound, Warehouse } from 'lucide-react';
+import Link from 'next/link';
+import { Chip } from '../../_ui/Ui';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { itemsQuery, stockQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
@@ -10,6 +11,7 @@ import { EmptyState, StatusBadge } from '@/studio/ui';
 import { ItemForm, PricesForm, type ItemRow } from '../../_ui/ItemForm';
 import { PageHeader } from '../../_ui/PageHeader';
 import { StockCountForm } from '../../_ui/StockCountForm';
+import { StockTools } from '../../_ui/StockTools';
 import { TransferForm } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'Items and stock' };
@@ -39,30 +41,83 @@ export default async function StockPage() {
   const countRows = all.filter((i) => i.active).map((i) => ({ itemId: i.id, label: nameOf(i.names, locale), unit: i.baseUnit, book: Object.fromEntries((byItem.get(i.id) ?? []).map((r) => [r.warehouseId, r.qtyBase])) }));
   const unitLabels = Object.fromEntries([...new Set(all.map((i) => i.baseUnit))].map((u) => [u, t(`wh.unit.${u}`)]));
   const where = (r: (typeof rows)[number]) => (r.warehouseKind === 'REP' ? r.warehouseName : t(`wh.stock.kind.${r.warehouseKind}`));
+  const sheets = warehouses
+    .filter((w) => w.kind === 'MAIN' || w.kind === 'REP')
+    .map((w) => {
+      const mine = rows.filter((r) => r.warehouseId === w.id && Number(r.qtyBase) !== 0);
+      const worth = mine.reduce((sum, r) => sum + ('avgCostIqd' in r ? Number(r.qtyBase) * Number(r.avgCostIqd) : 0), 0);
+      return { id: w.id, kind: w.kind, name: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name, count: mine.length, worth };
+    });
   return (
     <>
       <PageHeader icon={Package} tone="blue" title={t('wh.stock.title')} description={t('wh.stock.description')} />
       <div className="flex flex-col gap-3 px-4 pb-4 md:px-6">
-        {canManage && (
-          <Fold icon={PackagePlus} tone="green" title={t('wh.catalog.new')}>
-            <ItemForm />
-          </Fold>
+        {sheets.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+            {sheets.map((w) => (
+              <div key={w.id} className="flex min-w-0 flex-col gap-3 rounded-xl border border-line bg-raised p-3 shadow-[0_1px_2px_rgb(15_42_74/0.06)]">
+                <div className="flex min-w-0 items-center gap-3">
+                <Chip icon={w.kind === 'MAIN' ? Warehouse : UserRound} tone={w.kind === 'MAIN' ? 'blue' : 'teal'} size="size-12" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-md font-semibold" dir="auto">
+                    {w.name}
+                  </div>
+                  <div className="text-sm text-muted">
+                    <span className="font-semibold tabular-nums text-ink">{w.count}</span> {t('wh.stock.itemsCount')}
+                    {showCost && w.worth > 0 && (
+                      <>
+                        {' · '}
+                        <span className="tabular-nums" dir="ltr">
+                          {Math.round(w.worth).toLocaleString('en-US')} IQD
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                </div>
+                <Link href={`/wholesale/stock/print?w=${w.id}`} target="_blank" aria-label={`${t('wh.stock.printOne')} — ${w.name}`} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-wh-rail px-3 text-base font-semibold text-white hover:opacity-90">
+                  <Printer aria-hidden className="size-4" />
+                  {t('wh.stock.printOne')}
+                </Link>
+              </div>
+            ))}
+          </div>
         )}
-        {canTransfer && (
-          <Fold icon={ArrowLeftRight} tone="violet" title={t('wh.stock.transferTitle')}>
-              <p className="mb-3 text-sm text-muted">{t('wh.stock.transferBody')}</p>
-              <TransferForm
-                items={all.filter((i) => i.active).map((i) => ({ id: i.id, label: `${nameOf(i.names, locale)} · ${i.code}` }))}
-                warehouses={warehouses.filter((w) => w.kind === 'REP').map((w) => ({ id: w.id, label: w.name }))}
-              />
-          </Fold>
-        )}
-        {canCount && (
-          <Fold icon={ClipboardList} tone="teal" title={t('wh.count.title')}>
-              <p className="mb-3 text-sm text-muted">{t('wh.count.body')}</p>
-              <StockCountForm warehouses={warehouses.filter((w) => w.kind !== 'DAMAGE').map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))} rows={countRows} unitLabels={unitLabels} />
-          </Fold>
-        )}
+        <StockTools
+          tools={[
+            ...(canManage ? [{ key: 'add' as const, tone: 'green' as const, title: t('wh.catalog.new'), body: <ItemForm /> }] : []),
+            ...(canTransfer
+              ? [
+                  {
+                    key: 'send' as const,
+                    tone: 'violet' as const,
+                    title: t('wh.stock.transferTitle'),
+                    body: (
+                      <>
+                        <p className="mb-3 text-sm text-muted">{t('wh.stock.transferBody')}</p>
+                        <TransferForm items={all.filter((i) => i.active).map((i) => ({ id: i.id, label: `${nameOf(i.names, locale)} · ${i.code}` }))} warehouses={warehouses.filter((w) => w.kind === 'REP').map((w) => ({ id: w.id, label: w.name }))} />
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+            ...(canCount
+              ? [
+                  {
+                    key: 'count' as const,
+                    tone: 'teal' as const,
+                    title: t('wh.count.title'),
+                    body: (
+                      <>
+                        <p className="mb-3 text-sm text-muted">{t('wh.count.body')}</p>
+                        <StockCountForm warehouses={warehouses.filter((w) => w.kind !== 'DAMAGE').map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))} rows={countRows} unitLabels={unitLabels} />
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
         {all.length === 0 ? (
           <EmptyState title={t('wh.catalog.empty')} />
         ) : (

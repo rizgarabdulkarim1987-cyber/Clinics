@@ -25,6 +25,7 @@ export const INVOICE_STYLE = `
   header .meta { text-align: end; }
   h1 { margin: 0; font-size: 30px; letter-spacing: .02em; }
   .no { font-size: 17px; font-weight: 700; margin-top: 4px; }
+  .period { font-size: 13px; color: #555; margin-top: 2px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 28px 0; }
   .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #666; }
   .grid p { margin: 2px 0 0; font-size: 17px; font-weight: 600; }
@@ -48,6 +49,8 @@ export function formatInvoiceMoney(minor: number, currency: AccountCurrency): st
 }
 
 export const invoiceNumber = (n: number) => `INV-${String(n).padStart(4, '0')}`;
+/** A client's invoice for a period has its own series, so it never repeats an income's number. */
+export const clientInvoiceNumber = (n: number) => `INV-C${String(n).padStart(4, '0')}`;
 
 export function renderInvoicePage(data: InvoiceData, t: Translate, locale: Locale, links: { entryId: string }): string {
   const dir = locale === 'en' ? 'ltr' : 'rtl';
@@ -56,11 +59,11 @@ export function renderInvoicePage(data: InvoiceData, t: Translate, locale: Local
   const money = (minor: number) => formatInvoiceMoney(minor, data.currency);
   const row = (label: string, value: string, strong = false) => `<tr${strong ? ' class="strong"' : ''}><th scope="row">${escapeHtml(label)}</th><td dir="ltr">${escapeHtml(value)}</td></tr>`;
   const switcher = (['ar', 'ckb', 'en'] as const)
-    .map((code) => `<a href="/agency/invoice?entry=${encodeURIComponent(links.entryId)}&amp;lang=${code}"${code === locale ? ' aria-current="true"' : ''}>${code === 'en' ? 'English' : code === 'ar' ? 'العربية' : 'کوردی'}</a>`)
+    .map((code) => `<a href="/agency/invoice?entry=${encodeURIComponent(links.entryId)}&amp;lang=${code}"${code === locale ? ' aria-current="true"' : ''}>${code === 'en' ? 'English' : code === 'ar' ? 'Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©' : 'Ú©ÙˆØ±Ø¯ÛŒ'}</a>`)
     .join('');
   const payments = data.payments.length
     ? `<h2>${escapeHtml(t('accounts.invoice.payments'))}</h2><table class="lines">${data.payments
-        .map((payment) => `<tr><td>${escapeHtml(payment.paidOn)}${payment.note ? ` · ${escapeHtml(payment.note)}` : ''}</td><td dir="ltr" class="num">${escapeHtml(money(payment.amountMinor))}</td></tr>`)
+        .map((payment) => `<tr><td>${escapeHtml(payment.paidOn)}${payment.note ? ` Â· ${escapeHtml(payment.note)}` : ''}</td><td dir="ltr" class="num">${escapeHtml(money(payment.amountMinor))}</td></tr>`)
         .join('')}</table>`
     : '';
 

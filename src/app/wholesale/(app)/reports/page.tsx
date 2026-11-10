@@ -1,15 +1,17 @@
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { CalendarRange, Download, FileSpreadsheet, Package, Receipt, ShoppingBag, Store, TrendingUp, Wallet } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { addDays } from '@/server/domain/wholesale/forecast';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
-import { debtorsReportQuery, expensesReportQuery, forecastQuery, profitReportQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
+import { debtorsReportQuery, expensesReportQuery, forecastQuery, profitReportQuery, repAccountsQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { EmptyState } from '@/studio/ui';
 import { PrintButton } from '../../_ui/PrintButton';
 import { PageHeader } from '../../_ui/PageHeader';
+import { RepAccounts } from '../../_ui/RepAccounts';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
+import { Chip, Section, type Tone } from '../../_ui/Ui';
 
 export const metadata: Metadata = { title: 'Reports' };
 
@@ -24,7 +26,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
   const sp = await searchParams;
-  const tab = sp.tab === 'stock' || sp.tab === 'debts' ? sp.tab : 'profit';
+  const tab = sp.tab === 'stock' || sp.tab === 'debts' || sp.tab === 'reps' ? sp.tab : 'profit';
   const today = baghdadDate();
   const to = isoDate(sp.to, today);
   const from = isoDate(sp.from, `${today.slice(0, 7)}-01`);
@@ -32,6 +34,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     { key: 'profit', label: t('wh.reports.profit') },
     { key: 'stock', label: t('wh.reports.stock') },
     { key: 'debts', label: t('wh.reports.debts') },
+    { key: 'reps', label: t('wh.reports.reps') },
   ];
   return (
     <>
@@ -49,9 +52,50 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           {tab === 'profit' && <Profit from={from} to={to} t={t} locale={actor!.locale} />}
           {tab === 'stock' && <StockTab t={t} locale={actor!.locale} />}
           {tab === 'debts' && <Debts t={t} />}
+          {tab === 'reps' && <RepAccounts reps={await queryWh(repAccountsQuery)} t={t} />}
         </div>
       </div>
     </>
+  );
+}
+
+/** A ranked list: label and figure on one line, a thin bar under it showing the share of the largest. */
+function Ranked({ rows }: { rows: { key: string; label: string; sub?: string; value: string; share: number }[] }) {
+  return (
+    <ul className="flex flex-col divide-y divide-line">
+      {rows.map((r) => (
+        <li key={r.key} className="py-2 first:pt-0 last:pb-0">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="min-w-0 truncate text-base" dir="auto">
+              {r.label}
+              {r.sub && <span className="text-sm text-muted"> · {r.sub}</span>}
+            </span>
+            <span className="shrink-0 text-base font-semibold tabular-nums" dir="ltr">
+              {r.value}
+            </span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-hover">
+            <div className="h-full rounded-full bg-wh-blue" style={{ width: `${Math.max(3, Math.round(r.share * 100))}%` }} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+const share = (v: number, max: number) => (max > 0 ? v / max : 0);
+const iqdOf = (by: Record<string, string>) => Number(by.IQD ?? Object.values(by)[0] ?? 0);
+
+function Kpi({ icon, tone, label, value, negative }: { icon: typeof Wallet; tone: Tone; label: string; value: string; negative?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-line bg-raised p-3 shadow-[0_1px_2px_rgb(15_42_74/0.06)]">
+      <Chip icon={icon} tone={tone} size="size-11" />
+      <div className="min-w-0">
+        <div className="text-sm leading-tight text-muted">{label}</div>
+        <div className={`truncate text-xl font-semibold tabular-nums ${negative ? 'text-wh-rose' : ''}`} dir="ltr">
+          {value}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -71,113 +115,69 @@ async function Profit({ from, to, t, locale }: { from: string; to: string; t: T;
     ...p.expenseLines.map((l) => ({ label: t(`wh.reports.acct.${l.code}`), value: minus(l.iqd) })),
     { label: t('wh.reports.net'), value: p.netIqd, strong: true },
   ];
+  const expensesTotal = Number(p.grossIqd) + Number(p.fxIqd) - Number(p.netIqd);
+  const maxDay = Math.max(0, ...days.map((d) => Number(d.iqd)));
+  const maxCustomer = Math.max(0, ...sales.customers.map((c) => iqdOf(c.byCurrency)));
+  const maxItem = Math.max(0, ...sales.items.map((c) => iqdOf(c.byCurrency)));
+  const maxExpense = Math.max(0, ...expenses.map((e) => iqdOf(e.byCurrency)));
   return (
     <>
-      <form className="flex flex-wrap items-end gap-3" method="get">
+      <form className="flex flex-wrap items-end gap-2 rounded-xl border border-line bg-raised p-3 print:hidden" method="get">
         <input type="hidden" name="tab" value="profit" />
-        <label className="flex flex-col gap-1 text-sm text-muted">
+        <Chip icon={CalendarRange} tone="blue" />
+        <label className="flex flex-col gap-0.5 text-sm text-muted">
           {t('wh.reports.from')}
-          <input name="from" type="date" defaultValue={from} className="rounded-md border border-line bg-raised px-3 py-2 text-base text-ink" dir="ltr" />
+          <input name="from" type="date" defaultValue={from} className="rounded-md border border-line bg-bg px-3 py-1.5 text-base text-ink" dir="ltr" />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-muted">
+        <label className="flex flex-col gap-0.5 text-sm text-muted">
           {t('wh.reports.to')}
-          <input name="to" type="date" defaultValue={to} className="rounded-md border border-line bg-raised px-3 py-2 text-base text-ink" dir="ltr" />
+          <input name="to" type="date" defaultValue={to} className="rounded-md border border-line bg-bg px-3 py-1.5 text-base text-ink" dir="ltr" />
         </label>
-        <button className="rounded-md border border-line bg-raised px-4 py-2 text-base hover:bg-hover" type="submit">
+        <button className="min-h-10 rounded-md bg-ink px-4 text-base font-semibold text-white" type="submit">
           {t('wh.reports.show')}
         </button>
-        <Link className="text-sm text-muted underline" href={`/wholesale/reports?tab=profit&from=${addDays(to, -29)}&to=${to}`}>
+        <Link className="min-h-10 content-center rounded-md border border-line-strong px-3 text-base hover:bg-hover" href={`/wholesale/reports?tab=profit&from=${addDays(to, -29)}&to=${to}`}>
           {t('wh.reports.last30')}
         </Link>
+        <span className="ms-auto text-sm text-muted">{t('wh.reports.inIqd')}</span>
       </form>
-      <section className="rounded-md border border-line bg-raised p-4">
-        <p className="mb-3 text-sm text-muted">{t('wh.reports.inIqd')}</p>
-        <dl className="flex flex-col gap-2">
-          {rows.map((r, i) => (
-            <div key={i} className={`flex items-center justify-between gap-3 ${r.strong ? 'border-t border-line pt-2 font-semibold' : ''}`}>
-              <dt className="text-base">{r.label}</dt>
-              <dd className="tabular-nums" dir="ltr">
-                {money(r.value)}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-      <section className="rounded-md border border-line bg-raised p-4">
-        <h2 className="mb-3 text-md font-semibold">{t('wh.reports.byDay')}</h2>
-        {days.length === 0 ? (
-          <EmptyState title={t('wh.home.noSales')} />
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {days.map((d) => (
-              <li key={d.date} className="flex items-center justify-between gap-3 text-base">
-                <span className="tabular-nums" dir="ltr">
-                  {d.date}
-                </span>
-                <span className="text-sm text-muted">{d.count}</span>
-                <span className="tabular-nums" dir="ltr">
-                  {money(d.iqd)}
-                </span>
-              </li>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi icon={TrendingUp} tone="blue" label={t('wh.reports.sales')} value={money(p.salesIqd)} />
+        <Kpi icon={ShoppingBag} tone="green" label={t('wh.reports.gross')} value={money(p.grossIqd)} negative={Number(p.grossIqd) < 0} />
+        <Kpi icon={Receipt} tone="amber" label={t('wh.reports.byExpense')} value={money(String(expensesTotal))} />
+        <Kpi icon={Wallet} tone="violet" label={t('wh.reports.net')} value={money(p.netIqd)} negative={Number(p.netIqd) < 0} />
+      </div>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Section icon={Wallet} tone="violet" title={t('wh.reports.net')}>
+          <dl className="flex flex-col">
+            {rows.map((r, i) => (
+              <div key={i} className={`flex items-baseline justify-between gap-3 py-1.5 ${r.strong ? 'mt-1 border-t border-line pt-2.5 font-semibold' : ''}`}>
+                <dt className={r.strong ? 'text-md' : 'text-base text-muted'}>{r.label}</dt>
+                <span aria-hidden className="mb-1 min-w-4 flex-1 self-end border-b border-dotted border-line-strong" />
+                <dd className={`tabular-nums ${r.strong ? 'text-md' : 'text-base'} ${Number(r.value) < 0 || r.value.startsWith('-') ? 'text-wh-rose' : ''}`} dir="ltr">
+                  {money(r.value)}
+                </dd>
+              </div>
             ))}
-          </ul>
-        )}
-      </section>
-      <section className="rounded-md border border-line bg-raised p-4">
-        <h2 className="mb-3 text-md font-semibold">{t('wh.reports.byCustomer')}</h2>
-        {sales.customers.length === 0 ? (
-          <EmptyState title={t('wh.home.noSales')} />
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {sales.customers.map((c, i) => (
-              <li key={i} className="flex flex-wrap items-center justify-between gap-3 text-base">
-                <span className="min-w-0 truncate" dir="auto">
-                  {c.name} <span className="text-sm text-muted">· {c.count}</span>
-                </span>
-                <span className="tabular-nums" dir="ltr">
-                  {cur(c.byCurrency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      <section className="rounded-md border border-line bg-raised p-4">
-        <h2 className="mb-3 text-md font-semibold">{t('wh.reports.byItem')}</h2>
-        {sales.items.length === 0 ? (
-          <EmptyState title={t('wh.home.noSales')} />
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {sales.items.map((c, i) => (
-              <li key={i} className="flex flex-wrap items-center justify-between gap-3 text-base">
-                <span className="min-w-0 truncate" dir="auto">
-                  {nameOf(c.names as Names, locale)} <span className="text-sm text-muted">· {money(c.qty)} {t(`wh.unit.${c.baseUnit}`)}</span>
-                </span>
-                <span className="tabular-nums" dir="ltr">
-                  {cur(c.byCurrency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      <section className="rounded-md border border-line bg-raised p-4">
-        <h2 className="mb-3 text-md font-semibold">{t('wh.reports.byExpense')}</h2>
-        {expenses.length === 0 ? (
-          <EmptyState title={t('wh.reports.noExpenses')} />
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {expenses.map((e) => (
-              <li key={e.category} className="flex items-center justify-between gap-3 text-base">
-                <span>{t(`wh.expenses.cat.${e.category}`)}</span>
-                <span className="tabular-nums" dir="ltr">
-                  {cur(e.byCurrency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          </dl>
+        </Section>
+        <Section icon={CalendarRange} tone="blue" title={t('wh.reports.byDay')}>
+          {days.length === 0 ? <EmptyState title={t('wh.home.noSales')} /> : <Ranked rows={days.map((d) => ({ key: d.date, label: d.date, sub: String(d.count), value: money(d.iqd), share: share(Number(d.iqd), maxDay) }))} />}
+        </Section>
+        <Section icon={Store} tone="teal" title={t('wh.reports.byCustomer')}>
+          {sales.customers.length === 0 ? <EmptyState title={t('wh.home.noSales')} /> : <Ranked rows={sales.customers.map((c, i) => ({ key: String(i), label: c.name, sub: String(c.count), value: cur(c.byCurrency), share: share(iqdOf(c.byCurrency), maxCustomer) }))} />}
+        </Section>
+        <Section icon={Package} tone="green" title={t('wh.reports.byItem')}>
+          {sales.items.length === 0 ? (
+            <EmptyState title={t('wh.home.noSales')} />
+          ) : (
+            <Ranked rows={sales.items.map((c, i) => ({ key: String(i), label: nameOf(c.names as Names, locale), sub: `${money(c.qty)} ${t(`wh.unit.${c.baseUnit}`)}`, value: cur(c.byCurrency), share: share(iqdOf(c.byCurrency), maxItem) }))} />
+          )}
+        </Section>
+        <Section icon={Receipt} tone="amber" title={t('wh.reports.byExpense')}>
+          {expenses.length === 0 ? <EmptyState title={t('wh.reports.noExpenses')} /> : <Ranked rows={expenses.map((e) => ({ key: e.category, label: t(`wh.expenses.cat.${e.category}`), value: cur(e.byCurrency), share: share(iqdOf(e.byCurrency), maxExpense) }))} />}
+        </Section>
+      </div>
       <section className="flex flex-wrap items-center gap-2 text-base print:hidden">
         <span className="text-muted">{t('wh.reports.download')} (Excel)</span>
         <a className="inline-flex min-h-10 items-center gap-2 rounded-md bg-wh-green px-3 font-semibold text-white" href={`/wholesale/export?kind=all&from=${from}&to=${to}`} download>
