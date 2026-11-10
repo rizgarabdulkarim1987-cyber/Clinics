@@ -6054,3 +6054,22 @@ model WhAgencyMovement {
   @@index([journalEntryId])
   @@index([restaurantId])
 }
+
+/// A copy of the whole book taken once a day (kept for 30 days), so a mistaken edit can be looked back on and the
+/// state of any day downloaded as an Excel file. Taken by the page itself, and by the scheduled job when one is set.
+model AccountBackup {
+  id        String   @id @default(cuid())
+  takenOn   DateTime @unique @db.Date
+  entries   Int
+  /// The `AccountsBook` as it was, serialised; read back only by `buildBookWorkbook`.
+  book      Json
+  createdAt DateTime @default(now())
+}
+
+/// Someone who may read the books and enter movements and payments, but never delete, archive or change the settings:
+/// the agency's accountant. A Super Admin gives and takes this away by email; it needs a Studio account and two-factor.
+model AccountAccess {
+  userId      String   @id
+  createdById String?
+  createdAt   DateTime @default(now())
+}

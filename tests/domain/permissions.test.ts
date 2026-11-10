@@ -66,10 +66,12 @@ describe('permission keys', () => {
       'permissions.manage',
       'audit.view',
       'platform.settings',
+      'accounts.view',
+      'accounts.enter',
       'plans.manage',
     ]);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
-    expect(PERMISSIONS).toHaveLength(28);
+    expect(PERMISSIONS).toHaveLength(30);
   });
 
   it('lists the keys that can never be granted, and the ones only Super Admins hold at platform level', () => {
@@ -83,11 +85,13 @@ describe('permission keys', () => {
         'permissions.manage',
         'audit.view',
         'platform.settings',
+        'accounts.view',
+        'accounts.enter',
         'plans.manage',
       ].sort(),
     );
     expect([...PLATFORM_PERMISSIONS].sort()).toEqual(
-      ['restaurant.create', 'people.manage', 'audit.view', 'platform.settings'].sort(),
+      ['restaurant.create', 'people.manage', 'audit.view', 'platform.settings', 'accounts.view', 'accounts.enter'].sort(),
     );
   });
 

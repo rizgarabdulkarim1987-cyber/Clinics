@@ -62,3 +62,7 @@ export async function decideAccountQuote(input: unknown) {
 export async function archiveAccountQuote(input: unknown) {
   return invoke(accounts.archiveAccountQuote, input);
 }
+
+export async function setAccountAccountant(input: unknown) {
+  return invoke(accounts.setAccountAccountant, input);
+}

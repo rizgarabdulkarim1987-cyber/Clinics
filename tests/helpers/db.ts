@@ -47,6 +47,8 @@ export async function resetTestData(prisma: PrismaClient): Promise<void> {
   await prisma.accountInvoice.deleteMany();
   await prisma.accountBudget.deleteMany();
   await prisma.accountQuote.deleteMany();
+  await prisma.accountBackup.deleteMany();
+  await prisma.accountAccess.deleteMany();
   await prisma.accountClientInvoice.deleteMany();
   await prisma.accountAttachment.deleteMany();
   await prisma.accountPayment.deleteMany();
