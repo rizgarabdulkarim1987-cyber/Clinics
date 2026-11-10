@@ -1,7 +1,7 @@
-import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Sparkles, Truck, Users, type LucideIcon } from 'lucide-react';
+import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Sparkles, Target, Truck, Users, type LucideIcon } from 'lucide-react';
 import { canWh, type WhPermission, type WhRole } from '@/server/domain/wholesale/permissions';
 
-export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'settings' | 'reports' | 'assistant' | 'staff' | 'opening';
+export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'targets' | 'settings' | 'reports' | 'assistant' | 'staff' | 'opening';
 
 export interface WhNavItem {
   key: WhNavKey;
@@ -25,6 +25,7 @@ const ALL: WhNavItem[] = [
   { key: 'assistant', href: '/wholesale/assistant', labelKey: 'wh.nav.assistant', icon: Sparkles, needs: 'ai.use' },
   { key: 'expenses', href: '/wholesale/expenses', labelKey: 'wh.nav.expenses', icon: HandCoins, needs: 'expense.submit' },
   { key: 'rates', href: '/wholesale/rates', labelKey: 'wh.nav.rates', icon: Coins, needs: 'rate.set' },
+  { key: 'targets', href: '/wholesale/targets', labelKey: 'wh.nav.targets', icon: Target, needs: 'staff.manage' },
   { key: 'staff', href: '/wholesale/staff', labelKey: 'wh.nav.staff', icon: Users, needs: 'staff.manage' },
   { key: 'opening', href: '/wholesale/opening', labelKey: 'wh.nav.opening', icon: PackageSearch, needs: 'import.apply' },
   { key: 'settings', href: '/wholesale/settings', labelKey: 'wh.nav.settings', icon: Settings, needs: 'settings.manage' },
@@ -50,7 +51,7 @@ const HUBS: Partial<Record<WhGroup['key'], string>> = { money: '/wholesale/money
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
-  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers'] },
+  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers', 'targets'] },
   { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
   { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
   { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },

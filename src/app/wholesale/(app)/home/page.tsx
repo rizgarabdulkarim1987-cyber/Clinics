@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { AlertTriangle, Banknote, BarChart3, Boxes, CalendarClock, CalendarDays, HandCoins, Receipt, TrendingUp, Truck, Wallet, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Banknote, Target, BarChart3, Boxes, CalendarClock, CalendarDays, HandCoins, Receipt, TrendingUp, Truck, Wallet, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { addDays } from '@/server/domain/wholesale/forecast';
 import { canWh } from '@/server/domain/wholesale/permissions';
@@ -9,11 +9,13 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
 import { alertsQuery, dashboardQuery, expiryQuery, sellInfoQuery } from '@/server/wholesale/queries/reports';
 import { debtsListQuery, salesQuery } from '@/server/wholesale/queries/sale';
+import { repTargetsQuery } from '@/server/wholesale/queries/targets';
 import { getStudioTranslator } from '@/studio/messages';
 import { Alert } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
 import { PageHeader } from '../../_ui/PageHeader';
 import { SetupButton } from '../../_ui/PeopleForms';
+import { TargetBars } from '../../_ui/TargetBars';
 
 export const metadata: Metadata = { title: 'Home' };
 
@@ -97,12 +99,13 @@ export default async function HomePage() {
   const needsSetup = !isRep && !warehouses.some((w) => w.kind === 'MAIN') && canWh(actor!.role, 'settings.manage');
   const board = canWh(actor!.role, 'report.view') && !needsSetup ? await queryWh(dashboardQuery) : null;
   const ok = !needsSetup;
-  const [watch, expiry, sales, debts, mine] = await Promise.all([
+  const [watch, expiry, sales, debts, mine, goals] = await Promise.all([
     board ? queryWh(alertsQuery).catch(() => null) : Promise.resolve(null),
     ok ? queryWh(expiryQuery).catch(() => null) : Promise.resolve(null),
     ok ? queryWh(salesQuery).catch(() => null) : Promise.resolve(null),
     ok ? queryWh(debtsListQuery).catch(() => null) : Promise.resolve(null),
     ok && !board ? queryWh(sellInfoQuery).catch(() => null) : Promise.resolve(null),
+    ok ? queryWh(repTargetsQuery).catch(() => null) : Promise.resolve(null),
   ]);
   const today = baghdadDate();
   const expiring = (expiry?.rows ?? []).filter((r) => r.status !== 'ok');
@@ -291,6 +294,24 @@ export default async function HomePage() {
               )}
             </Block>
           </div>
+        )}
+
+        {ok && goals && goals.reps.length > 0 && (
+          <Block icon={Target} tone="violet" title={`${t('wh.target.title')} · ${goals.month.split('-').reverse().join('/')}`} href={canWh(actor!.role, 'staff.manage') ? '/wholesale/targets' : undefined} more={t('wh.target.setLink')}>
+            <div className={`grid gap-x-6 gap-y-4 px-3.5 py-3 ${goals.reps.length > 1 ? 'lg:grid-cols-2 xl:grid-cols-3' : ''}`}>
+              {goals.reps.map((r) => (
+                <div key={r.userId} className="flex min-w-0 flex-col gap-2">
+                  <p className="flex items-baseline justify-between gap-2 text-sm font-semibold">
+                    <span className="truncate" dir="auto">
+                      {r.name}
+                    </span>
+                    <span className="shrink-0 text-xs font-normal text-muted">{t('wh.target.dayOf', { n: goals.progress })}</span>
+                  </p>
+                  <TargetBars row={r} pace={goals.progress} t={t} locale={locale} wide={goals.reps.length === 1} />
+                </div>
+              ))}
+            </div>
+          </Block>
         )}
 
         {ok && (

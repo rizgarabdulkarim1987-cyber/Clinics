@@ -192,6 +192,8 @@ model Restaurant {
   whStockCountLines WhStockCountLine[]
   whPurchaseReturns WhPurchaseReturn[]
   whPurchaseReturnLines WhPurchaseReturnLine[]
+  whRepTargets WhRepTarget[]
+  whRepItemTargets WhRepItemTarget[]
   whStaffs WhStaff[]
   retailOutbox          RetailOutbox?
   phStaffs              PhStaff[]
@@ -4925,6 +4927,7 @@ model WhItem {
   batches WhBatch[]
   purchaseLines WhPurchaseLine[]
   saleLines WhSaleLine[]
+  repTargets WhRepItemTarget[]
   countLines WhStockCountLine[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
@@ -5833,4 +5836,40 @@ model WhStaff {
   @@unique([restaurantId, userId])
   @@index([restaurantId])
   @@index([userId])
+}
+
+/// A rep's targets for one month ('YYYY-MM'): a sales amount in dinars, a weight in kilograms and a count of pieces. Any of the
+/// three may be left empty (no target of that kind). Per-item targets are WhRepItemTarget rows. userId is the rep's user.
+model WhRepTarget {
+  id String   @id @default(uuid())
+  restaurantId String
+  userId String
+  month String
+  amountIqd Decimal? @db.Decimal(24, 4)
+  weightKg Decimal? @db.Decimal(24, 4)
+  pieces Decimal? @db.Decimal(24, 4)
+  items WhRepItemTarget[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, userId, month])
+  @@index([restaurantId, month])
+}
+
+/// A rep's target for one item in one month, in the item's base unit.
+model WhRepItemTarget {
+  id String   @id @default(uuid())
+  restaurantId String
+  targetId String
+  target WhRepTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  itemId String
+  item WhItem   @relation(fields: [itemId], references: [id])
+  qtyBase Decimal @db.Decimal(24, 8)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([targetId, itemId])
+  @@index([restaurantId])
 }

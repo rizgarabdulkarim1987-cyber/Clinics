@@ -5,6 +5,7 @@ import * as books from '@/server/wholesale/actions/books';
 import * as catalog from '@/server/wholesale/actions/catalog';
 import * as purchase from '@/server/wholesale/actions/purchase';
 import * as sale from '@/server/wholesale/actions/sale';
+import * as targets from '@/server/wholesale/actions/targets';
 import * as treasury from '@/server/wholesale/actions/treasury';
 import { invokeWh } from '@/server/wholesale/access';
 
@@ -160,4 +161,8 @@ export async function fillDemo(input: unknown) {
 
 export async function removeDemo(input: unknown) {
   return invokeWh(books.removeDemoAction, input);
+}
+
+export async function setRepTarget(input: unknown) {
+  return invokeWh(targets.setRepTargetAction, input);
 }
