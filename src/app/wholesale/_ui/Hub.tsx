@@ -1,0 +1,26 @@
+import type { ReactNode } from 'react';
+
+/** One pane of a hub screen: a framed surface that scrolls inside itself so the screen never grows. */
+export function Pane({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <section className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-raised shadow-[0_1px_2px_rgb(15_23_42/0.06),0_8px_24px_-12px_rgb(15_23_42/0.12)] ${className}`}>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+    </section>
+  );
+}
+
+/** A section's parts side by side on one screen. The first pane takes the full height when there are three. */
+export function Hub({ panes }: { panes: ReactNode[] }) {
+  const list = panes.filter(Boolean);
+  const cols = list.length === 1 ? '' : 'md:grid-cols-2';
+  const rows = list.length === 3 ? 'md:grid-rows-2' : 'md:grid-rows-1';
+  return (
+    <div className={`grid gap-3 px-4 pb-4 pt-3 md:min-h-0 md:flex-1 md:px-6 ${cols} ${rows}`}>
+      {list.map((p, i) => (
+        <Pane key={i} className={list.length === 3 && i === 0 ? 'md:row-span-2' : ''}>
+          {p}
+        </Pane>
+      ))}
+    </div>
+  );
+}

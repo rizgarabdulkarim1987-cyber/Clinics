@@ -6,13 +6,14 @@ import type { WhActor } from '@/server/wholesale/actor';
 import { SignOutButton } from '@/app/pos/_ui/SignOutButton';
 import { ContentFrame } from './ContentFrame';
 import { NavLinks, SectionLinks } from './NavLinks';
+import { navMeta, type NavInfo } from './navInfo';
 import { whGroups } from './nav';
 
 /**
  * The frame of every Wholesale screen: the company and the person at the start side of a desktop (a bar on a phone), the
  * places the role may use, and the page. A state notice (read-only) sits above the page.
  */
-export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?: ReactNode; t: Translate; children: ReactNode }) {
+export function Shell({ actor, notice, t, children, info }: { actor: WhActor; notice?: ReactNode; t: Translate; children: ReactNode; info?: NavInfo | null }) {
   const groups = whGroups(actor.role).map((g) => ({ key: g.key, href: g.href, label: t(g.labelKey), match: g.match, places: g.places.map((p) => ({ key: p.key, href: p.href, label: t(p.labelKey), tab: p.tab })) }));
   return (
     <div className="flex min-h-dvh flex-col md:h-dvh md:flex-row md:overflow-hidden">
@@ -34,7 +35,7 @@ export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?:
             </span>
           </p>
         </div>
-        <NavLinks groups={groups} label={t('wh.nav.main')} />
+        <NavLinks groups={groups} label={t('wh.nav.main')} meta={navMeta(groups.map((g) => g.key), info, t)} />
         <div className="hidden flex-col gap-0.5 border-t border-white/15 pt-3 md:mt-auto md:flex">
           <Link href="/studio/account" className="flex min-h-11 items-center rounded-md px-3 text-base font-medium text-white hover:bg-wh-rail-hover">
             {t('wh.shell.account')}

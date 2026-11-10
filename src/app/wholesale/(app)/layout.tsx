@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { getWhAccess, WH_SIGN_IN } from '@/server/wholesale/access';
+import { getWhAccess, queryWh, WH_SIGN_IN } from '@/server/wholesale/access';
+import { navInfoQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { Alert } from '@/studio/ui';
 import { Shell } from '../_ui/Shell';
@@ -27,9 +28,10 @@ export default async function WholesaleAppLayout({ children }: { children: React
       </Shell>
     );
   }
+  const info = await queryWh(navInfoQuery).catch(() => null);
   const notice = gate.state === 'readOnly' ? <Alert tone="neutral" className="m-4">{t('wh.state.readOnly')}</Alert> : null;
   return (
-    <Shell actor={actor} notice={notice} t={t}>
+    <Shell actor={actor} notice={notice} t={t} info={info}>
       {children}
     </Shell>
   );

@@ -8,6 +8,7 @@ import { cashPosition, debts, lowStock, partyBalances, profit, salesByDay, stock
 import { listPendingSales, receivables } from '@/server/wholesale/posting/sale';
 import { computeAlerts, ODD_PRICE_WINDOW_DAYS, SALES_DROP_TRAILING_DAYS } from '@/server/domain/wholesale/alerts';
 import { D } from '@/server/domain/wholesale/money';
+import { canWh } from '@/server/domain/wholesale/permissions';
 import { activeDaysOf, dailyRate, daysOfCover, reorderBy } from '@/server/domain/wholesale/forecast';
 import { getSettings } from '@/server/wholesale/settings';
 import { plain } from '@/server/wholesale/plain';
@@ -314,5 +315,39 @@ export const expiryQuery = defineQuery({
         };
       });
     return plain({ alertDays: settings.expiryAlertDays, rows: list });
+  },
+});
+
+/**
+ * What the side menu shows under each section's name: a few live counts. A partner also sees what waits on them (sales to
+ * approve, handovers, expenses) and what needs a look in stock; a rep sees only the counts of his own work.
+ */
+export const navInfoQuery = defineQuery({
+  name: 'wh.navInfo',
+  permission: null,
+  wh: 'catalog.view',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    const { db, user } = scoped(ctx);
+    const partner = canWh(user.role, 'report.view');
+    const today = baghdadDate();
+    const settings = await getSettings(db);
+    const soon = new Date(`${addDays(today, settings.expiryAlertDays)}T00:00:00Z`);
+    const [items, customers, staff, sold, expiring] = await Promise.all([
+      db.whItem.count({ where: { active: true } }),
+      db.whCustomer.count({ where: { active: true } }),
+      partner ? db.whStaff.count() : Promise.resolve(0),
+      salesByDay(db, { from: today, to: today }),
+      db.whBatch.count({ where: { qtyBase: { gt: 0 }, expiry: { not: null, lte: soon } } }),
+    ]);
+    let pending = { sales: 0, handovers: 0, expenses: 0 };
+    let low = 0;
+    if (partner) {
+      const [ps, ph, pe, stock] = await Promise.all([listPendingSales(db), listPendingHandovers(db), listExpenses(db, user, 'PENDING'), stockValue(db)]);
+      pending = { sales: ps.length, handovers: ph.length, expenses: pe.length };
+      low = lowStock(stock.rows).length;
+    }
+    return plain({ items, customers, staff, salesToday: sold[0]?.count ?? 0, expiring, low, pending });
   },
 });
