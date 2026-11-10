@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Printer } from 'lucide-react';
 import Link from 'next/link';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
@@ -229,6 +230,10 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
                           </li>
                         ))}
                       </ul>
+                      <Link href={`/wholesale/sales/${sale.id}/print`} target="_blank" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-wh-blue px-3 text-base font-semibold text-white">
+                        <Printer aria-hidden className="size-4" />
+                        {t('wh.print.open')}
+                      </Link>
                       {sale.status === 'POSTED' && canWh(actor!.role, 'sale.return') && (
                         <details className="rounded-md border border-line bg-raised">
                           <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base font-semibold">{t('wh.sales.returnButton')}</summary>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
+import { customersQuery } from '@/server/wholesale/queries/catalog';
 import { saleQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
 import { PrintButton } from '../../../../_ui/PrintButton';
@@ -19,8 +20,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const t = getStudioTranslator(actor!.locale);
   const s = await queryWh(saleQuery, { id });
   if (!s) notFound();
+  const shop = (await queryWh(customersQuery).catch(() => [])).find((c) => c.id === s.customer.id);
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 md:p-8">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 bg-white p-4 text-black md:p-8 print:max-w-none print:p-0">
       <div className="flex items-center justify-between gap-3 print:hidden">
         <Link href={`/wholesale/sales/${s.id}`} className="text-base underline">
           {t('wh.print.back')}
@@ -58,6 +60,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         <span className="font-semibold" dir="auto">
           {s.customer.name}
         </span>
+        {shop && (
+          <span className="block text-base text-muted" dir="auto">
+            {[shop.ownerName, shop.phone, shop.address].filter(Boolean).join(' · ')}
+          </span>
+        )}
       </p>
       <table className="w-full text-base">
         <thead className="border-b border-line text-sm text-muted">

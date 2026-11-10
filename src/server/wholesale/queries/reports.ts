@@ -406,3 +406,39 @@ export const sellInfoQuery = defineQuery({
     return plain({ cash, expired, soon, next });
   },
 });
+
+/** Every sale and every purchase in a date range, one row per line, for the spreadsheet export. Partners only. */
+export const movementsExportQuery = defineQuery({
+  name: 'wh.report.movements',
+  permission: null,
+  wh: 'report.view',
+  input: whPlaceInput.extend({ from: isoDate, to: isoDate }),
+  target: whTargetOf,
+  run: async (ctx, { from, to }) => {
+    const { db } = scoped(ctx);
+    const range = { gte: toDate(from), lte: toDate(to) };
+    const [sales, purchases] = await Promise.all([
+      db.whSale.findMany({
+        where: { date: range },
+        orderBy: { number: 'asc' },
+        take: 20000,
+        select: {
+          number: true, date: true, currency: true, paymentMode: true, status: true, totalFinal: true,
+          customer: { select: { name: true, ownerName: true, phone: true, address: true, city: { select: { name: true } } } },
+          lines: { orderBy: { lineNo: 'asc' }, select: { qty: true, unit: true, finalPrice: true, lineTotal: true, item: { select: { code: true, names: true } } } },
+        },
+      }),
+      db.whPurchase.findMany({
+        where: { date: range },
+        orderBy: { number: 'asc' },
+        take: 20000,
+        select: {
+          number: true, date: true, currency: true, paymentMode: true, status: true, totalOriginal: true,
+          supplier: { select: { name: true } },
+          lines: { orderBy: { lineNo: 'asc' }, select: { qty: true, unit: true, unitPrice: true, lineTotal: true, item: { select: { code: true, names: true } } } },
+        },
+      }),
+    ]);
+    return plain({ sales, purchases });
+  },
+});

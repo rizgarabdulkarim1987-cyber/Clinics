@@ -1,3 +1,4 @@
+import { Download, FileSpreadsheet } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { addDays } from '@/server/domain/wholesale/forecast';
@@ -6,6 +7,7 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { debtorsReportQuery, expensesReportQuery, forecastQuery, profitReportQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { EmptyState } from '@/studio/ui';
+import { PrintButton } from '../../_ui/PrintButton';
 import { PageHeader } from '../../_ui/PageHeader';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
 
@@ -33,17 +35,17 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   ];
   return (
     <>
-      <PageHeader title={t('wh.reports.title')} description={t('wh.reports.description')} />
+      <PageHeader title={t('wh.reports.title')} description={`${t('wh.reports.description')} · ${from} → ${to}`} actions={<PrintButton label={t('wh.print.print')} />} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <LiveRefresh seconds={60} />
-        <nav aria-label={t('wh.reports.title')} className="flex gap-6 border-b border-line">
+        <nav aria-label={t('wh.reports.title')} className="flex gap-6 border-b border-line print:hidden">
           {tabs.map((x) => (
             <Link key={x.key} href={`/wholesale/reports?tab=${x.key}`} aria-current={tab === x.key ? 'page' : undefined} className={`-mb-px border-b-2 py-2 text-base ${tab === x.key ? 'border-ink font-semibold' : 'border-transparent text-muted hover:text-ink'}`}>
               {x.label}
             </Link>
           ))}
         </nav>
-        <div className="flex flex-col gap-4 md:max-h-[calc(100dvh-12.5rem)] md:overflow-y-auto md:pe-1">
+        <div className="flex flex-col gap-4 md:max-h-[calc(100dvh-12.5rem)] md:overflow-y-auto md:pe-1 print:max-h-none print:overflow-visible">
           {tab === 'profit' && <Profit from={from} to={to} t={t} locale={actor!.locale} />}
           {tab === 'stock' && <StockTab t={t} locale={actor!.locale} />}
           {tab === 'debts' && <Debts t={t} />}
@@ -176,10 +178,15 @@ async function Profit({ from, to, t, locale }: { from: string; to: string; t: T;
           </ul>
         )}
       </section>
-      <section className="flex flex-wrap items-center gap-3 text-base">
-        <span className="text-muted">{t('wh.reports.download')}</span>
-        {(['sales-customers', 'sales-items', 'expenses', 'stock', 'debts'] as const).map((k) => (
-          <a key={k} className="rounded-md border border-line-strong px-3 py-2 hover:bg-hover" href={`/wholesale/export?kind=${k}&from=${from}&to=${to}`} download>
+      <section className="flex flex-wrap items-center gap-2 text-base print:hidden">
+        <span className="text-muted">{t('wh.reports.download')} (Excel)</span>
+        <a className="inline-flex min-h-10 items-center gap-2 rounded-md bg-wh-green px-3 font-semibold text-white" href={`/wholesale/export?kind=all&from=${from}&to=${to}`} download>
+          <FileSpreadsheet aria-hidden className="size-4" />
+          {t('wh.reports.x.all')}
+        </a>
+        {(['sales-all', 'purchases-all', 'sales-customers', 'sales-items', 'expenses', 'stock', 'debts'] as const).map((k) => (
+          <a key={k} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-line-strong px-3 hover:bg-hover" href={`/wholesale/export?kind=${k}&from=${from}&to=${to}`} download>
+            <Download aria-hidden className="size-4 text-muted" />
             {t(`wh.reports.x.${k}`)}
           </a>
         ))}
