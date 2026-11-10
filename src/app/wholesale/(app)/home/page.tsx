@@ -340,6 +340,11 @@ export default async function HomePage() {
                             {x.date}
                             {x.status !== 'POSTED' ? ` · ${t(`wh.sales.status.${x.status}`)}` : ''}
                           </span>
+                          {x.seller && (
+                            <span className="block truncate text-xs text-wh-blue" dir="auto">
+                              {x.seller.name} ({t(`wh.role.${x.seller.role}`)})
+                            </span>
+                          )}
                         </span>
                         <span className="shrink-0 font-semibold tabular-nums" dir="ltr">
                           {money(x.totalFinal)} {x.currency}
