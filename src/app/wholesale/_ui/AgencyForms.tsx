@@ -164,6 +164,7 @@ export function CostForm({ orderId, currency }: { orderId: string; currency: str
   const router = useRouter();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [category, setCategory] = useState('GOODS');
   const { pending, submit } = useSubmit(() => {
     setAmount('');
     setNote('');
@@ -174,9 +175,18 @@ export function CostForm({ orderId, currency }: { orderId: string; currency: str
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        submit(() => payAgencyCost({ orderId, amount, note: note || null }));
+        submit(() => payAgencyCost({ orderId, amount, category, note: note || null }));
       }}
     >
+      <Label text={t('wh.agency.cost.kind')}>
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className={field}>
+          {['GOODS', 'SHIPPING', 'CUSTOMS', 'OTHER'].map((c) => (
+            <option key={c} value={c}>
+              {t(`wh.agency.cat.${c}`)}
+            </option>
+          ))}
+        </select>
+      </Label>
       <Label text={`${t('wh.agency.cost.amount')} (${currency})`}>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" dir="ltr" required placeholder="0" className={`${field} ${num}`} />
       </Label>
@@ -190,20 +200,20 @@ export function CostForm({ orderId, currency }: { orderId: string; currency: str
   );
 }
 
-/** Settlement with a live preview of what the advances do before anything is posted. */
-export function SettleForm({ orderId, currency, held, receivable }: { orderId: string; currency: string; held: string; receivable: string }) {
+/** Delivery: the final total, with a live preview of the advances, what is owed and the profit or loss before anything is posted. */
+export function SettleForm({ orderId, currency, held, costs, agreedTotal }: { orderId: string; currency: string; held: string; costs: string; agreedTotal: string }) {
   const t = useT();
-  const [commission, setCommission] = useState('');
+  const [total, setTotal] = useState(Number(agreedTotal) > 0 ? agreedTotal : '');
   const { pending, submit } = useSubmit();
   const plan = useMemo(() => {
     try {
-      const c = new D(commission || '0');
-      if (!c.isFinite() || c.isNegative()) return null;
-      return planSettlement({ advanceHeld: new D(held), receivable: new D(receivable) }, c);
+      const c = new D(total || '0');
+      if (!c.isFinite() || !c.gt(0)) return null;
+      return planSettlement({ advanceHeld: new D(held), costs: new D(costs) }, c);
     } catch {
       return null;
     }
-  }, [commission, held, receivable]);
+  }, [total, held, costs]);
   const row = (label: string, v: string, strong = false) => (
     <div className={`flex justify-between gap-3 ${strong ? 'font-semibold' : ''}`}>
       <dt className="text-muted">{label}</dt>
@@ -217,11 +227,11 @@ export function SettleForm({ orderId, currency, held, receivable }: { orderId: s
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        submit(() => settleAgencyOrder({ orderId, commission: commission || '0' }));
+        submit(() => settleAgencyOrder({ orderId, total }));
       }}
     >
-      <Label text={`${t('wh.agency.commission')} (${currency})`} hint={t('wh.agency.commission.hint')}>
-        <input value={commission} onChange={(e) => setCommission(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0" className={`${field} ${num}`} />
+      <Label text={`${t('wh.agency.settle.total')} (${currency})`} hint={t('wh.agency.settle.totalHint')}>
+        <input value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" dir="ltr" required placeholder="0" className={`${field} ${num}`} />
       </Label>
       {plan && (
         <dl className="flex flex-col gap-1 rounded-md border border-line bg-hover p-3 text-base">
@@ -229,6 +239,9 @@ export function SettleForm({ orderId, currency, held, receivable }: { orderId: s
           {row(t('wh.agency.settle.applied'), plan.applied.toFixed())}
           {row(t('wh.agency.settle.refund'), plan.refund.toFixed())}
           {row(t('wh.agency.settle.owed'), plan.remaining.toFixed(), true)}
+          <div className="my-1 border-t border-line" />
+          {row(t('wh.agency.costs'), plan.cost.toFixed())}
+          {row(plan.profit.isNegative() ? t('wh.agency.loss') : t('wh.agency.profit'), plan.profit.abs().toFixed(), true)}
         </dl>
       )}
       <Button type="submit" disabled={pending || !plan}>

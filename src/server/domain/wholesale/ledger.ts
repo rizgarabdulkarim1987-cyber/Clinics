@@ -253,10 +253,11 @@ export const CHART_OF_ACCOUNTS: readonly AccountDef[] = [
   { code: 'AR', type: 'ASSET', normalSide: 'DR', name: { ckb: 'قەرزی لای کڕیاران', ar: 'ذمم العملاء', en: 'Accounts receivable' } },
   { code: 'REP_CUSTODY', type: 'ASSET', normalSide: 'DR', name: { ckb: 'پارەی لای نوێنەرانی فرۆشتن', ar: 'عهدة المندوبين', en: 'Sales rep custody' } },
   { code: 'AP', type: 'LIABILITY', normalSide: 'CR', name: { ckb: 'قەرزی دابینکەران', ar: 'ذمم الموردين', en: 'Accounts payable' } },
-  // Agency orders (the company handles an order for another company): advances held for it, what it still owes the
-  // company (costs paid for it plus commission, less advances), and the commission the company keeps.
+  // Special orders (a customer asks for goods from abroad): the advance held for it, what the company paid to get the goods
+  // until delivery (AGENCY_WIP), and what the customer still owes after delivery. AGENCY_COMMISSION is no longer posted.
   { code: 'CUSTOMER_ADVANCES', type: 'LIABILITY', normalSide: 'CR', name: { ckb: 'پێشەکی کڕیاران', ar: 'دفعات مقدمة من العملاء', en: 'Customer advances' } },
-  { code: 'AGENCY_RECEIVABLE', type: 'ASSET', normalSide: 'DR', name: { ckb: 'قەرزی لای ئەو کۆمپانیایانەی بۆیان دەکڕین', ar: 'مستحقات الوكالة على الموكلين', en: 'Agency receivable' } },
+  { code: 'AGENCY_RECEIVABLE', type: 'ASSET', normalSide: 'DR', name: { ckb: 'قەرزی داواکارییە تایبەتەکان', ar: 'ذمم الطلبيات الخاصة', en: 'Special orders receivable' } },
+  { code: 'AGENCY_WIP', type: 'ASSET', normalSide: 'DR', name: { ckb: 'کاڵای ڕێگا (داواکاری تایبەت)', ar: 'طلبيات خاصة قيد التنفيذ', en: 'Special orders in progress' } },
   { code: 'AGENCY_COMMISSION', type: 'INCOME', normalSide: 'CR', name: { ckb: 'کۆمیسیۆنی بەرەڵاکردن', ar: 'عمولة الوكالة', en: 'Agency commission' } },
   { code: 'PARTNER_CAPITAL', type: 'EQUITY', normalSide: 'CR', name: { ckb: 'سەرمایەی هاوبەشان', ar: 'رأس مال الشركاء', en: "Partners' capital" } },
   { code: 'PARTNER_DRAW', type: 'EQUITY', normalSide: 'DR', name: { ckb: 'ڕاکێشانی هاوبەشان', ar: 'مسحوبات الشركاء', en: "Partners' drawings" } },

@@ -2,20 +2,24 @@ import Decimal from 'decimal.js'
 import { D } from '@/server/domain/wholesale/money'
 
 /*
- * Agency orders: the company imports or sells on behalf of another company (the principal) and keeps a commission.
- * Pure rules, no database. One currency per order, so nothing here converts.
+ * Special orders (agency orders): a customer asks the company to bring a product from abroad (say rice from
+ * Kazakhstan), pays an advance, and takes the goods and pays the whole total when they arrive. It is a SALE to that
+ * customer, so its profit or loss belongs in the sales figures. Pure rules, no database; one currency per order.
  *
- * Three ledger accounts carry the money (posting/agency.ts):
- * - CUSTOMER_ADVANCES (liability): what the principal paid in advance and the company still holds for him.
- * - AGENCY_RECEIVABLE (asset): what the principal owes the company: costs paid for his goods plus the commission.
- * - AGENCY_COMMISSION (income): the commission, the company's only profit on the order.
- * The goods themselves never touch INVENTORY, COGS or SALES: they are the principal's, not the company's.
+ * Ledger (posting/agency.ts): the advance is a liability (CUSTOMER_ADVANCES) until delivery; what the company pays to
+ * get the goods sits in AGENCY_WIP (an asset, "orders in progress") until delivery; at delivery the final total goes to
+ * SALES and the cost to COGS, so the profit report shows profit or loss like any other sale. Whatever the customer
+ * still owes after his advances is AGENCY_RECEIVABLE.
  */
 
 export const AGENCY_STATUSES = ['OPEN', 'DELIVERED', 'CLOSED', 'CANCELLED'] as const
 export type AgencyStatus = (typeof AGENCY_STATUSES)[number]
 
-export const AGENCY_KINDS = ['ADVANCE', 'COST', 'COMMISSION', 'APPLIED', 'REFUND', 'COLLECTION'] as const
+export const AGENCY_KINDS = ['ADVANCE', 'COST', 'SALE', 'APPLIED', 'REFUND', 'COLLECTION', 'COMMISSION'] as const
+
+/** What a cost is for: the goods, shipping, customs or anything else. All of them are the order's cost. */
+export const COST_CATEGORIES = ['GOODS', 'SHIPPING', 'CUSTOMS', 'OTHER'] as const
+export type CostCategory = (typeof COST_CATEGORIES)[number]
 export type AgencyKind = (typeof AGENCY_KINDS)[number]
 
 /** The request is malformed or not allowed in the order's state. */
@@ -29,51 +33,56 @@ export class InvalidAgencyError extends Error {
 export type AgencyRow = { kind: AgencyKind; amount: Decimal | string }
 
 export type AgencyBalance = {
-  /** Received in advance and not yet applied or refunded: owed back to the principal. */
+  /** Received in advance and not yet applied or refunded: owed back to the customer. */
   advanceHeld: Decimal
-  /** Owed by the principal: costs plus commission, less advances applied and later collections. */
+  /** Owed by the customer after delivery: the final total, less advances applied and later payments. */
   receivable: Decimal
   advanceReceived: Decimal
+  /** What the company paid to get the goods (its own cost). */
   costs: Decimal
-  commission: Decimal
+  /** The final sale total once delivered (0 before). */
+  saleTotal: Decimal
+  /** Sale total less costs once delivered: negative is a loss. */
+  profit: Decimal
 }
 
 const dec = (v: Decimal | string): Decimal => new D(v.toString())
 
-/** What the principal has paid, what he owes and what the company holds for him, from the order's rows. */
+/** What the customer has paid, what he owes and what the deal earned, from the order's rows. */
 export function agencyBalance(rows: AgencyRow[]): AgencyBalance {
   const by = (k: AgencyKind) => rows.filter((r) => r.kind === k).reduce((a, r) => a.plus(dec(r.amount)), new D(0))
   const advanceReceived = by('ADVANCE')
   const costs = by('COST')
-  const commission = by('COMMISSION')
+  const saleTotal = by('SALE')
   return {
     advanceReceived,
     costs,
-    commission,
+    saleTotal,
+    profit: saleTotal.gt(0) ? saleTotal.minus(costs) : new D(0),
     advanceHeld: advanceReceived.minus(by('APPLIED')).minus(by('REFUND')),
-    receivable: costs.plus(commission).minus(by('APPLIED')).minus(by('COLLECTION')),
+    receivable: saleTotal.minus(by('APPLIED')).minus(by('COLLECTION')),
   }
 }
 
 export type SettlementPlan = {
-  /** The commission charged now. */
-  commission: Decimal
-  /** What the principal owes in all once the commission is added: costs + commission. */
-  due: Decimal
-  /** Advances set against the debt: the smaller of the advances held and the debt. */
+  /** The final total the customer pays for the delivered goods. */
+  total: Decimal
+  /** Advances set against it: the smaller of the advances held and the total. */
   applied: Decimal
-  /** Advances beyond the debt, paid back to the principal. */
+  /** Advances beyond the total, paid back. */
   refund: Decimal
   /** What is still owed after the advances; zero closes the order. */
   remaining: Decimal
+  /** The company's own cost so far and the result: total - cost (negative = loss). */
+  cost: Decimal
+  profit: Decimal
 }
 
-/** Applies the advances against costs + commission: the rest is owed (remaining) or paid back (refund). */
-export function planSettlement(b: Pick<AgencyBalance, 'advanceHeld' | 'receivable'>, commission: Decimal): SettlementPlan {
-  const due = b.receivable.plus(commission)
+/** Delivery: the total is the sale; the advances pay part of it, the rest is owed (or the excess advance goes back). */
+export function planSettlement(b: Pick<AgencyBalance, 'advanceHeld' | 'costs'>, total: Decimal): SettlementPlan {
   const held = b.advanceHeld.lt(0) ? new D(0) : b.advanceHeld
-  const applied = Decimal.min(held, due.lt(0) ? new D(0) : due)
-  return { commission, due, applied, refund: held.minus(applied), remaining: due.minus(applied) }
+  const applied = Decimal.min(held, total)
+  return { total, applied, refund: held.minus(applied), remaining: total.minus(applied), cost: b.costs, profit: total.minus(b.costs) }
 }
 
 export function nextStatusAfterCollection(receivable: Decimal): AgencyStatus {

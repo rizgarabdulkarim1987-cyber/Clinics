@@ -69,14 +69,14 @@ async function build(kind: Exclude<Kind, 'all'>, from: string, to: string): Prom
     const orders = await queryWh(agencyExportQuery, { from, to });
     return [
       {
-        name: 'Agency orders',
-        head: ['Order', 'Date', 'Company', 'Title', 'Status', 'Currency', 'Agreed total', 'Advances received', 'Paid for them', 'Commission', 'Advances held', 'Owed by them'],
-        rows: orders.map((o) => [Number(o.number), String(o.date).slice(0, 10), o.principal.name, o.title, o.status, o.currency, num(o.agreedTotal), num(o.balance.advanceReceived), num(o.balance.costs), num(o.balance.commission), num(o.balance.advanceHeld), num(o.balance.receivable)]),
+        name: 'Special orders',
+        head: ['Order', 'Date', 'Customer', 'Product', 'Status', 'Currency', 'Agreed total', 'Advances received', 'Cost paid', 'Sale total', 'Profit (loss)', 'Advances held', 'Owed by customer'],
+        rows: orders.map((o) => [Number(o.number), String(o.date).slice(0, 10), o.principal.name, o.title, o.status, o.currency, num(o.agreedTotal), num(o.balance.advanceReceived), num(o.balance.costs), num(o.balance.saleTotal), num(o.balance.profit), num(o.balance.advanceHeld), num(o.balance.receivable)]),
       },
       {
-        name: 'Agency advances',
-        head: ['Order', 'Date', 'Company', 'Step', 'Currency', 'Amount', 'Note'],
-        rows: orders.flatMap((o) => o.movements.map((m) => [Number(o.number), String(m.date).slice(0, 10), o.principal.name, m.kind, o.currency, num(m.amount), m.note ?? ''])),
+        name: 'Special order steps',
+        head: ['Order', 'Date', 'Customer', 'Step', 'Kind', 'Currency', 'Amount', 'Note'],
+        rows: orders.flatMap((o) => o.movements.map((m) => [Number(o.number), String(m.date).slice(0, 10), o.principal.name, m.kind, m.category ?? '', o.currency, num(m.amount), m.note ?? ''])),
       },
     ];
   }

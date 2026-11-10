@@ -5900,9 +5900,11 @@ enum WhAgencyStatus {
 enum WhAgencyMovementKind {
   /// Money received from the principal in advance (the company holds it for him).
   ADVANCE
-  /// Money the company paid out for the principal's goods (recoverable from him).
+  /// What the company paid to get the goods (price, shipping, customs...): its own cost, labelled by `category`.
   COST
-  /// The company's commission, charged to the principal at settlement.
+  /// The final sale total at delivery (the sale to the customer).
+  SALE
+  /// No longer posted (the first version charged a commission); kept so old rows stay valid.
   COMMISSION
   /// An advance used against what the principal owes (at settlement).
   APPLIED
@@ -5912,8 +5914,8 @@ enum WhAgencyMovementKind {
   COLLECTION
 }
 
-/// An order the company handles on behalf of another company (the principal, an existing customer): it buys or imports for the
-/// principal, takes advances, and keeps a commission. Goods never enter the company's own stock or sales. One currency per order.
+/// A special order: a customer (`principalId`) asks the company to bring goods from abroad, pays an advance, and takes the goods and
+/// pays the total on arrival. Delivery is a sale (SALES and COGS), so the profit report shows its profit or loss. One currency per order.
 model WhAgencyOrder {
   id String   @id @default(uuid())
   restaurantId String
@@ -5951,6 +5953,8 @@ model WhAgencyMovement {
   currency WhCurrency
   date DateTime @db.Date
   note String?
+  /// For a COST: goods, shipping, customs or other.
+  category String?
   /// Advance or collection that went to a rep's custody instead of the till.
   custodyRepId String?
   journalEntryId String

@@ -22,7 +22,7 @@ export default async function AgencyPrintPage({ params }: { params: Promise<{ id
     [t('wh.agency.agreedTotal'), o.agreedTotal],
     [t('wh.agency.received'), b.advanceReceived],
     [t('wh.agency.costs'), b.costs],
-    [t('wh.agency.commission'), b.commission],
+    [t('wh.agency.settle.total'), b.saleTotal],
     [t('wh.agency.held'), b.advanceHeld],
     [t('wh.agency.owed'), b.receivable],
   ];
@@ -89,6 +89,7 @@ export default async function AgencyPrintPage({ params }: { params: Promise<{ id
               </td>
               <td className="py-2" dir="auto">
                 {t(`wh.agency.kind.${m.kind}`)}
+                {m.category ? ` · ${t(`wh.agency.cat.${m.category}`)}` : ''}
                 {m.note ? ` · ${m.note}` : ''}
               </td>
               <td className="py-2 text-end tabular-nums" dir="ltr">

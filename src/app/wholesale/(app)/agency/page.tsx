@@ -56,7 +56,7 @@ export default async function AgencyPage() {
                       #{o.number} · {o.principal.name} · {t(`wh.agency.status.${o.status}`)}
                     </p>
                   </Row>
-                  <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+                  <dl className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                     <div>
                       <dt className="text-muted">{t('wh.agency.agreedTotal')}</dt>
                       <dd className="font-medium tabular-nums" dir="ltr">
@@ -67,6 +67,12 @@ export default async function AgencyPage() {
                       <dt className="text-muted">{t('wh.agency.held')}</dt>
                       <dd className="font-medium tabular-nums" dir="ltr">
                         {money(o.balance.advanceHeld)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted">{Number(o.balance.saleTotal) > 0 ? (Number(o.balance.profit) < 0 ? t('wh.agency.loss') : t('wh.agency.profit')) : t('wh.agency.costs')}</dt>
+                      <dd className="font-medium tabular-nums" dir="ltr">
+                        {money(Number(o.balance.saleTotal) > 0 ? String(Math.abs(Number(o.balance.profit))) : o.balance.costs)}
                       </dd>
                     </div>
                     <div>
