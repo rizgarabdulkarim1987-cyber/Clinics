@@ -346,3 +346,161 @@ export const issueAccountClientInvoice = defineAction({
       return { number: row.number };
     }),
 });
+
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+/** How far back a long-unopened book catches up when it posts recurring expenses. */
+const CATCH_UP_MONTHS = 24;
+
+/** `2026-03` to `2026-11`, both ends included. */
+function monthsBetween(from: string, to: string): string[] {
+  const months: string[] = [];
+  let [year, month] = [Number(from.slice(0, 4)), Number(from.slice(5, 7))];
+  const last = Number(to.slice(0, 4)) * 12 + Number(to.slice(5, 7));
+  while (year * 12 + month <= last && months.length < 600) {
+    months.push(`${year}-${String(month).padStart(2, '0')}`);
+    month += 1;
+    if (month > 12) [year, month] = [year + 1, 1];
+  }
+  return months;
+}
+
+export const addAccountRecurring = defineAction({
+  name: 'account.recurring.create',
+  permission: 'platform.settings',
+  input: z.object({
+    service: z.string().trim().min(1, 'Type what it is for').max(60, 'Use at most 60 characters'),
+    note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
+    amount: z.string().max(40),
+    currency: z.enum(['IQD', 'USD']),
+    dayOfMonth: z.number().int().min(1).max(28),
+    /** `YYYY-MM`; this month when left out. */
+    startMonth: z.string().regex(MONTH).optional(),
+  }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    const amount = parseAmountInput(input.amount, input.currency);
+    if (!amount.ok) throw new StudioError('INVALID', undefined, { amount: AMOUNT_MESSAGES[amount.reason] });
+    if (amount.minor <= 0) throw new StudioError('INVALID', undefined, { amount: 'The amount must be more than zero' });
+    return ctx.transaction(async (tx) => {
+      const row = await tx.accountRecurring.create({
+        data: {
+          service: input.service,
+          note: input.note ?? '',
+          amountMinor: amount.minor,
+          currency: input.currency,
+          dayOfMonth: input.dayOfMonth,
+          startMonth: input.startMonth ?? todayInBaghdad().slice(0, 7),
+          createdById: ctx.actor.userId,
+        },
+        select: { id: true },
+      });
+      ctx.audit({ action: 'account.recurring.created', entityType: 'AccountRecurring', entityId: row.id });
+      return { id: row.id };
+    });
+  },
+});
+
+export const archiveAccountRecurring = defineAction({
+  name: 'account.recurring.archive',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => PLATFORM,
+  run: (ctx, { id }) =>
+    ctx.transaction(async (tx) => {
+      const found = await tx.accountRecurring.findFirst({ where: { id, archivedAt: null }, select: { id: true } });
+      if (!found) throw new StudioError('NOT_FOUND');
+      // What it already posted stays in the books; only the months to come stop.
+      await tx.accountRecurring.update({ where: { id }, data: { archivedAt: new Date() } });
+      ctx.audit({ action: 'account.recurring.archived', entityType: 'AccountRecurring', entityId: id });
+      return { id };
+    }),
+});
+
+/**
+ * Posts the recurring expenses that have come due: one expense per recurring item per month, from its first month up to
+ * this one, on its day. Safe to call as often as you like: a month already posted is skipped (the database forbids a second).
+ */
+export const applyAccountRecurring = defineAction({
+  name: 'account.recurring.apply',
+  permission: 'platform.settings',
+  input: z.object({}),
+  target: () => PLATFORM,
+  run: (ctx) =>
+    ctx.transaction(async (tx) => {
+      const today = todayInBaghdad();
+      const items = await tx.accountRecurring.findMany({ where: { archivedAt: null } });
+      if (items.length === 0) return { posted: 0 };
+      const setting = await tx.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } });
+      const stored = setting?.value;
+      const rate = typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 ? stored : null;
+      let posted = 0;
+      for (const item of items) {
+        const due = monthsBetween(item.startMonth, today.slice(0, 7))
+          .slice(-CATCH_UP_MONTHS)
+          .map((month) => ({ month, day: `${month}-${String(item.dayOfMonth).padStart(2, '0')}` }))
+          .filter(({ day }) => day <= today);
+        if (due.length === 0) continue;
+        const made = await tx.accountEntry.createMany({
+          data: due.map(({ month, day }) => ({
+            kind: 'EXPENSE' as const,
+            amountMinor: item.amountMinor,
+            currency: item.currency,
+            service: item.service,
+            note: item.note,
+            occurredOn: toDay(day)!,
+            rate,
+            recurringId: item.id,
+            recurringMonth: month,
+            createdById: ctx.actor.userId,
+          })),
+          skipDuplicates: true,
+        });
+        if (made.count > 0) {
+          posted += made.count;
+          ctx.audit({ action: 'account.recurring.applied', entityType: 'AccountRecurring', entityId: item.id });
+        }
+      }
+      return { posted };
+    }),
+});
+
+export const setAccountBudget = defineAction({
+  name: 'account.budget.set',
+  permission: 'platform.settings',
+  input: z.object({
+    service: z.string().trim().min(1, 'Type what it is for').max(60, 'Use at most 60 characters'),
+    currency: z.enum(['IQD', 'USD']),
+    amount: z.string().max(40),
+  }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    const amount = parseAmountInput(input.amount, input.currency);
+    if (!amount.ok) throw new StudioError('INVALID', undefined, { amount: AMOUNT_MESSAGES[amount.reason] });
+    if (amount.minor <= 0) throw new StudioError('INVALID', undefined, { amount: 'The amount must be more than zero' });
+    return ctx.transaction(async (tx) => {
+      const row = await tx.accountBudget.upsert({
+        where: { service_currency: { service: input.service, currency: input.currency } },
+        create: { service: input.service, currency: input.currency, limitMinor: amount.minor, createdById: ctx.actor.userId },
+        update: { limitMinor: amount.minor },
+        select: { id: true },
+      });
+      ctx.audit({ action: 'account.budget.set', entityType: 'AccountBudget', entityId: row.id });
+      return { id: row.id };
+    });
+  },
+});
+
+export const removeAccountBudget = defineAction({
+  name: 'account.budget.remove',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => PLATFORM,
+  run: (ctx, { id }) =>
+    ctx.transaction(async (tx) => {
+      const found = await tx.accountBudget.findFirst({ where: { id }, select: { id: true } });
+      if (!found) throw new StudioError('NOT_FOUND');
+      await tx.accountBudget.delete({ where: { id } });
+      ctx.audit({ action: 'account.budget.removed', entityType: 'AccountBudget', entityId: id });
+      return { id };
+    }),
+});

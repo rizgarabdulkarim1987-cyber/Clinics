@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getActor } from '@/server/studio/auth/actor';
-import { query, SIGN_IN_PATH, TWO_FACTOR_SETUP_PATH } from '@/server/studio/framework/invoke';
+import { invoke, query, SIGN_IN_PATH, TWO_FACTOR_SETUP_PATH } from '@/server/studio/framework/invoke';
+import { applyAccountRecurring } from '@/server/studio/actions/accounts';
 import { accountsBook } from '@/server/studio/queries/accounts';
 import { getStudioTranslator } from '@/studio/messages';
 import { requestStudioLocale } from '@/studio/request-locale';
@@ -21,6 +22,8 @@ export default async function AgencyPage() {
   if (actor.isSuperAdmin && !actor.twoFactorEnabled) redirect(TWO_FACTOR_SETUP_PATH);
   if (!actor.isSuperAdmin) notFound();
 
+  // Recurring expenses that have come due are posted now (a month already posted is skipped), so the book below includes them.
+  await invoke(applyAccountRecurring, {});
   const book = await query(accountsBook, {});
   return <AgencyBook book={book} today={todayInBaghdad()} userName={actor.name} appearance={actor.appearance ?? null} />;
 }

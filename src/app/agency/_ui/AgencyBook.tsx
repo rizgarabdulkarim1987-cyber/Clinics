@@ -9,11 +9,12 @@ import { LanguageSwitch } from '@/studio/shell/LanguageSwitch';
 import { cx } from '@/studio/ui/cx';
 import { EntryTab } from './EntryTab';
 import { InvoiceButton } from './InvoiceButton';
+import { PlanTab } from './PlanTab';
 import { RateBar } from './RateBar';
 import { ReportsTab } from './ReportsTab';
 import { ThemeToggle } from './ThemeToggle';
 
-const TABS = ['entry', 'reports'] as const;
+const TABS = ['entry', 'reports', 'plan'] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -24,7 +25,7 @@ export function AgencyBook({ book, today, userName, appearance }: { book: Accoun
   const t = useT();
   const [tab, setTab] = useState<Tab>('entry');
   const id = useId();
-  const refs = useRef<Record<Tab, HTMLButtonElement | null>>({ entry: null, reports: null });
+  const refs = useRef<Record<Tab, HTMLButtonElement | null>>({ entry: null, reports: null, plan: null });
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
@@ -85,6 +86,9 @@ export function AgencyBook({ book, today, userName, appearance }: { book: Accoun
         </div>
         <div role="tabpanel" id={`${id}-panel-reports`} aria-labelledby={`${id}-tab-reports`} hidden={tab !== 'reports'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           <ReportsTab book={book} today={today} />
+        </div>
+        <div role="tabpanel" id={`${id}-panel-plan`} aria-labelledby={`${id}-tab-plan`} hidden={tab !== 'plan'} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <PlanTab book={book} today={today} />
         </div>
       </main>
     </div>

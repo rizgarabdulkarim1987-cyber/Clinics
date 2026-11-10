@@ -22,7 +22,7 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
   ...over,
 });
 
-const book: AccountsBook = {
+const book: AccountsBook = { recurring: [], budgets: [],
   rate: null,
   clients: [{ id: 'a', name: 'Al Nour', slug: 'al-nour', phone: '' }],
   movements: [
@@ -137,7 +137,7 @@ describe('the movements sheet in full', () => {
 
 describe('a movement keeps its own rate', () => {
   it('converts each movement at the rate it was typed in with, not the current one', async () => {
-    const own: AccountsBook = {
+    const own: AccountsBook = { recurring: [], budgets: [],
       rate: 1400,
       clients: [],
       movements: [

@@ -54,7 +54,26 @@ export interface BookPayment {
   note: string;
 }
 
+export interface BookRecurring {
+  id: string;
+  service: string;
+  note: string;
+  amountMinor: number;
+  currency: AccountCurrency;
+  dayOfMonth: number;
+  startMonth: string;
+}
+
+export interface BookBudget {
+  id: string;
+  service: string;
+  currency: AccountCurrency;
+  limitMinor: number;
+}
+
 export interface AccountsBook {
+  recurring: BookRecurring[];
+  budgets: BookBudget[];
   clients: BookClient[];
   /** Newest day first. Totals are worked out from these in the browser and in the Excel file, by `@/lib/accounts`. */
   movements: BookMovement[];
@@ -69,7 +88,7 @@ export const accountsBook = defineQuery({
   input: z.unknown(),
   target: () => ({ kind: 'platform' }),
   run: async ({ db }): Promise<AccountsBook> => {
-    const [clients, rows, setting] = await Promise.all([
+    const [clients, rows, setting, recurring, budgets] = await Promise.all([
       db.accountClient.findMany({ where: { archivedAt: null }, orderBy: { name: 'asc' }, select: { id: true, name: true, slug: true, phone: true } }),
       db.accountEntry.findMany({
         where: { archivedAt: null },
@@ -82,11 +101,15 @@ export const accountsBook = defineQuery({
         },
       }),
       db.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } }),
+      db.accountRecurring.findMany({ where: { archivedAt: null }, orderBy: [{ dayOfMonth: 'asc' }, { createdAt: 'asc' }], select: { id: true, service: true, note: true, amountMinor: true, currency: true, dayOfMonth: true, startMonth: true } }),
+      db.accountBudget.findMany({ orderBy: [{ service: 'asc' }, { currency: 'asc' }], select: { id: true, service: true, currency: true, limitMinor: true } }),
     ]);
     const stored = setting?.value;
     return {
       rate: typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 && stored <= RATE_MAX ? stored : null,
       clients,
+      recurring,
+      budgets,
       movements: rows.map((row) => ({
         id: row.id,
         kind: row.kind,
