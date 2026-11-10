@@ -45,7 +45,7 @@ export interface WhGroup {
 }
 
 /** Places reached by a link inside another page, not by a tab: fewer tabs, the same places. */
-const LINKED: ReadonlySet<WhNavKey> = new Set(['assistant', 'opening', 'rates', 'suppliers']);
+const LINKED: ReadonlySet<WhNavKey> = new Set(['assistant', 'opening', 'rates', 'suppliers', 'catalog']);
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },

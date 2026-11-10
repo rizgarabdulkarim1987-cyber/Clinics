@@ -537,6 +537,11 @@ const wholesale: Messages = {
   'wh.demo.removed': "تم مسح البيانات التجريبية.",
   'wh.demo.removedKept': "تم المسح. بقي {n} لأن عليها مستندات حقيقية.",
   'wh.home.allClear': "لا شيء يحتاج انتباهك.",
+  'wh.expiry.title': "الصلاحية",
+  'wh.expiry.none': "لا توجد تواريخ صلاحية للمتابعة.",
+  'wh.expiry.expired': "منتهية",
+  'wh.expiry.days': "{n} يوم",
+  'wh.expiry.next': "تنتهي",
 };
 
 export default wholesale;

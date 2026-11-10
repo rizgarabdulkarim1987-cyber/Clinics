@@ -537,6 +537,11 @@ const wholesale: Messages = {
   'wh.demo.removed': "زانیاری تاقیکردنەوە سڕایەوە.",
   'wh.demo.removedKept': "سڕایەوە. {n} مایەوە چونکە بەڵگەی ڕاستەقینەیان لەسەرە.",
   'wh.home.allClear': "هیچ شتێک پێویستی بە سەرنج نییە.",
+  'wh.expiry.title': "بەرواری بەسەرچوون",
+  'wh.expiry.none': "هیچ بەرواری بەسەرچوون نییە بۆ چاودێری.",
+  'wh.expiry.expired': "بەسەرچووە",
+  'wh.expiry.days': "{n} ڕۆژ",
+  'wh.expiry.next': "بەسەردەچێت",
 };
 
 export default wholesale;

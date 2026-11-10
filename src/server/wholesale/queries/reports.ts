@@ -273,3 +273,46 @@ export const forecastQuery = defineQuery({
     return plain({ window, leadDays: settings.reorderLeadDays, rows: rows.slice(0, 300) });
   },
 });
+
+/**
+ * Every batch that still has stock and an expiry date, soonest first: what is already expired, what expires within the
+ * warning days (settings) and the rest. A rep sees only the batches in his own warehouse. Items without an expiry date are
+ * not listed (nothing to watch).
+ */
+export const expiryQuery = defineQuery({
+  name: 'wh.expiry',
+  permission: null,
+  wh: 'stock.view',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    const { db, user } = scoped(ctx);
+    const today = baghdadDate();
+    const settings = await getSettings(db);
+    const rows = await db.whBatch.findMany({
+      where: { qtyBase: { gt: 0 }, expiry: { not: null }, ...(user.role === 'REP' ? { warehouse: { kind: 'REP' as const, repUserId: user.id } } : {}) },
+      orderBy: { expiry: 'asc' },
+      take: 500,
+      select: { itemId: true, qtyBase: true, expiry: true, warehouse: { select: { name: true, kind: true } }, item: { select: { code: true, names: true, baseUnit: true, active: true } } },
+    });
+    const day = (d: Date) => d.toISOString().slice(0, 10);
+    const list = rows
+      .filter((r) => r.item.active)
+      .map((r) => {
+        const expiry = day(r.expiry!);
+        const daysLeft = Math.round((Date.parse(`${expiry}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+        return {
+          itemId: r.itemId,
+          code: r.item.code,
+          names: r.item.names,
+          baseUnit: r.item.baseUnit as string,
+          warehouse: r.warehouse.kind === 'MAIN' ? null : r.warehouse.name,
+          qtyBase: r.qtyBase.toString(),
+          expiry,
+          daysLeft,
+          status: daysLeft < 0 ? ('expired' as const) : daysLeft <= settings.expiryAlertDays ? ('soon' as const) : ('ok' as const),
+        };
+      });
+    return plain({ alertDays: settings.expiryAlertDays, rows: list });
+  },
+});

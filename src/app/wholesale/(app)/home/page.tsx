@@ -5,7 +5,7 @@ import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
-import { alertsQuery, dashboardQuery } from '@/server/wholesale/queries/reports';
+import { alertsQuery, dashboardQuery, expiryQuery } from '@/server/wholesale/queries/reports';
 import { getStudioTranslator } from '@/studio/messages';
 import { Alert } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
@@ -31,8 +31,10 @@ export default async function HomePage() {
   const needsSetup = !isRep && !warehouses.some((w) => w.kind === 'MAIN') && canWh(actor!.role, 'settings.manage');
   const board = canWh(actor!.role, 'report.view') && !needsSetup ? await queryWh(dashboardQuery) : null;
   const watch = board ? await queryWh(alertsQuery) : null;
+  const expiry = board ? await queryWh(expiryQuery) : null;
+  const expiring = (expiry?.rows ?? []).filter((r) => r.status !== 'ok');
   const counts: { label: string; value: number; href: string }[] = [
-    { label: t('wh.home.items'), value: items.filter((i) => (i as { active?: boolean }).active !== false).length, href: '/wholesale/catalog' },
+    { label: t('wh.home.items'), value: items.filter((i) => (i as { active?: boolean }).active !== false).length, href: '/wholesale/stock' },
     { label: t('wh.home.warehouses'), value: warehouses.length, href: '/wholesale/stock' },
     { label: t('wh.home.customers'), value: customers.length, href: '/wholesale/customers' },
   ];
@@ -165,7 +167,7 @@ export default async function HomePage() {
                 ))}
               </div>
             </section>
-            <section className="grid gap-3 md:min-h-0 md:flex-[2] lg:grid-cols-3">
+            <section className="grid gap-3 md:min-h-0 md:flex-[2] lg:grid-cols-4">
               <div className="flex flex-col rounded-md border border-line bg-raised px-4 py-3 lg:col-span-2">
                 <h2 className="text-sm font-semibold">{t('wh.home.last7')}</h2>
                 <ul className="mt-2 grid h-28 grid-cols-7 items-end gap-2 md:h-auto md:min-h-24 md:flex-1" dir="ltr">
@@ -176,6 +178,23 @@ export default async function HomePage() {
                     </li>
                   ))}
                 </ul>
+              </div>
+              <div className="flex min-h-0 flex-col rounded-md border border-line border-s-4 border-s-wh-rose bg-raised px-4 py-3">
+                <h2 className="text-sm font-semibold">{t('wh.expiry.title')}</h2>
+                {expiring.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted">{expiry && expiry.rows.length > 0 ? t('wh.home.allClear') : t('wh.expiry.none')}</p>
+                ) : (
+                  <ul className="mt-2 flex flex-col gap-1 overflow-y-auto md:min-h-0 md:flex-1">
+                    {expiring.map((r) => (
+                      <li key={`${r.itemId}-${r.expiry}-${r.warehouse ?? ''}`}>
+                        <Link href="/wholesale/stock" className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm hover:bg-hover ${r.status === 'expired' ? 'bg-danger-wash text-danger' : ''}`} title={`${r.expiry}`}>
+                          <span className="truncate" dir="auto">{nameOf(r.names as Names, actor!.locale)}</span>
+                          <span className="shrink-0 tabular-nums" dir="ltr">{r.status === 'expired' ? t('wh.expiry.expired') : t('wh.expiry.days', { n: r.daysLeft })}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-4 py-3">
                 <h2 className="text-sm font-semibold">{t('wh.alert.title')}</h2>

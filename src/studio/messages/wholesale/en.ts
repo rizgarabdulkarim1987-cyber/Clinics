@@ -537,6 +537,11 @@ const wholesale: Messages = {
   'wh.demo.removed': "Sample data removed.",
   'wh.demo.removedKept': "Sample data removed. {n} were kept because they have real documents.",
   'wh.home.allClear': "Nothing needs a look.",
+  'wh.expiry.title': "Expiry",
+  'wh.expiry.none': "No expiry dates to watch.",
+  'wh.expiry.expired': "Expired",
+  'wh.expiry.days': "{n} d",
+  'wh.expiry.next': "Expires",
 };
 
 export default wholesale;
