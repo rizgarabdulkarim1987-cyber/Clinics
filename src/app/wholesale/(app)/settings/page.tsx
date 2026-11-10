@@ -20,7 +20,7 @@ export default async function SettingsPage() {
         <section className="rounded-md border border-line bg-raised p-4">
           <SettingsForm values={settings} />
         </section>
-        {items.length === 0 && suppliers.length === 0 && <DemoFill />}
+        {!(items.some((i) => i.code === 'SUGAR-1') && suppliers.some((s) => s.name === 'Al-Rafidain Food Trading')) && <DemoFill />}
         <section className="flex flex-col gap-3">
           <h2 className="text-md font-semibold">{t('wh.periods.title')}</h2>
           <p className="text-sm text-muted">{t('wh.periods.hint')}</p>

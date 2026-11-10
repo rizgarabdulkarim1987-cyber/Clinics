@@ -6,12 +6,13 @@ import { warehouseOfKind } from '@/server/wholesale/warehouses';
 
 /**
  * Sample data for trying the program out: 20 made-up suppliers and 10 grocery items with prices and stock in the main
- * warehouse. It refuses any company that already has an item or a supplier, so it can never mix with real books.
+ * warehouse. It only adds what is missing (matched by supplier name and item code), never changes or stocks anything that
+ * exists, and refuses when there is nothing left to add.
  */
 
 export class DemoNotEmptyError extends Error {
   constructor() {
-    super('The company already has items or suppliers');
+    super('The sample data is already in this company');
   }
 }
 
@@ -54,10 +55,14 @@ export const ITEMS: { code: string; ar: string; ckb: string; en: string; categor
 ];
 
 export async function fillDemoData(tx: ScopedTx, rid: string, user: { id: string }): Promise<{ suppliers: number; items: number }> {
-  if ((await tx.whItem.count()) > 0 || (await tx.whSupplier.count()) > 0) throw new DemoNotEmptyError();
-  for (const s of SUPPLIERS) await createSupplier(tx, rid, { name: s.name, country: s.country, isForeign: s.foreign, phone: s.phone });
+  const haveSuppliers = new Set((await tx.whSupplier.findMany({ select: { name: true } })).map((s) => s.name));
+  const haveCodes = new Set((await tx.whItem.findMany({ select: { code: true } })).map((i) => i.code));
+  const newSuppliers = SUPPLIERS.filter((s) => !haveSuppliers.has(s.name));
+  const newItems = ITEMS.filter((i) => !haveCodes.has(i.code));
+  if (newSuppliers.length === 0 && newItems.length === 0) throw new DemoNotEmptyError();
+  for (const s of newSuppliers) await createSupplier(tx, rid, { name: s.name, country: s.country, isForeign: s.foreign, phone: s.phone });
   const main = await warehouseOfKind(tx, rid, 'MAIN');
-  for (const it of ITEMS) {
+  for (const it of newItems) {
     const made = await createItem(tx, rid, {
       code: it.code,
       names: { ar: it.ar, ckb: it.ckb, en: it.en },
@@ -74,5 +79,5 @@ export async function fillDemoData(tx: ScopedTx, rid: string, user: { id: string
     ]);
     await receiveStock(tx, { restaurantId: rid, itemId: made.id, warehouseId: main.id, qtyBase: new D(it.carton * it.stock), unitCostIqd: new D(it.cost), ref: { type: 'DEMO', id: it.code }, user });
   }
-  return { suppliers: SUPPLIERS.length, items: ITEMS.length };
+  return { suppliers: newSuppliers.length, items: newItems.length };
 }
