@@ -14,9 +14,9 @@ import { STATUS_TONE } from '../../../_ui/agencyTone';
 export const metadata: Metadata = { title: 'Agency order' };
 
 const money = (v: string) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 4 });
-const KIND_TONE: Record<string, Tone> = { ADVANCE: 'green', COST: 'amber', COMMISSION: 'violet', APPLIED: 'teal', REFUND: 'rose', COLLECTION: 'green' };
+const KIND_TONE: Record<string, Tone> = { ADVANCE: 'green', COST: 'amber', SALE: 'violet', COMMISSION: 'violet', APPLIED: 'teal', REFUND: 'rose', COLLECTION: 'green' };
 
-/** One agency order: what they paid in advance, what we paid for them, our commission, what is owed, and the steps still open. */
+/** One special order: the advance, what it cost to bring the goods, the sale at delivery with its profit or loss, and what is still owed. */
 export default async function AgencyOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { actor } = await getWhAccess();
@@ -54,6 +54,7 @@ export default async function AgencyOrderPage({ params }: { params: Promise<{ id
           {stat(t('wh.agency.held'), b.advanceHeld, isOpen)}
           {stat(t('wh.agency.costs'), b.costs)}
           {stat(t('wh.agency.owed'), b.receivable, !isOpen)}
+          {Number(b.saleTotal) > 0 && stat(Number(b.profit) < 0 ? t('wh.agency.loss') : t('wh.agency.profit'), String(Math.abs(Number(b.profit))), true)}
         </dl>
         {o.note && (
           <p className="rounded-lg border border-line bg-raised px-3 py-2 text-base text-muted" dir="auto">
@@ -69,7 +70,7 @@ export default async function AgencyOrderPage({ params }: { params: Promise<{ id
               <CostForm orderId={o.id} currency={o.currency} />
             </Fold>
             <Fold icon={PackageCheck} tone="violet" title={t('wh.agency.settle.title')} hint={t('wh.agency.settle.hint')}>
-              <SettleForm orderId={o.id} currency={o.currency} held={b.advanceHeld} receivable={b.receivable} />
+              <SettleForm orderId={o.id} currency={o.currency} held={b.advanceHeld} costs={b.costs} agreedTotal={o.agreedTotal} />
             </Fold>
           </>
         )}
@@ -94,7 +95,10 @@ export default async function AgencyOrderPage({ params }: { params: Promise<{ id
                       </span>
                     }
                   >
-                    <p className="truncate text-base">{t(`wh.agency.kind.${m.kind}`)}</p>
+                    <p className="truncate text-base">
+                      {t(`wh.agency.kind.${m.kind}`)}
+                      {m.category ? ` · ${t(`wh.agency.cat.${m.category}`)}` : ''}
+                    </p>
                     <p className="truncate text-sm text-muted" dir="auto">
                       <span dir="ltr">{String(m.date).slice(0, 10)}</span>
                       {m.note ? ` · ${m.note}` : ''}

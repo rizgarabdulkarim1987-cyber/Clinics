@@ -70,7 +70,7 @@ export async function cashPosition(db: Db): Promise<{ cash: ByCurrency; repCusto
 /** What customers owe and what the company owes suppliers, per currency. */
 export async function debts(db: Db): Promise<{ receivable: ByCurrency; payable: ByCurrency }> {
   const rows = await accountTotals(db);
-  return { receivable: sumByCurrency(rows, ['AR']), payable: sumByCurrency(rows, ['AP']) };
+  return { receivable: sumByCurrency(rows, ['AR', 'AGENCY_RECEIVABLE']), payable: sumByCurrency(rows, ['AP']) };
 }
 
 export type ProfitReport = {

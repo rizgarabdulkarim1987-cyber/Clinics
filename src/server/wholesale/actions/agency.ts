@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { COST_CATEGORIES } from '@/server/domain/wholesale/agency';
 import { ForbiddenError } from '@/server/domain/wholesale/permissions';
 import { CURRENCIES, baghdadDate } from '@/server/domain/wholesale/rates';
 import { InvalidAgencyError, cancelAgencyOrderTx, collectAgencyTx, createAgencyOrderTx, payCostTx, receiveAdvanceTx, settleAgencyOrderTx } from '@/server/wholesale/posting/agency';
@@ -63,7 +64,7 @@ export const payAgencyCostAction = defineAction({
   name: 'wh.agency.cost',
   permission: null,
   wh: 'catalog.manage',
-  input: whPlaceInput.extend({ orderId: id, amount: money, date: day.optional(), note }),
+  input: whPlaceInput.extend({ orderId: id, amount: money, date: day.optional(), category: z.enum(COST_CATEGORIES).optional(), note }),
   target: whTargetOf,
   run: (ctx, { restaurantId, date, ...p }) =>
     ctx.transaction(async (tx) =>
@@ -79,13 +80,13 @@ export const settleAgencyAction = defineAction({
   name: 'wh.agency.settle',
   permission: null,
   wh: 'catalog.manage',
-  input: whPlaceInput.extend({ orderId: id, commission: money, date: day.optional() }),
+  input: whPlaceInput.extend({ orderId: id, total: money, date: day.optional() }),
   target: whTargetOf,
   run: (ctx, { restaurantId, date, ...p }) =>
     ctx.transaction(async (tx) =>
       refusing(async () => {
         const made = await settleAgencyOrderTx(tx, restaurantId, userOf(ctx), { ...p, date: date ?? today() });
-        ctx.audit({ action: 'wh.agency.settle', entityType: 'WhAgencyOrder', entityId: p.orderId, changes: { commission: { before: null, after: p.commission } } });
+        ctx.audit({ action: 'wh.agency.settle', entityType: 'WhAgencyOrder', entityId: p.orderId, changes: { total: { before: null, after: p.total } } });
         return made;
       }),
     ),

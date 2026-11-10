@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import type Decimal from 'decimal.js'
 import type { ScopedTx } from '@/server/data/tenant-db'
-import { InvalidAgencyError, agencyBalance, nextStatusAfterCollection, planSettlement, type AgencyBalance, type AgencyKind } from '@/server/domain/wholesale/agency'
+import { COST_CATEGORIES, InvalidAgencyError, agencyBalance, nextStatusAfterCollection, planSettlement, type AgencyBalance, type AgencyKind } from '@/server/domain/wholesale/agency'
 import { AMOUNT_DP, type LineInput } from '@/server/domain/wholesale/ledger'
 import { D } from '@/server/domain/wholesale/money'
 import { ForbiddenError, canWh, type WhRole } from '@/server/domain/wholesale/permissions'
@@ -14,24 +14,22 @@ import { postJournal } from '@/server/wholesale/ledger'
 export { InvalidAgencyError } from '@/server/domain/wholesale/agency'
 
 /*
- * Agency orders: the company buys, imports or sells on behalf of another company (the principal, an existing customer).
- * OWNER and PARTNER only (catalog.manage): a rep does not handle other companies' money.
+ * Special orders (agency orders): a customer asks the company to bring goods from abroad, pays an advance, and takes the
+ * goods and pays the whole total on arrival. OWNER and PARTNER only (catalog.manage).
  *
  * Journal rules (one currency per order, so no FX line; amounts are posted at the day's rate like any foreign line):
- * - Advance:     DR CASH_<c> (or REP_CUSTODY, party = the rep, when a rep took it)  / CR CUSTOMER_ADVANCES (party = principal)
- * - Cost paid:   DR AGENCY_RECEIVABLE (party = principal)                            / CR CASH_<c>     (goods bought for him)
- * - Settlement:  DR AGENCY_RECEIVABLE / CR AGENCY_COMMISSION                         (the company's commission)
- *                DR CUSTOMER_ADVANCES / CR AGENCY_RECEIVABLE                         (advances set against what he owes)
- *                DR CUSTOMER_ADVANCES / CR CASH_<c>                                  (advances beyond that, paid back)
- * - Collection:  DR CASH_<c> (or REP_CUSTODY) / CR AGENCY_RECEIVABLE                 (he pays the rest later)
- * Goods bought for the principal never touch INVENTORY, COGS or SALES, so neither stock nor profit moves; the
- * commission is the only income. The order's own rows (WhAgencyMovement) repeat each step so its balance reads without
- * the ledger; both are written in one transaction. AGENCY_RECEIVABLE is separate from AR, so the customer's sale
- * statement and FIFO payments are untouched.
+ * - Advance:    DR CASH_<c> (or REP_CUSTODY, party = the rep) / CR CUSTOMER_ADVANCES (party = customer)
+ * - Cost paid:  DR AGENCY_WIP / CR CASH_<c>           (what the company pays to get the goods: price abroad, shipping...)
+ * - Delivery:   CR SALES (the final total); DR COGS / CR AGENCY_WIP (the cost paid); DR CUSTOMER_ADVANCES (advances applied);
+ *               DR AGENCY_RECEIVABLE (what is still owed); and if the advances exceed the total, DR CUSTOMER_ADVANCES / CR cash
+ * - Payment:    DR CASH_<c> (or REP_CUSTODY) / CR AGENCY_RECEIVABLE   (the customer pays the rest later)
+ * So the sale shows in SALES and COGS like any sale and the profit report gives its profit or loss (total - cost). The
+ * goods never enter INVENTORY. The order's own rows (WhAgencyMovement) repeat each step so its balance and profit read
+ * without the ledger; both are written in one transaction. AGENCY_RECEIVABLE is separate from AR (the debts total adds
+ * both), so the customer's sale statement and FIFO payments are untouched.
  *
- * States: OPEN -> DELIVERED (settled, something still owed) -> CLOSED (nothing owed); a settlement that leaves nothing
- * owed closes at once. OPEN -> CANCELLED only before any cost is paid; held advances are paid back from the till.
- * Locks: the order row FOR NO KEY UPDATE serialises everything on one order.
+ * States: OPEN -> DELIVERED (delivered, something still owed) -> CLOSED (nothing owed). OPEN -> CANCELLED only before
+ * any cost is paid; held advances are paid back from the till. Locks: the order row FOR NO KEY UPDATE.
  */
 
 type Db = ScopedTx
@@ -91,11 +89,11 @@ async function addRows(
   user: WhUser,
   entryId: string,
   date: string,
-  rows: { kind: AgencyKind; amount: Decimal; note?: string | null; custodyRepId?: string | null }[],
+  rows: { kind: AgencyKind; amount: Decimal; category?: string | null; note?: string | null; custodyRepId?: string | null }[],
 ) {
   for (const r of rows)
     await tx.whAgencyMovement.create({
-      data: { restaurantId: rid, orderId: order.id, kind: r.kind, amount: r.amount.toFixed(), currency: order.currency, date: toDbDate(date), note: r.note ?? null, custodyRepId: r.custodyRepId ?? null, journalEntryId: entryId, userId: user.id },
+      data: { restaurantId: rid, orderId: order.id, kind: r.kind, amount: r.amount.toFixed(), currency: order.currency, date: toDbDate(date), note: r.note ?? null, category: r.category ?? null, custodyRepId: r.custodyRepId ?? null, journalEntryId: entryId, userId: user.id },
     })
 }
 
@@ -144,7 +142,7 @@ export async function receiveAdvanceTx(tx: Db, rid: string, user: WhUser, p: Adv
   const to = await receiving(tx, p.custodyRepId, order.currency, amount)
   const { entryId } = await postJournal(tx, rid, {
     date,
-    memo: `Advance for agency order #${order.number}`,
+    memo: `Advance for special order #${order.number}`,
     source: { type: 'AGENCY_ADVANCE', id: randomUUID() },
     user,
     lines: [to.line, { accountCode: 'CUSTOMER_ADVANCES', side: 'CR', amount, currency: order.currency, partyId: order.principalId }],
@@ -153,67 +151,63 @@ export async function receiveAdvanceTx(tx: Db, rid: string, user: WhUser, p: Adv
   return { entryId }
 }
 
-export type CostInput = { orderId: string; amount: Dec; date: string; note?: string | null }
+export type CostInput = { orderId: string; amount: Dec; date: string; category?: string | null; note?: string | null }
 
-/** Money the company paid out of the till for the principal's goods: owed back to it, never stock or an expense. */
+/** Money the company paid out of the till to get the goods (price abroad, shipping...): held as orders in progress until delivery. */
 export async function payCostTx(tx: Db, rid: string, user: WhUser, p: CostInput): Promise<{ entryId: string }> {
   requireManager(user)
   const order = await lockOrder(tx, rid, String(p?.orderId ?? ''))
   if (order.status !== 'OPEN') throw new InvalidAgencyError('costs are recorded while the order is open')
   const amount = positive(p.amount, 'amount')
   const date = requireDay(p.date, 'date')
+  const category = p.category ?? 'GOODS'
+  if (!(COST_CATEGORIES as readonly string[]).includes(category)) throw new InvalidAgencyError('unknown cost kind')
   const { entryId } = await postJournal(tx, rid, {
     date,
-    memo: `Paid for agency order #${order.number}`,
+    memo: `Paid for special order #${order.number}`,
     source: { type: 'AGENCY_COST', id: randomUUID() },
     user,
     lines: [
-      { accountCode: 'AGENCY_RECEIVABLE', side: 'DR', amount, currency: order.currency, partyId: order.principalId },
+      { accountCode: 'AGENCY_WIP', side: 'DR', amount, currency: order.currency },
       { accountCode: cashAccount(order.currency), side: 'CR', amount, currency: order.currency },
     ],
   })
-  await addRows(tx, rid, order, user, entryId, date, [{ kind: 'COST', amount, note: optionalText(p.note, 500) }])
+  await addRows(tx, rid, order, user, entryId, date, [{ kind: 'COST', amount, category, note: optionalText(p.note, 500) }])
   return { entryId }
 }
 
-export type SettleInput = { orderId: string; commission: Dec; date: string }
-export type SettleResult = { entryId: string | null; commission: string; applied: string; refund: string; remaining: string; status: 'DELIVERED' | 'CLOSED' }
+export type SettleInput = { orderId: string; total: Dec; date: string }
+export type SettleResult = { entryId: string; total: string; cost: string; profit: string; applied: string; refund: string; remaining: string; status: 'DELIVERED' | 'CLOSED' }
 
-/** Delivery: charge the commission, set the advances against what he owes, pay back the excess, leave the rest owed. */
+/** Delivery: the final total is the sale; advances pay part of it, the rest is owed; the cost paid becomes the cost of goods. */
 export async function settleAgencyOrderTx(tx: Db, rid: string, user: WhUser, p: SettleInput): Promise<SettleResult> {
   requireManager(user)
   const order = await lockOrder(tx, rid, String(p?.orderId ?? ''))
-  if (order.status !== 'OPEN') throw new InvalidAgencyError('only an open order can be settled')
-  const commission = parseAmount(p.commission, { label: 'commission', dp: AMOUNT_DP, min: 'zero' })
+  if (order.status !== 'OPEN') throw new InvalidAgencyError('only an open order can be delivered')
+  const total = positive(p.total, 'total')
   const date = requireDay(p.date, 'date')
-  const plan = planSettlement(balanceOf(order), commission)
+  const plan = planSettlement(balanceOf(order), total)
   const c = order.currency
   const party = order.principalId
-  const lines: LineInput[] = []
-  if (plan.commission.gt(0)) {
-    lines.push({ accountCode: 'AGENCY_RECEIVABLE', side: 'DR', amount: plan.commission, currency: c, partyId: party })
-    lines.push({ accountCode: 'AGENCY_COMMISSION', side: 'CR', amount: plan.commission, currency: c })
+  const lines: LineInput[] = [{ accountCode: 'SALES', side: 'CR', amount: plan.total, currency: c }]
+  if (plan.cost.gt(0)) {
+    lines.push({ accountCode: 'COGS', side: 'DR', amount: plan.cost, currency: c })
+    lines.push({ accountCode: 'AGENCY_WIP', side: 'CR', amount: plan.cost, currency: c })
   }
-  if (plan.applied.gt(0)) {
-    lines.push({ accountCode: 'CUSTOMER_ADVANCES', side: 'DR', amount: plan.applied, currency: c, partyId: party })
-    lines.push({ accountCode: 'AGENCY_RECEIVABLE', side: 'CR', amount: plan.applied, currency: c, partyId: party })
-  }
+  if (plan.applied.gt(0)) lines.push({ accountCode: 'CUSTOMER_ADVANCES', side: 'DR', amount: plan.applied, currency: c, partyId: party })
+  if (plan.remaining.gt(0)) lines.push({ accountCode: 'AGENCY_RECEIVABLE', side: 'DR', amount: plan.remaining, currency: c, partyId: party })
   if (plan.refund.gt(0)) {
     lines.push({ accountCode: 'CUSTOMER_ADVANCES', side: 'DR', amount: plan.refund, currency: c, partyId: party })
     lines.push({ accountCode: cashAccount(c), side: 'CR', amount: plan.refund, currency: c })
   }
-  let entryId: string | null = null
-  if (lines.length > 0) {
-    entryId = (await postJournal(tx, rid, { date, memo: `Settlement of agency order #${order.number}`, source: { type: 'AGENCY_SETTLEMENT', id: order.id }, user, lines })).entryId
-    const rows: { kind: AgencyKind; amount: Decimal }[] = []
-    if (plan.commission.gt(0)) rows.push({ kind: 'COMMISSION', amount: plan.commission })
-    if (plan.applied.gt(0)) rows.push({ kind: 'APPLIED', amount: plan.applied })
-    if (plan.refund.gt(0)) rows.push({ kind: 'REFUND', amount: plan.refund })
-    await addRows(tx, rid, order, user, entryId, date, rows)
-  }
+  const { entryId } = await postJournal(tx, rid, { date, memo: `Delivery of special order #${order.number}`, source: { type: 'AGENCY_SETTLEMENT', id: order.id }, user, lines })
+  const rows: { kind: AgencyKind; amount: Decimal }[] = [{ kind: 'SALE', amount: plan.total }]
+  if (plan.applied.gt(0)) rows.push({ kind: 'APPLIED', amount: plan.applied })
+  if (plan.refund.gt(0)) rows.push({ kind: 'REFUND', amount: plan.refund })
+  await addRows(tx, rid, order, user, entryId, date, rows)
   const status = nextStatusAfterCollection(plan.remaining) as 'DELIVERED' | 'CLOSED'
   await tx.whAgencyOrder.update({ where: { id: order.id }, data: { status, settledAt: new Date() } })
-  return { entryId, commission: plan.commission.toFixed(), applied: plan.applied.toFixed(), refund: plan.refund.toFixed(), remaining: plan.remaining.toFixed(), status }
+  return { entryId, total: plan.total.toFixed(), cost: plan.cost.toFixed(), profit: plan.profit.toFixed(), applied: plan.applied.toFixed(), refund: plan.refund.toFixed(), remaining: plan.remaining.toFixed(), status }
 }
 
 export type CollectInput = { orderId: string; amount: Dec; date: string; custodyRepId?: string | null; note?: string | null }
@@ -226,11 +220,11 @@ export async function collectAgencyTx(tx: Db, rid: string, user: WhUser, p: Coll
   const amount = positive(p.amount, 'amount')
   const date = requireDay(p.date, 'date')
   const balance = balanceOf(order)
-  if (amount.gt(balance.receivable)) throw new InvalidAgencyError(`the principal owes ${balance.receivable.toFixed()} only`)
+  if (amount.gt(balance.receivable)) throw new InvalidAgencyError(`the customer owes ${balance.receivable.toFixed()} only`)
   const to = await receiving(tx, p.custodyRepId, order.currency, amount)
   const { entryId } = await postJournal(tx, rid, {
     date,
-    memo: `Payment on agency order #${order.number}`,
+    memo: `Payment on special order #${order.number}`,
     source: { type: 'AGENCY_COLLECTION', id: randomUUID() },
     user,
     lines: [to.line, { accountCode: 'AGENCY_RECEIVABLE', side: 'CR', amount, currency: order.currency, partyId: order.principalId }],
@@ -254,7 +248,7 @@ export async function cancelAgencyOrderTx(tx: Db, rid: string, user: WhUser, p: 
     entryId = (
       await postJournal(tx, rid, {
         date,
-        memo: `Cancelled agency order #${order.number}: advances paid back`,
+        memo: `Cancelled special order #${order.number}: advances paid back`,
         source: { type: 'AGENCY_CANCEL', id: order.id },
         user,
         lines: [
@@ -288,7 +282,7 @@ const orderBase = {
 
 function shape<T extends { movements: { kind: AgencyKind; amount: { toString(): string } }[] }>(o: T) {
   const b = balanceOf(o)
-  return { ...o, balance: { advanceReceived: b.advanceReceived.toFixed(), advanceHeld: b.advanceHeld.toFixed(), costs: b.costs.toFixed(), commission: b.commission.toFixed(), receivable: b.receivable.toFixed() } }
+  return { ...o, balance: { advanceReceived: b.advanceReceived.toFixed(), advanceHeld: b.advanceHeld.toFixed(), costs: b.costs.toFixed(), saleTotal: b.saleTotal.toFixed(), profit: b.profit.toFixed(), receivable: b.receivable.toFixed() } }
 }
 
 export async function listAgencyOrders(tx: Db, user: WhUser) {
@@ -301,7 +295,7 @@ export async function getAgencyOrder(tx: Db, user: WhUser, id: string) {
   requireManager(user)
   const o = await tx.whAgencyOrder.findUnique({
     where: { id },
-    select: { ...orderBase, movements: { orderBy: [{ date: 'asc' }, { createdAt: 'asc' }], select: { id: true, kind: true, amount: true, date: true, note: true, custodyRepId: true, journalEntryId: true } } },
+    select: { ...orderBase, movements: { orderBy: [{ date: 'asc' }, { createdAt: 'asc' }], select: { id: true, kind: true, amount: true, date: true, note: true, category: true, custodyRepId: true, journalEntryId: true } } },
   })
   return o ? shape(o) : null
 }
@@ -311,7 +305,7 @@ export async function agencyExport(tx: Db, from: string, to: string) {
   const orders = await tx.whAgencyOrder.findMany({
     where: { date: { gte: toDbDate(from), lte: toDbDate(to) } },
     orderBy: { number: 'asc' },
-    select: { ...orderBase, movements: { orderBy: [{ date: 'asc' }, { createdAt: 'asc' }], select: { kind: true, amount: true, date: true, note: true } } },
+    select: { ...orderBase, movements: { orderBy: [{ date: 'asc' }, { createdAt: 'asc' }], select: { kind: true, amount: true, date: true, note: true, category: true } } },
   })
   return orders.map(shape)
 }
