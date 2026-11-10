@@ -40,6 +40,9 @@ export const PERMISSIONS = [
   // Platform
   'audit.view',
   'platform.settings',
+  // The agency's books: reading them, and entering movements (an accountant holds these two and nothing else).
+  'accounts.view',
+  'accounts.enter',
   // Plans: what each restaurant has bought. The platform owner's alone (spec: plans and entitlements, 2.1).
   'plans.manage',
 ] as const;
@@ -88,6 +91,8 @@ export const NEVER_GRANTABLE: readonly Permission[] = [
   'permissions.manage',
   'audit.view',
   'platform.settings',
+  'accounts.view',
+  'accounts.enter',
   'plans.manage',
 ];
 
@@ -103,6 +108,8 @@ export const PLATFORM_PERMISSIONS: readonly Permission[] = [
   'people.manage',
   'audit.view',
   'platform.settings',
+  'accounts.view',
+  'accounts.enter',
 ];
 
 /** What one client changes for one role: keys granted on top of the defaults, keys revoked from them. */
@@ -149,6 +156,9 @@ export function parsePolicy(json: unknown): PermissionPolicy {
 
 const OWNER_ONLY = new Set<Permission>(OWNER_ONLY_PERMISSIONS);
 
+/** What the agency's accountant holds: read the books and enter movements, never delete or change the settings. */
+export const ACCOUNTANT_PERMISSIONS: readonly Permission[] = ['accounts.view', 'accounts.enter'];
+
 /**
  * Every permission an actor holds: all of them for a Super Admin (the owner-only ones for the platform owner alone), none
  * without a role, otherwise the role defaults plus the client's grants minus its revokes. A revoke wins over a grant,
@@ -156,13 +166,15 @@ const OWNER_ONLY = new Set<Permission>(OWNER_ONLY_PERMISSIONS);
  */
 export function effectivePermissions(args: {
   isSuperAdmin: boolean;
+  /** The agency's accountant: reads the books and enters movements; counts only outside a restaurant, with no role. */
+  isAccountant?: boolean;
   /** The one account that sells; counts only for a Super Admin. */
   isPlatformOwner?: boolean;
   role: MemberRole | null;
   policy: PermissionPolicy;
 }): ReadonlySet<Permission> {
   if (args.isSuperAdmin) return new Set(args.isPlatformOwner ? PERMISSIONS : PERMISSIONS.filter((key) => !OWNER_ONLY.has(key)));
-  if (args.role === null) return new Set();
+  if (args.role === null) return new Set(args.isAccountant ? ACCOUNTANT_PERMISSIONS : []);
   const set = new Set<Permission>(ROLE_DEFAULTS[args.role]);
   const entry = args.policy[args.role];
   if (entry) {

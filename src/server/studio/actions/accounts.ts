@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ATTACHMENT_MAX_BYTES, ATTACHMENTS_PER_ENTRY, cleanAttachmentName, sniffAttachment } from '@/lib/attachments';
 import { nextSlug, parsePeriod, parseRate, RATE_SETTING_KEY, slugFromName } from '@/lib/accounts';
 import { defineAction } from '@/server/studio/framework/action';
+import { readAccountsBook, type BookDb } from '@/server/studio/queries/accounts';
 import { StudioError } from '@/server/studio/framework/result';
 import { parseAmountInput, type AmountInputProblem } from '@/studio/money-input';
 
@@ -38,7 +39,7 @@ function toDay(text: string): Date | null {
 
 export const createAccountClient = defineAction({
   name: 'account.client.create',
-  permission: 'platform.settings',
+  permission: 'accounts.enter',
   input: z.object({
     name: z.string().trim().min(1, 'Type the name of the client').max(120, 'Use at most 120 characters'),
     /** Optional: the slug the person edited. Made from the name when empty. */
@@ -77,7 +78,7 @@ export const archiveAccountClient = defineAction({
 
 export const addAccountEntry = defineAction({
   name: 'account.entry.create',
-  permission: 'platform.settings',
+  permission: 'accounts.enter',
   input: z.object({
     kind: z.enum(['INCOME', 'EXPENSE']),
     /** As typed, in the major unit: `1,500,000` dinars or `19.99` dollars. */
@@ -131,7 +132,7 @@ export const addAccountEntry = defineAction({
 
 export const updateAccountEntry = defineAction({
   name: 'account.entry.update',
-  permission: 'platform.settings',
+  permission: 'accounts.enter',
   input: z.object({
     id: z.string().min(1).max(100),
     kind: z.enum(['INCOME', 'EXPENSE']),
@@ -196,7 +197,7 @@ export const archiveAccountEntry = defineAction({
 
 export const addAccountPayment = defineAction({
   name: 'account.payment.create',
-  permission: 'platform.settings',
+  permission: 'accounts.enter',
   input: z.object({
     entryId: z.string().min(1).max(100),
     /** As typed, in the major unit of the entry's own currency. */
@@ -269,7 +270,7 @@ export const setAccountRate = defineAction({
 
 export const addAccountAttachment = defineAction({
   name: 'account.attachment.create',
-  permission: 'platform.settings',
+  permission: 'accounts.enter',
   input: z.object({
     entryId: z.string().min(1).max(100),
     fileName: z.string().max(300),
@@ -314,7 +315,7 @@ export const archiveAccountAttachment = defineAction({
 /** Gives an income its invoice number the first time it is asked for; asking again returns the same one. */
 export const issueAccountInvoice = defineAction({
   name: 'account.invoice.issue',
-  permission: 'platform.settings',
+  permission: 'accounts.enter',
   input: z.object({ entryId: z.string().min(1).max(100) }),
   target: () => PLATFORM,
   run: (ctx, { entryId }) =>
@@ -331,7 +332,7 @@ export const issueAccountInvoice = defineAction({
 /** Gives one client's invoice for a period its number the first time it is asked for; asking again returns the same one. */
 export const issueAccountClientInvoice = defineAction({
   name: 'account.clientInvoice.issue',
-  permission: 'platform.settings',
+  permission: 'accounts.enter',
   input: z.object({ clientId: z.string().min(1).max(100), period: z.string().max(20) }),
   target: () => PLATFORM,
   run: (ctx, { clientId, period }) =>
@@ -517,5 +518,158 @@ export const removeAccountBudget = defineAction({
       await tx.accountBudget.delete({ where: { id } });
       ctx.audit({ action: 'account.budget.removed', entityType: 'AccountBudget', entityId: id });
       return { id };
+    }),
+});
+
+const QUOTE_DAYS = [7, 14, 30, 60] as const;
+
+/** `YYYY-MM-DD` plus some days (calendar arithmetic in UTC, so no daylight saving to trip on). */
+function addDays(day: string, days: number): string {
+  const date = toDay(day)!;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export const createAccountQuote = defineAction({
+  name: 'account.quote.create',
+  permission: 'accounts.enter',
+  input: z.object({
+    clientId: z.string().min(1).max(100),
+    service: z.string().trim().min(1, 'Type what it is for').max(60, 'Use at most 60 characters'),
+    note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
+    amount: z.string().max(40),
+    currency: z.enum(['IQD', 'USD']),
+    /** How long the offer stands. */
+    validDays: z.number().int().refine((value) => (QUOTE_DAYS as readonly number[]).includes(value)),
+  }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    const amount = parseAmountInput(input.amount, input.currency);
+    if (!amount.ok) throw new StudioError('INVALID', undefined, { amount: AMOUNT_MESSAGES[amount.reason] });
+    if (amount.minor <= 0) throw new StudioError('INVALID', undefined, { amount: 'The amount must be more than zero' });
+    return ctx.transaction(async (tx) => {
+      const client = await tx.accountClient.findFirst({ where: { id: input.clientId, archivedAt: null }, select: { id: true } });
+      if (!client) throw new StudioError('NOT_FOUND');
+      const today = todayInBaghdad();
+      const row = await tx.accountQuote.create({
+        data: {
+          clientId: client.id,
+          service: input.service,
+          note: input.note ?? '',
+          amountMinor: amount.minor,
+          currency: input.currency,
+          issuedOn: toDay(today)!,
+          validUntil: toDay(addDays(today, input.validDays))!,
+          createdById: ctx.actor.userId,
+        },
+        select: { id: true, number: true },
+      });
+      ctx.audit({ action: 'account.quote.created', entityType: 'AccountQuote', entityId: row.id });
+      return { id: row.id, number: row.number };
+    });
+  },
+});
+
+/** The client's answer: accepting makes the income (money the client owes, dated today) and links it to the quote. */
+export const decideAccountQuote = defineAction({
+  name: 'account.quote.decide',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100), decision: z.enum(['ACCEPT', 'DECLINE']) }),
+  target: () => PLATFORM,
+  run: (ctx, { id, decision }) =>
+    ctx.transaction(async (tx) => {
+      const quote = await tx.accountQuote.findFirst({ where: { id, archivedAt: null }, include: { client: { select: { archivedAt: true } } } });
+      if (!quote) throw new StudioError('NOT_FOUND');
+      if (quote.status !== 'OPEN') throw new StudioError('INVALID');
+      if (decision === 'DECLINE') {
+        await tx.accountQuote.update({ where: { id }, data: { status: 'DECLINED' } });
+        ctx.audit({ action: 'account.quote.declined', entityType: 'AccountQuote', entityId: id });
+        return { id, entryId: null as string | null };
+      }
+      if (quote.client.archivedAt) throw new StudioError('NOT_FOUND');
+      const setting = await tx.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } });
+      const stored = setting?.value;
+      const rate = typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 ? stored : null;
+      const entry = await tx.accountEntry.create({
+        data: {
+          kind: 'INCOME',
+          owed: true,
+          rate,
+          clientId: quote.clientId,
+          amountMinor: quote.amountMinor,
+          currency: quote.currency,
+          service: quote.service,
+          note: quote.note,
+          occurredOn: toDay(todayInBaghdad())!,
+          createdById: ctx.actor.userId,
+        },
+        select: { id: true },
+      });
+      await tx.accountQuote.update({ where: { id }, data: { status: 'ACCEPTED', entryId: entry.id } });
+      ctx.audit({ action: 'account.quote.accepted', entityType: 'AccountQuote', entityId: id });
+      return { id, entryId: entry.id as string | null };
+    }),
+});
+
+export const archiveAccountQuote = defineAction({
+  name: 'account.quote.archive',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => PLATFORM,
+  run: (ctx, { id }) =>
+    ctx.transaction(async (tx) => {
+      const found = await tx.accountQuote.findFirst({ where: { id, archivedAt: null }, select: { id: true } });
+      if (!found) throw new StudioError('NOT_FOUND');
+      await tx.accountQuote.update({ where: { id }, data: { archivedAt: new Date() } });
+      ctx.audit({ action: 'account.quote.archived', entityType: 'AccountQuote', entityId: id });
+      return { id };
+    }),
+});
+
+/** How many daily copies of the book are kept. */
+const BACKUPS_KEPT = 30;
+
+/**
+ * Takes today's copy of the book when there is none yet, and drops the ones older than {@link BACKUPS_KEPT} days. The
+ * agency page calls it on every open, and the scheduled job at night; a second call on the same day does nothing.
+ */
+export const takeAccountBackup = defineAction({
+  name: 'account.backup.take',
+  permission: 'platform.settings',
+  input: z.unknown(),
+  target: () => PLATFORM,
+  run: (ctx) =>
+    ctx.transaction(async (tx) => {
+      const today = todayInBaghdad();
+      const day = toDay(today)!;
+      if (await tx.accountBackup.findUnique({ where: { takenOn: day }, select: { id: true } })) return { taken: false };
+      const book = await readAccountsBook(tx as unknown as BookDb);
+      const made = await tx.accountBackup.createMany({ data: [{ takenOn: day, entries: book.movements.length, book: JSON.parse(JSON.stringify(book)) }], skipDuplicates: true });
+      await tx.accountBackup.deleteMany({ where: { takenOn: { lt: toDay(addDays(today, -BACKUPS_KEPT))! } } });
+      if (made.count === 0) return { taken: false };
+      ctx.audit({ action: 'account.backup.taken', entityType: 'AccountBackup', entityId: today });
+      return { taken: true };
+    }),
+});
+
+/** Gives or takes away the accountant's access, by the email of an existing Studio account. */
+export const setAccountAccountant = defineAction({
+  name: 'account.accountant.set',
+  permission: 'platform.settings',
+  input: z.object({ email: z.string().trim().toLowerCase().email('Type a valid email').max(200), on: z.boolean() }),
+  target: () => PLATFORM,
+  run: (ctx, { email, on }) =>
+    ctx.transaction(async (tx) => {
+      const user = await tx.user.findFirst({ where: { email, deactivatedAt: null }, select: { id: true, isSuperAdmin: true } });
+      if (!user) throw new StudioError('INVALID', undefined, { email: 'No Studio account has this email' });
+      if (user.isSuperAdmin) throw new StudioError('INVALID', undefined, { email: 'A Super Admin already has full access' });
+      if (on) {
+        await tx.accountAccess.upsert({ where: { userId: user.id }, create: { userId: user.id, createdById: ctx.actor.userId }, update: {} });
+        ctx.audit({ action: 'account.accountant.added', entityType: 'AccountAccess', entityId: user.id });
+      } else {
+        await tx.accountAccess.deleteMany({ where: { userId: user.id } });
+        ctx.audit({ action: 'account.accountant.removed', entityType: 'AccountAccess', entityId: user.id });
+      }
+      return { userId: user.id };
     }),
 });

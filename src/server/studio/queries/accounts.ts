@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { PrismaClient } from '@/generated/prisma/client';
 import { inPeriod, parsePeriod, RATE_MAX, RATE_SETTING_KEY, type AccountCurrency, type AccountKind } from '@/lib/accounts';
 import { defineQuery } from '@/server/studio/framework/query';
 import { StudioError } from '@/server/studio/framework/result';
@@ -74,7 +75,22 @@ export interface BookBudget {
   limitMinor: number;
 }
 
+export interface BookQuote {
+  id: string;
+  number: number;
+  clientId: string;
+  clientName: string;
+  service: string;
+  note: string;
+  amountMinor: number;
+  currency: AccountCurrency;
+  issuedOn: string;
+  validUntil: string;
+  status: 'OPEN' | 'ACCEPTED' | 'DECLINED';
+}
+
 export interface AccountsBook {
+  quotes: BookQuote[];
   recurring: BookRecurring[];
   budgets: BookBudget[];
   clients: BookClient[];
@@ -85,59 +101,79 @@ export interface AccountsBook {
 }
 
 /** Everything the accounts screen shows, in one read: the active clients and every movement not archived. */
+/** The tables the book reads: a plain client or a transaction's one. */
+export type BookDb = Pick<PrismaClient, 'accountClient' | 'accountEntry' | 'platformSetting' | 'accountRecurring' | 'accountBudget' | 'accountQuote'>;
+
+/** The whole book as the screen, the Excel file and the daily backup all read it. */
+export async function readAccountsBook(db: BookDb): Promise<AccountsBook> {
+  const [clients, rows, setting, recurring, budgets, quotes] = await Promise.all([
+    db.accountClient.findMany({ where: { archivedAt: null }, orderBy: { name: 'asc' }, select: { id: true, name: true, slug: true, phone: true } }),
+    db.accountEntry.findMany({
+      where: { archivedAt: null },
+      orderBy: [{ occurredOn: 'desc' }, { createdAt: 'desc' }],
+      take: BOOK_LIMIT,
+      include: {
+        client: { select: { name: true } },
+        payments: { where: { archivedAt: null }, orderBy: [{ paidOn: 'asc' }, { createdAt: 'asc' }], select: { id: true, amountMinor: true, paidOn: true, note: true } },
+        attachments: { where: { archivedAt: null }, orderBy: { createdAt: 'asc' }, select: { id: true, fileName: true, mediaType: true, sizeBytes: true } },
+      },
+    }),
+    db.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } }),
+    db.accountRecurring.findMany({ where: { archivedAt: null }, orderBy: [{ dayOfMonth: 'asc' }, { createdAt: 'asc' }], select: { id: true, kind: true, clientId: true, client: { select: { name: true } }, service: true, note: true, amountMinor: true, currency: true, dayOfMonth: true, startMonth: true } }),
+    db.accountBudget.findMany({ orderBy: [{ service: 'asc' }, { currency: 'asc' }], select: { id: true, service: true, currency: true, limitMinor: true } }),
+    db.accountQuote.findMany({ where: { archivedAt: null }, orderBy: { number: 'desc' }, take: 200, include: { client: { select: { name: true } } } }),
+  ]);
+  const stored = setting?.value;
+  return {
+    rate: typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 && stored <= RATE_MAX ? stored : null,
+    clients,
+    quotes: quotes.map((quote) => ({
+      id: quote.id,
+      number: quote.number,
+      clientId: quote.clientId,
+      clientName: quote.client.name,
+      service: quote.service,
+      note: quote.note,
+      amountMinor: quote.amountMinor,
+      currency: quote.currency,
+      issuedOn: quote.issuedOn.toISOString().slice(0, 10),
+      validUntil: quote.validUntil.toISOString().slice(0, 10),
+      status: quote.status,
+    })),
+    recurring: recurring.map(({ client, ...item }) => ({ ...item, clientName: client?.name ?? null })),
+    budgets,
+    movements: rows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      amountMinor: row.amountMinor,
+      currency: row.currency,
+      clientId: row.clientId,
+      clientName: row.client?.name ?? null,
+      service: row.service,
+      note: row.note,
+      occurredOn: row.occurredOn.toISOString().slice(0, 10),
+      recordedAt: row.createdAt.toISOString(),
+      rate: row.rate,
+      owed: row.owed,
+      paidMinor: row.payments.reduce((sum, payment) => sum + payment.amountMinor, 0),
+      payments: row.payments.map((payment) => ({ id: payment.id, amountMinor: payment.amountMinor, paidOn: payment.paidOn.toISOString().slice(0, 10), note: payment.note })),
+      attachments: row.attachments,
+    })),
+  };
+}
+
 export const accountsBook = defineQuery({
   name: 'accounts.book',
-  permission: 'platform.settings',
+  permission: 'accounts.view',
   input: z.unknown(),
   target: () => ({ kind: 'platform' }),
-  run: async ({ db }): Promise<AccountsBook> => {
-    const [clients, rows, setting, recurring, budgets] = await Promise.all([
-      db.accountClient.findMany({ where: { archivedAt: null }, orderBy: { name: 'asc' }, select: { id: true, name: true, slug: true, phone: true } }),
-      db.accountEntry.findMany({
-        where: { archivedAt: null },
-        orderBy: [{ occurredOn: 'desc' }, { createdAt: 'desc' }],
-        take: BOOK_LIMIT,
-        include: {
-          client: { select: { name: true } },
-          payments: { where: { archivedAt: null }, orderBy: [{ paidOn: 'asc' }, { createdAt: 'asc' }], select: { id: true, amountMinor: true, paidOn: true, note: true } },
-          attachments: { where: { archivedAt: null }, orderBy: { createdAt: 'asc' }, select: { id: true, fileName: true, mediaType: true, sizeBytes: true } },
-        },
-      }),
-      db.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } }),
-      db.accountRecurring.findMany({ where: { archivedAt: null }, orderBy: [{ dayOfMonth: 'asc' }, { createdAt: 'asc' }], select: { id: true, kind: true, clientId: true, client: { select: { name: true } }, service: true, note: true, amountMinor: true, currency: true, dayOfMonth: true, startMonth: true } }),
-      db.accountBudget.findMany({ orderBy: [{ service: 'asc' }, { currency: 'asc' }], select: { id: true, service: true, currency: true, limitMinor: true } }),
-    ]);
-    const stored = setting?.value;
-    return {
-      rate: typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 && stored <= RATE_MAX ? stored : null,
-      clients,
-      recurring: recurring.map(({ client, ...item }) => ({ ...item, clientName: client?.name ?? null })),
-      budgets,
-      movements: rows.map((row) => ({
-        id: row.id,
-        kind: row.kind,
-        amountMinor: row.amountMinor,
-        currency: row.currency,
-        clientId: row.clientId,
-        clientName: row.client?.name ?? null,
-        service: row.service,
-        note: row.note,
-        occurredOn: row.occurredOn.toISOString().slice(0, 10),
-        recordedAt: row.createdAt.toISOString(),
-        rate: row.rate,
-        owed: row.owed,
-        paidMinor: row.payments.reduce((sum, payment) => sum + payment.amountMinor, 0),
-        payments: row.payments.map((payment) => ({ id: payment.id, amountMinor: payment.amountMinor, paidOn: payment.paidOn.toISOString().slice(0, 10), note: payment.note })),
-        attachments: row.attachments,
-      })),
-    };
-  },
+  run: ({ db }) => readAccountsBook(db),
 });
 
 /** One attachment with its bytes, for the download link. */
 export const accountAttachment = defineQuery({
   name: 'accounts.attachment',
-  permission: 'platform.settings',
+  permission: 'accounts.view',
   input: z.object({ id: z.string().min(1).max(100) }),
   target: () => ({ kind: 'platform' }),
   run: async ({ db }, { id }) => {
@@ -164,7 +200,7 @@ export interface InvoiceData {
 /** Everything an invoice page shows, for an income that has been given its number. */
 export const accountInvoice = defineQuery({
   name: 'accounts.invoice',
-  permission: 'platform.settings',
+  permission: 'accounts.view',
   input: z.object({ entryId: z.string().min(1).max(100) }),
   target: () => ({ kind: 'platform' }),
   run: async ({ db }, { entryId }): Promise<InvoiceData> => {
@@ -226,7 +262,7 @@ export interface ClientInvoiceData {
  */
 export const accountClientInvoice = defineQuery({
   name: 'accounts.clientInvoice',
-  permission: 'platform.settings',
+  permission: 'accounts.view',
   input: z.object({ clientId: z.string().min(1).max(100), period: z.string().max(20) }),
   target: () => ({ kind: 'platform' }),
   run: async ({ db }, { clientId, period: key }): Promise<ClientInvoiceData> => {
@@ -263,5 +299,120 @@ export const accountClientInvoice = defineQuery({
     }
     if (lines.length === 0) throw new StudioError('NOT_FOUND');
     return { clientName: client.name, clientPhone: client.phone, issuedOn: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baghdad' }).format(new Date()), lines };
+  },
+});
+
+export interface QuoteData extends BookQuote {
+  clientPhone: string;
+}
+
+/** One quote for its printable page. */
+export const accountQuote = defineQuery({
+  name: 'accounts.quote',
+  permission: 'accounts.view',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }, { id }): Promise<QuoteData> => {
+    const quote = await db.accountQuote.findFirst({ where: { id, archivedAt: null }, include: { client: { select: { name: true, phone: true } } } });
+    if (!quote) throw new StudioError('NOT_FOUND');
+    return {
+      id: quote.id,
+      number: quote.number,
+      clientId: quote.clientId,
+      clientName: quote.client.name,
+      clientPhone: quote.client.phone,
+      service: quote.service,
+      note: quote.note,
+      amountMinor: quote.amountMinor,
+      currency: quote.currency,
+      issuedOn: quote.issuedOn.toISOString().slice(0, 10),
+      validUntil: quote.validUntil.toISOString().slice(0, 10),
+      status: quote.status,
+    };
+  },
+});
+
+/** What the change log needs of one audit row. */
+export interface BookLogRow {
+  id: string;
+  action: string;
+  entityType: string;
+  actorName: string | null;
+  occurredAt: string;
+}
+
+const BOOK_ENTITIES = ['AccountClient', 'AccountEntry', 'AccountPayment', 'AccountAttachment', 'AccountInvoice', 'AccountClientInvoice', 'AccountRecurring', 'AccountBudget', 'AccountQuote', 'AccountBackup', 'AccountAccess'];
+
+/** Who changed the books and when, newest first (the last 200 changes). The audit log holds no amounts and no names of clients. */
+export const accountsLog = defineQuery({
+  name: 'accounts.log',
+  permission: 'platform.settings',
+  input: z.unknown(),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }): Promise<BookLogRow[]> => {
+    const rows = await db.auditLog.findMany({
+      where: { OR: [{ entityType: { in: BOOK_ENTITIES } }, { action: 'account.rate.set' }] },
+      orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+      take: 200,
+      select: { id: true, action: true, entityType: true, actorId: true, occurredAt: true },
+    });
+    const ids = [...new Set(rows.flatMap((row) => (row.actorId ? [row.actorId] : [])))];
+    const people = ids.length === 0 ? [] : await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+    const names = new Map(people.map((person) => [person.id, person.name]));
+    return rows.map((row) => ({ id: row.id, action: row.action, entityType: row.entityType, actorName: row.actorId ? (names.get(row.actorId) ?? null) : null, occurredAt: row.occurredAt.toISOString() }));
+  },
+});
+
+export interface BookBackup {
+  id: string;
+  takenOn: string;
+  entries: number;
+}
+
+/** The daily copies that are kept, newest first. */
+export const accountsBackups = defineQuery({
+  name: 'accounts.backups',
+  permission: 'platform.settings',
+  input: z.unknown(),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }): Promise<BookBackup[]> => {
+    const rows = await db.accountBackup.findMany({ orderBy: { takenOn: 'desc' }, take: 60, select: { id: true, takenOn: true, entries: true } });
+    return rows.map((row) => ({ id: row.id, takenOn: row.takenOn.toISOString().slice(0, 10), entries: row.entries }));
+  },
+});
+
+/** One daily copy with the book it holds, for the Excel download. */
+export const accountsBackup = defineQuery({
+  name: 'accounts.backup',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }, { id }) => {
+    const row = await db.accountBackup.findUnique({ where: { id }, select: { takenOn: true, book: true } });
+    if (!row) throw new StudioError('NOT_FOUND');
+    return { takenOn: row.takenOn.toISOString().slice(0, 10), book: row.book as unknown as AccountsBook };
+  },
+});
+
+export interface BookAccountant {
+  userId: string;
+  name: string;
+  email: string;
+}
+
+/** The people who may read the books and enter movements without being Super Admins. */
+export const accountsAccountants = defineQuery({
+  name: 'accounts.accountants',
+  permission: 'platform.settings',
+  input: z.unknown(),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }): Promise<BookAccountant[]> => {
+    const rows = await db.accountAccess.findMany({ orderBy: { createdAt: 'asc' }, select: { userId: true } });
+    const users = rows.length === 0 ? [] : await db.user.findMany({ where: { id: { in: rows.map((row) => row.userId) } }, select: { id: true, name: true, email: true } });
+    const byId = new Map(users.map((user) => [user.id, user]));
+    return rows.flatMap((row) => {
+      const user = byId.get(row.userId);
+      return user ? [{ userId: user.id, name: user.name, email: user.email }] : [];
+    });
   },
 });
