@@ -140,8 +140,8 @@ describe('the stock engine', () => {
     const repView = await run(A, (tx) => stockFor(tx, A, { role: 'REP', userId: 'u-rep', canSeeCost: false }));
     expect(partnerView).toHaveLength(2);
     expect('avgCostIqd' in partnerView[0]!).toBe(true);
-    expect(repView).toHaveLength(2);
-    expect(repView.map((r) => r.warehouseId)).toContain(repWh.id);
+    expect(repView).toHaveLength(1);
+    expect(repView[0]!.warehouseId).toBe(repWh.id);
     expect(repView.some((r) => 'avgCostIqd' in r)).toBe(false);
   });
 

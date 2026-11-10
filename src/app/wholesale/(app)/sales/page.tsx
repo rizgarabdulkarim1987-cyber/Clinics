@@ -50,11 +50,10 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const goal = isRep ? await queryWh(repTargetsQuery).catch(() => null) : null;
   const mine = goal?.reps[0] ?? null;
   const stock = isRep ? await queryWh(stockQuery).catch(() => null) : null;
-  const stockRows = new Map<string, { name: string; unit: string; main: number; mine: number }>();
+  const stockRows = new Map<string, { name: string; unit: string; mine: number }>();
   for (const r of stock ?? []) {
-    const row = stockRows.get(r.itemId) ?? { name: nameOf(r.itemNames as Names, locale), unit: r.baseUnit, main: 0, mine: 0 };
-    if (r.warehouseKind === 'MAIN') row.main += Number(r.qtyBase);
-    else row.mine += Number(r.qtyBase);
+    const row = stockRows.get(r.itemId) ?? { name: nameOf(r.itemNames as Names, locale), unit: r.baseUnit, mine: 0 };
+    row.mine += Number(r.qtyBase);
     stockRows.set(r.itemId, row);
   }
   const activeCustomers = customers.filter((x) => x.active);
@@ -116,7 +115,6 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
               <tr className="text-muted">
                 <th className="px-3 py-1.5 text-start font-medium">{t('wh.target.item')}</th>
                 <th className="px-3 py-1.5 text-end font-medium">{t('wh.sw.stockMine')}</th>
-                <th className="px-3 py-1.5 text-end font-medium">{t('wh.sw.stockMain')}</th>
               </tr>
             </thead>
             <tbody>
@@ -127,9 +125,6 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
                   </td>
                   <td className="px-3 py-1.5 text-end font-semibold tabular-nums" dir="ltr">
                     {money(String(r.mine))} <span className="font-normal text-muted">{t(`wh.unit.${r.unit}`)}</span>
-                  </td>
-                  <td className="px-3 py-1.5 text-end tabular-nums" dir="ltr">
-                    {money(String(r.main))}
                   </td>
                 </tr>
               ))}
