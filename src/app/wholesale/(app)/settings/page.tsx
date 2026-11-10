@@ -1,16 +1,18 @@
 import type { Metadata } from 'next';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { periodsQuery, settingsQuery } from '@/server/wholesale/queries/books';
+import { itemsQuery, suppliersQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
 import { PageHeader, StatusBadge } from '@/studio/ui';
 import { PeriodButton, SettingsForm } from '../../_ui/BooksForms';
+import { DemoFill } from '../../_ui/DemoFill';
 
 export const metadata: Metadata = { title: 'Settings' };
 
 export default async function SettingsPage() {
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
-  const [settings, periods] = await Promise.all([queryWh(settingsQuery), queryWh(periodsQuery)]);
+  const [settings, periods, items, suppliers] = await Promise.all([queryWh(settingsQuery), queryWh(periodsQuery), queryWh(itemsQuery), queryWh(suppliersQuery)]);
   return (
     <>
       <PageHeader title={t('wh.settings.title')} description={t('wh.settings.description')} />
@@ -18,6 +20,7 @@ export default async function SettingsPage() {
         <section className="rounded-md border border-line bg-raised p-4">
           <SettingsForm values={settings} />
         </section>
+        {items.length === 0 && suppliers.length === 0 && <DemoFill />}
         <section className="flex flex-col gap-3">
           <h2 className="text-md font-semibold">{t('wh.periods.title')}</h2>
           <p className="text-sm text-muted">{t('wh.periods.hint')}</p>

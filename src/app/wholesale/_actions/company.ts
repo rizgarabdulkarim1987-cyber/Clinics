@@ -153,3 +153,7 @@ export async function postStockCount(input: unknown) {
 export async function readInvoicePhoto(input: unknown) {
   return invokeWh(assistant.readInvoicePhotoAction, input);
 }
+
+export async function fillDemo(input: unknown) {
+  return invokeWh(books.fillDemoAction, input);
+}
