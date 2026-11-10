@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { staffQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
@@ -35,6 +36,11 @@ export default async function StaffPage() {
                 <div className="flex flex-wrap items-center gap-3">
                   <StatusBadge tone={s.role === 'REP' ? 'neutral' : 'ink'}>{t(`wh.role.${s.role}`)}</StatusBadge>
                   {s.role === 'REP' && <span className="text-sm text-muted">{s.warehouseId ? t('wh.staff.warehouse') : t('wh.staff.noWarehouse')}</span>}
+                  {s.role === 'REP' && (
+                    <Link href="/wholesale/targets" className="inline-flex min-h-9 items-center rounded-md border border-line px-3 text-sm font-semibold hover:bg-hover">
+                      {t('wh.target.edit')}
+                    </Link>
+                  )}
                   <StaffActions userId={s.userId} role={s.role} hasWarehouse={Boolean(s.warehouseId)} />
                 </div>
               </li>
