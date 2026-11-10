@@ -154,7 +154,7 @@ export default async function HomePage() {
   return (
     <>
       <PageHeader title={t('wh.home.hello', { name: actor!.name })} description={isRep ? t('wh.home.repHint') : today} />
-      <div className="flex flex-col gap-2.5 px-4 pb-3 md:px-6">
+      <div className="flex flex-col gap-2.5 px-4 pb-3 md:min-h-0 md:flex-1 md:px-6">
         <LiveRefresh />
         {needsSetup && (
           <Alert tone="neutral">
@@ -214,15 +214,15 @@ export default async function HomePage() {
         )}
 
         {board && (
-          <div className="grid gap-2.5 xl:grid-cols-3">
+          <div className="grid gap-2.5 md:min-h-0 md:flex-[3] xl:grid-cols-3">
             <Block icon={BarChart3} tone="blue" title={t('wh.home.last7')}>
-              <div className="flex flex-col gap-1 px-3.5 pb-2 pt-1.5">
+              <div className="flex min-h-0 flex-1 flex-col gap-1 px-3.5 pb-2 pt-1.5">
                 <p className="flex items-baseline gap-2 text-sm text-muted">
                   <span className="text-lg font-bold tabular-nums text-wh-rail" dir="ltr">
                     {money(weekTotal)} IQD
                   </span>
                 </p>
-                <div className="relative h-28" dir="ltr">
+                <div className="relative min-h-28 flex-1" dir="ltr">
                   <div aria-hidden className="absolute inset-0 flex flex-col justify-between pb-5">
                     {[0, 1, 2].map((i) => (
                       <span key={i} className="border-t border-dashed border-line" />
@@ -244,11 +244,11 @@ export default async function HomePage() {
               </div>
             </Block>
             <Block icon={CalendarDays} tone="violet" title={t('wh.home.last12')}>
-              <div className="flex flex-col gap-1 px-3.5 pb-2 pt-1.5">
+              <div className="flex min-h-0 flex-1 flex-col gap-1 px-3.5 pb-2 pt-1.5">
                 <p className="text-lg font-bold tabular-nums text-wh-rail" dir="ltr">
                   {money(yearTotal)} IQD
                 </p>
-                <div className="relative h-28" dir="ltr">
+                <div className="relative min-h-28 flex-1" dir="ltr">
                   <div aria-hidden className="absolute inset-0 flex flex-col justify-between pb-5">
                     {[0, 1, 2].map((i) => (
                       <span key={i} className="border-t border-dashed border-line" />
@@ -315,13 +315,13 @@ export default async function HomePage() {
         )}
 
         {ok && (
-          <div className="grid gap-2.5 lg:grid-cols-3">
+          <div className="grid gap-2.5 md:min-h-0 md:flex-[2] lg:grid-cols-3">
             <Block icon={Receipt} tone="green" title={t('wh.home.recent')} href="/wholesale/sales" more={t('wh.home.all')}>
               {(sales ?? []).length === 0 ? (
                 <p className="px-4 py-4 text-center text-sm text-muted">{t('wh.sw.noRecent')}</p>
               ) : (
-                <ul className="divide-y divide-line">
-                  {(sales ?? []).slice(0, 6).map((x) => (
+                <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
+                  {(sales ?? []).slice(0, 8).map((x) => (
                     <li key={x.id}>
                       <Link href={`/wholesale/sales/${x.id}`} className={rowCls}>
                         <span className="min-w-0">
@@ -348,8 +348,8 @@ export default async function HomePage() {
               {(debts?.rows ?? []).length === 0 ? (
                 <p className="px-4 py-4 text-center text-sm text-muted">{t('wh.sw.debtsNone')}</p>
               ) : (
-                <ul className="divide-y divide-line">
-                  {(debts?.rows ?? []).slice(0, 6).map((d) => (
+                <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
+                  {(debts?.rows ?? []).slice(0, 8).map((d) => (
                     <li key={d.id}>
                       <Link href={`/wholesale/sales?c=${d.id}`} className={rowCls}>
                         <span className="min-w-0">
@@ -374,8 +374,8 @@ export default async function HomePage() {
               {expiring.length === 0 ? (
                 <p className="px-4 py-4 text-center text-sm text-muted">{expiry && expiry.rows.length > 0 ? t('wh.home.allClear') : t('wh.expiry.none')}</p>
               ) : (
-                <ul className="divide-y divide-line">
-                  {expiring.slice(0, 6).map((r) => (
+                <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
+                  {expiring.slice(0, 8).map((r) => (
                     <li key={`${r.itemId}-${r.expiry}-${r.warehouse ?? ''}`}>
                       <Link href="/wholesale/stock" className={rowCls} title={r.expiry}>
                         <span className="truncate font-medium" dir="auto">
