@@ -12,7 +12,6 @@ export interface NavGroup {
   href: string;
   label: string;
   match: string[];
-  places: { key: string; href: string; label: string; tab: boolean }[];
 }
 
 export type NavMeta = Record<string, { sub?: string; badge?: number }>;
@@ -48,31 +47,6 @@ export function NavLinks({ groups, label, meta }: { groups: NavGroup[]; label: s
                 {badge}
               </span>
             ) : null}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
-/** The places inside the section the person is in (two to four), shown above the page. Nothing when the section is one place. */
-export function SectionLinks({ groups }: { groups: NavGroup[] }) {
-  const path = usePathname();
-  const group = groups.find((g) => g.match.some((m) => within(path, m)));
-  const tabs = group?.places.filter((p) => p.tab) ?? [];
-  if (!group || tabs.length < 2 || path === '/wholesale/home') return null;
-  return (
-    <nav aria-label={group.label} className="flex gap-1 overflow-x-auto px-4 pt-3 md:px-6 print:hidden">
-      {tabs.map((p) => {
-        const here = within(path, p.href);
-        return (
-          <Link
-            key={p.key}
-            href={p.href}
-            aria-current={here ? 'page' : undefined}
-            className={cx('flex min-h-9 shrink-0 items-center rounded-full border px-4 text-sm font-medium whitespace-nowrap', here ? 'border-wh-blue bg-wh-blue text-white' : 'border-line-strong bg-raised hover:bg-wh-blue-wash')}
-          >
-            {p.label}
           </Link>
         );
       })}

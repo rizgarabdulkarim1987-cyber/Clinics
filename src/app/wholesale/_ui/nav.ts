@@ -41,7 +41,7 @@ export interface WhGroup {
   href: string;
   labelKey: string;
   match: string[];
-  places: { key: WhNavKey; href: string; labelKey: string; tab: boolean }[];
+  places: { key: WhNavKey; href: string; labelKey: string }[];
 }
 
 /** A section's own screen when it has several parts: they sit side by side on it instead of in tabs. */
@@ -62,7 +62,7 @@ export function whGroups(role: WhRole): WhGroup[] {
   return GROUPS.flatMap((g) => {
     const places = g.keys.flatMap((k) => {
       const i = visible.get(k);
-      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey, tab: false }] : [];
+      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey }] : [];
     });
     if (places.length === 0) return [];
     const hub = HUBS[g.key];

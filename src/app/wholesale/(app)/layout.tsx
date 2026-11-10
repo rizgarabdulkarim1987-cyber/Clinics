@@ -28,7 +28,10 @@ export default async function WholesaleAppLayout({ children }: { children: React
       </Shell>
     );
   }
-  const info = await queryWh(navInfoQuery).catch(() => null);
+  const info = await queryWh(navInfoQuery).catch((error: unknown) => {
+    console.error('wholesale menu info failed', error);
+    return null;
+  });
   const notice = gate.state === 'readOnly' ? <Alert tone="neutral" className="m-4">{t('wh.state.readOnly')}</Alert> : null;
   return (
     <Shell actor={actor} notice={notice} t={t} info={info}>

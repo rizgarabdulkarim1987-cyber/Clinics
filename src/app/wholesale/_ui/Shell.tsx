@@ -5,7 +5,7 @@ import type { Translate } from '@/lib/i18n';
 import type { WhActor } from '@/server/wholesale/actor';
 import { SignOutButton } from '@/app/pos/_ui/SignOutButton';
 import { ContentFrame } from './ContentFrame';
-import { NavLinks, SectionLinks } from './NavLinks';
+import { NavLinks } from './NavLinks';
 import { navMeta, type NavInfo } from './navInfo';
 import { whGroups } from './nav';
 
@@ -14,7 +14,7 @@ import { whGroups } from './nav';
  * places the role may use, and the page. A state notice (read-only) sits above the page.
  */
 export function Shell({ actor, notice, t, children, info }: { actor: WhActor; notice?: ReactNode; t: Translate; children: ReactNode; info?: NavInfo | null }) {
-  const groups = whGroups(actor.role).map((g) => ({ key: g.key, href: g.href, label: t(g.labelKey), match: g.match, places: g.places.map((p) => ({ key: p.key, href: p.href, label: t(p.labelKey), tab: p.tab })) }));
+  const groups = whGroups(actor.role).map((g) => ({ key: g.key, href: g.href, label: t(g.labelKey), match: g.match }));
   return (
     <div className="flex min-h-dvh flex-col md:h-dvh md:flex-row md:overflow-hidden">
       <a href="#main" className="sr-only rounded-md bg-ink px-3 py-2 text-on-ink focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-50">
@@ -46,7 +46,6 @@ export function Shell({ actor, notice, t, children, info }: { actor: WhActor; no
       <main id="main" className="flex min-w-0 flex-1 flex-col md:overflow-y-auto">
         {notice}
         <ContentFrame>
-          <SectionLinks groups={groups} />
           {children}
         </ContentFrame>
       </main>

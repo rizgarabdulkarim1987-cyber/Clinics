@@ -7,7 +7,6 @@ export interface NavInfo {
   staff: number;
   salesToday: number;
   expiring: number;
-  low: number;
   pending: { sales: number; handovers: number; expenses: number };
 }
 
@@ -17,11 +16,11 @@ export function infoOf(key: string, i: NavInfo | undefined, t: Translate): { sub
   if (!i) return {};
   switch (key) {
     case 'home':
-      return { sub: t('wh.navinfo.home', { n: i.salesToday }), badge: i.pending.sales + i.pending.handovers + i.pending.expenses + i.expiring + i.low || undefined };
+      return { sub: t('wh.navinfo.home', { n: i.salesToday }), badge: i.pending.sales + i.pending.handovers + i.pending.expenses + i.expiring || undefined };
     case 'sales':
       return { sub: t('wh.navinfo.sales', { n: i.customers }), badge: i.pending.sales || undefined };
     case 'stock':
-      return { sub: t('wh.navinfo.stock', { n: i.items }), badge: i.low + i.expiring || undefined };
+      return { sub: t('wh.navinfo.stock', { n: i.items }), badge: i.expiring || undefined };
     case 'money':
       return { sub: t('wh.navinfo.money', { a: i.pending.handovers, b: i.pending.expenses }), badge: i.pending.handovers + i.pending.expenses || undefined };
     case 'admin':

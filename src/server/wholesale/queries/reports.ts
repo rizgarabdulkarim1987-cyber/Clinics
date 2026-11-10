@@ -9,6 +9,8 @@ import { listPendingSales, receivables } from '@/server/wholesale/posting/sale';
 import { computeAlerts, ODD_PRICE_WINDOW_DAYS, SALES_DROP_TRAILING_DAYS } from '@/server/domain/wholesale/alerts';
 import { D } from '@/server/domain/wholesale/money';
 import { canWh } from '@/server/domain/wholesale/permissions';
+import { daysUntil, expiryStatus } from '@/server/domain/wholesale/expiry';
+import { listCustomers } from '@/server/wholesale/catalog';
 import { activeDaysOf, dailyRate, daysOfCover, reorderBy } from '@/server/domain/wholesale/forecast';
 import { getSettings } from '@/server/wholesale/settings';
 import { plain } from '@/server/wholesale/plain';
@@ -301,7 +303,7 @@ export const expiryQuery = defineQuery({
       .filter((r) => r.item.active)
       .map((r) => {
         const expiry = day(r.expiry!);
-        const daysLeft = Math.round((Date.parse(`${expiry}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+        const daysLeft = daysUntil(expiry, today);
         return {
           itemId: r.itemId,
           code: r.item.code,
@@ -311,7 +313,7 @@ export const expiryQuery = defineQuery({
           qtyBase: r.qtyBase.toString(),
           expiry,
           daysLeft,
-          status: daysLeft < 0 ? ('expired' as const) : daysLeft <= settings.expiryAlertDays ? ('soon' as const) : ('ok' as const),
+          status: expiryStatus(daysLeft, settings.expiryAlertDays),
         };
       });
     return plain({ alertDays: settings.expiryAlertDays, rows: list });
@@ -330,24 +332,23 @@ export const navInfoQuery = defineQuery({
   target: whTargetOf,
   run: async (ctx) => {
     const { db, user } = scoped(ctx);
+    const restaurantId = ctx.wh!.restaurantId;
     const partner = canWh(user.role, 'report.view');
     const today = baghdadDate();
     const settings = await getSettings(db);
     const soon = new Date(`${addDays(today, settings.expiryAlertDays)}T00:00:00Z`);
     const [items, customers, staff, sold, expiring] = await Promise.all([
       db.whItem.count({ where: { active: true } }),
-      db.whCustomer.count({ where: { active: true } }),
+      listCustomers(db, restaurantId, { role: user.role, userId: user.id }).then((rows) => rows.length),
       partner ? db.whStaff.count() : Promise.resolve(0),
       salesByDay(db, { from: today, to: today }),
-      db.whBatch.count({ where: { qtyBase: { gt: 0 }, expiry: { not: null, lte: soon } } }),
+      db.whBatch.count({ where: { qtyBase: { gt: 0 }, expiry: { not: null, lte: soon }, item: { active: true }, ...(user.role === 'REP' ? { warehouse: { kind: 'REP' as const, repUserId: user.id } } : {}) } }),
     ]);
     let pending = { sales: 0, handovers: 0, expenses: 0 };
-    let low = 0;
     if (partner) {
-      const [ps, ph, pe, stock] = await Promise.all([listPendingSales(db), listPendingHandovers(db), listExpenses(db, user, 'PENDING'), stockValue(db)]);
+      const [ps, ph, pe] = await Promise.all([listPendingSales(db), listPendingHandovers(db), listExpenses(db, user, 'PENDING')]);
       pending = { sales: ps.length, handovers: ph.length, expenses: pe.length };
-      low = lowStock(stock.rows).length;
     }
-    return plain({ items, customers, staff, salesToday: sold[0]?.count ?? 0, expiring, low, pending });
+    return plain({ items, customers, staff, salesToday: sold[0]?.count ?? 0, expiring, pending });
   },
 });

@@ -1,14 +1,6 @@
-'use client';
-
-import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
-/**
- * Keeps a page's content to a readable width, centred, so on a wide screen forms and lists are not stretched across the whole
- * window. The sales screen is a work surface that wants the full width, so it is left alone.
- */
+/** The page area of every Wholesale screen: the full width, filling the height under the notice. */
 export function ContentFrame({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  void pathname;
   return <div className="flex min-h-0 w-full flex-1 flex-col">{children}</div>;
 }
