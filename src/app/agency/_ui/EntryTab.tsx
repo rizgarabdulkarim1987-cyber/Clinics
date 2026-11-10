@@ -170,6 +170,22 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   const dollarsAndDinars = summarize(month);
   const owedAll = owedTotals(book.movements, book.rate);
   const owedCodes = ACCOUNT_CURRENCIES.filter((code) => owedAll[code].income > 0);
+  // Who owes the most waiting time first: the clients with money still to receive, the oldest debt on top.
+  const debtors = [
+    ...book.movements
+      .filter((row) => remainingMinor(row) > 0)
+      .reduce((map, row) => {
+        const key = row.clientId ?? 'none';
+        const entry = map.get(key) ?? { key, name: row.clientName, since: row.occurredOn, left: { IQD: 0, USD: 0 } as Record<AccountCurrency, number>, late: false };
+        entry.left[row.currency] += remainingMinor(row);
+        if (row.occurredOn < entry.since) entry.since = row.occurredOn;
+        if (isLate(row, today)) entry.late = true;
+        return map.set(key, entry);
+      }, new Map<string, { key: string; name: string | null; since: string; left: Record<AccountCurrency, number>; late: boolean }>())
+      .values(),
+  ]
+    .sort((a, b) => a.since.localeCompare(b.since))
+    .slice(0, 4);
   const lateCount = book.movements.filter((row) => isLate(row, today)).length;
   const shift = (by: number) => {
     const index = cursor.year * 12 + (cursor.month - 1) + by;
@@ -307,6 +323,31 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
               )}
             </div>
           </form>
+
+          {debtors.length > 0 && (
+            <section aria-labelledby="debtors-title" className="hidden flex-col gap-2 [@media(min-height:800px)]:flex">
+              <h2 id="debtors-title" className="text-md font-semibold">
+                {t('accounts.owed.title')}
+              </h2>
+              <ul className="divide-y divide-line rounded-lg border border-line bg-raised">
+                {debtors.map((debtor) => (
+                  <li key={debtor.key} className="flex items-center justify-between gap-3 px-4 py-2">
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span className={cx('truncate text-base font-medium', debtor.name === null && 'text-muted')}>{debtor.name ?? t('accounts.noClient')}</span>
+                      <span className={cx('shrink-0 text-xs tabular-nums', debtor.late ? 'text-danger' : 'text-muted')} dir="ltr">
+                        {debtor.since}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 text-base font-semibold">
+                      {ACCOUNT_CURRENCIES.filter((code) => debtor.left[code] > 0).map((code) => (
+                        <Money key={code} minor={debtor.left[code]} currency={code} locale={locale} />
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
         <div className="flex flex-col gap-4 lg:min-h-0">
