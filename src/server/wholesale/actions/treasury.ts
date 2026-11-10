@@ -3,7 +3,7 @@ import { ForbiddenError } from '@/server/domain/wholesale/permissions';
 import { CURRENCIES } from '@/server/domain/wholesale/rates';
 import { EXPENSE_CATEGORIES, CustodyStateError, ExpenseStateError, InsufficientCustodyError, InvalidConversionError, InvalidCustodyError, InvalidExpenseError } from '@/server/domain/wholesale/treasury';
 import { convertCashTx } from '@/server/wholesale/posting/conversion';
-import { confirmHandoverTx, rejectHandoverTx, submitHandoverTx } from '@/server/wholesale/posting/custody';
+import { confirmHandoverTx, receiveFromRepTx, rejectHandoverTx, submitHandoverTx } from '@/server/wholesale/posting/custody';
 import { approveExpenseTx, postExpenseTx, rejectExpenseTx } from '@/server/wholesale/posting/expense';
 import { refusingBooks } from '@/server/wholesale/actions/purchase';
 import { whPlaceInput, whTargetOf } from '@/server/wholesale/actions/catalog';
@@ -143,6 +143,22 @@ export const rejectExpenseAction = defineAction({
         await rejectExpenseTx(tx, restaurantId, userOf(ctx), expenseId, reason);
         ctx.audit({ action: 'wh.expense.reject', entityType: 'WhExpense', entityId: expenseId, changes: { status: { before: 'PENDING', after: 'REJECTED' } } });
         return { ok: true as const };
+      }),
+    ),
+});
+
+export const receiveFromRepAction = defineAction({
+  name: 'wh.custody.receive',
+  permission: null,
+  wh: 'custody.confirm',
+  input: whPlaceInput.extend({ repId: id, amounts }),
+  target: whTargetOf,
+  run: (ctx, { restaurantId, repId, amounts: list }) =>
+    ctx.transaction(async (tx) =>
+      refusing(async () => {
+        const made = await receiveFromRepTx(tx, restaurantId, userOf(ctx), { repId, amounts: list });
+        ctx.audit({ action: 'wh.custody.receive', entityType: 'WhStaff', entityId: repId, changes: { received: { before: null, after: list.map((a) => `${a.amount} ${a.currency}`).join(', ') } } });
+        return made;
       }),
     ),
 });

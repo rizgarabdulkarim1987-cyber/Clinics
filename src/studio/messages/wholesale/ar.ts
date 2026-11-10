@@ -707,6 +707,21 @@ const wholesale: Messages = {
   'wh.agency.settle.total': "المبلغ النهائي على الزبون",
   'wh.agency.settle.totalHint': "يبدأ من السعر المتفق عليه: غيّره إذا السعر النهائي يختلف.",
   'wh.agency.kind.SALE': "بيع للزبون",
+  'wh.nav.reps': "المندوبين",
+  'wh.reps.title': "المندوبين وفلوسهم",
+  'wh.reps.description': "شكد جمع كل مندوب وشكد باقي عنده، شنو باع، واستلام فلوسه.",
+  'wh.reps.none': "ماكو مندوبين لحد الآن.",
+  'wh.reps.holds': "الفلوس اللي عنده ولسه ما سلّمها",
+  'wh.reps.receive': "استلام فلوس منه",
+  'wh.reps.receiveHint': "اكتب اللي سلّمك إياه. ينزل بالصندوق وينقص من اللي عليه.",
+  'wh.reps.received': "تم الاستلام. نزل بالصندوق وانخصم من اللي عليه.",
+  'wh.reps.nothing': "ماكو فلوس عنده.",
+  'wh.reps.statement': "كشف حسابه",
+  'wh.reps.statementHint': "مبيعاته ودفعاته وتسليماته ومصاريفه، الأحدث أول.",
+  'wh.reps.noMoves': "ماكو شي لحد الآن.",
+  'wh.agency.advance.optional': "خليها فارغة إذا ماكو مقدمة هسه. تنزل بالصندوق (أو بعهدة مندوب) وتبقى له لحد التسليم.",
+  'wh.agency.settle.now': "المستلم هسه",
+  'wh.agency.settle.nowHint': "اللي يدفعه الزبون وكت التسليم. ينزل مباشرة بالصندوق، والباقي يبقى عليه.",
 };
 
 export default wholesale;

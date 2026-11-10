@@ -707,6 +707,21 @@ const wholesale: Messages = {
   'wh.agency.settle.total': "Final total for the customer",
   'wh.agency.settle.totalHint': "Starts from the agreed price: change it if the final price differs.",
   'wh.agency.kind.SALE': "Sale to the customer",
+  'wh.nav.reps': "Reps",
+  'wh.reps.title': "Reps and their cash",
+  'wh.reps.description': "What each rep collected and still holds, what he sold, and receiving his cash.",
+  'wh.reps.none': "No reps yet.",
+  'wh.reps.holds': "Cash with him, not yet handed in",
+  'wh.reps.receive': "Receive cash from him",
+  'wh.reps.receiveHint': "Take what he hands you. It goes into the till and comes off his balance.",
+  'wh.reps.received': "Received. It was added to the till and taken off his balance.",
+  'wh.reps.nothing': "He holds no cash.",
+  'wh.reps.statement': "His account",
+  'wh.reps.statementHint': "Sales, payments, handovers and expenses, newest first.",
+  'wh.reps.noMoves': "Nothing yet.",
+  'wh.agency.advance.optional': "Leave empty if no advance yet. It goes into the till (or a rep custody) and stays his until delivery.",
+  'wh.agency.settle.now': "Received now",
+  'wh.agency.settle.nowHint': "What the customer pays at delivery. It goes straight into the till. The rest stays owed.",
 };
 
 export default wholesale;

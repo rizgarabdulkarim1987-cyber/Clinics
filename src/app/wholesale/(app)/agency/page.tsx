@@ -3,7 +3,7 @@ import { ChevronLeft, FileSpreadsheet, Handshake, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { agencyOrdersQuery } from '@/server/wholesale/queries/agency';
-import { customersQuery } from '@/server/wholesale/queries/catalog';
+import { customersQuery, staffQuery } from '@/server/wholesale/queries/catalog';
 import { getStudioTranslator } from '@/studio/messages';
 import { Fold, Row } from '../../_ui/Ui';
 import { STATUS_TONE } from '../../_ui/agencyTone';
@@ -17,7 +17,8 @@ const money = (v: string) => Number(v).toLocaleString('en-US', { maximumFraction
 export default async function AgencyPage() {
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
-  const [orders, customers] = await Promise.all([queryWh(agencyOrdersQuery), queryWh(customersQuery)]);
+  const [orders, customers, staff] = await Promise.all([queryWh(agencyOrdersQuery), queryWh(customersQuery), queryWh(staffQuery, {}).catch(() => [])]);
+  const reps = staff.filter((s) => s.role === 'REP' && s.active).map((s) => ({ id: s.userId, label: s.name }));
   const principals = customers.filter((c) => c.active !== false).map((c) => ({ id: c.id, label: c.name }));
   return (
     <>
@@ -35,7 +36,7 @@ export default async function AgencyPage() {
       />
       <div className="flex flex-col gap-3 px-4 pb-6 md:px-6">
         <Fold icon={Plus} tone="violet" title={t('wh.agency.new')} open={orders.length === 0}>
-          <NewAgencyForm principals={principals} />
+          <NewAgencyForm principals={principals} reps={reps} />
         </Fold>
         {orders.length === 0 ? (
           <p className="rounded-lg border border-line bg-raised px-4 py-6 text-center text-base text-muted">{t('wh.agency.none')}</p>

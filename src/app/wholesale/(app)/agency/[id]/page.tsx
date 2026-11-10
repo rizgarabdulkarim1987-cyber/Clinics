@@ -70,7 +70,7 @@ export default async function AgencyOrderPage({ params }: { params: Promise<{ id
               <CostForm orderId={o.id} currency={o.currency} />
             </Fold>
             <Fold icon={PackageCheck} tone="violet" title={t('wh.agency.settle.title')} hint={t('wh.agency.settle.hint')}>
-              <SettleForm orderId={o.id} currency={o.currency} held={b.advanceHeld} costs={b.costs} agreedTotal={o.agreedTotal} />
+              <SettleForm orderId={o.id} currency={o.currency} held={b.advanceHeld} costs={b.costs} agreedTotal={o.agreedTotal} reps={reps} />
             </Fold>
           </>
         )}

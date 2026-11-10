@@ -106,6 +106,20 @@ describe('special orders', () => {
     await expect(open({ principalId: 'nope' })).rejects.toThrow(InvalidAgencyError);
   });
 
+  it('takes the advance when the order is opened and the rest into the till at delivery', async () => {
+    const id = await open({ advance: { amount: '4000000' } });
+    expect((await ledger()).CASH_IQD).toBe(4_000_000);
+    expect((await run(A, (tx) => getAgencyOrder(tx, PARTNER, id)))!.balance.advanceHeld).toBe('4000000');
+    await run(A, (tx) => payCostTx(tx, A, PARTNER, { orderId: id, amount: '7000000', date: today }));
+    await expect(run(A, (tx) => settleAgencyOrderTx(tx, A, PARTNER, { orderId: id, total: '10000000', receivedNow: '6000001', date: today }))).rejects.toThrow(InvalidAgencyError);
+    const done = await run(A, (tx) => settleAgencyOrderTx(tx, A, PARTNER, { orderId: id, total: '10000000', receivedNow: '6000000', date: today }));
+    expect(done).toMatchObject({ remaining: '0', status: 'CLOSED', profit: '3000000' });
+    const a = await ledger();
+    expect(a.CASH_IQD).toBe(3_000_000); // 4m advance - 7m costs + 6m paid at delivery = the profit
+    expect(a.AGENCY_RECEIVABLE).toBe(0);
+    expect(a.CUSTOMER_ADVANCES).toBe(0);
+  });
+
   it('holds advances as a liability, in the till or in a rep custody', async () => {
     const id = await open();
     await run(A, (tx) => receiveAdvanceTx(tx, A, PARTNER, { orderId: id, amount: '3000000', date: today }));

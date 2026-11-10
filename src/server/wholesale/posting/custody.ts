@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-properties -- row locks and sums of one company: every statement binds "restaurantId" (the company's own id) */
+import { randomUUID } from 'node:crypto'
 import type Decimal from 'decimal.js'
 import type { Prisma } from '@/generated/prisma/client'
 import type { ScopedTx } from '@/server/data/tenant-db'
@@ -237,4 +238,66 @@ export async function listPendingHandovers(tx: Db) {
     select: { id: true, number: true, submittedAt: true, lines: { select: { currency: true, submitted: true } } },
   })
   return rows.map((r) => ({ ...r, number: r.number.toString() }))
+}
+
+/* ------------------------------------------------- direct receipt from a rep */
+
+export type ReceiveFromRepInput = { repId: string; amounts: { amount: Dec; currency: Currency }[]; date?: string }
+
+/**
+ * custody:confirm (OWNER/PARTNER, never the rep himself): the office takes cash from a rep without the rep submitting a
+ * handover first (a rep who does not use the system). Same entry and rates as a confirmed handover: DR CASH_<currency> /
+ * CR REP_CUSTODY (party = the rep), pinned at the custody's average rate. Never more than the rep has available (his
+ * custody less what his pending handovers already reserve): InsufficientCustodyError.
+ */
+export async function receiveFromRepTx(tx: Db, rid: string, user: WhUser, input: ReceiveFromRepInput): Promise<{ entryId: string }> {
+  if (!canWh(user.role, 'custody.confirm')) throw new ForbiddenError('custody.confirm')
+  const repId = requireId(input?.repId, 'rep')
+  if (repId === user.id) throw new InvalidCustodyError('a rep cannot confirm his own custody')
+  const rep = await tx.whStaff.findFirst({ where: { userId: repId, role: 'REP' }, select: { userId: true } })
+  if (!rep) throw new InvalidCustodyError('unknown rep')
+  const amounts = parseMoneyList(input.amounts, 'amount', 'positive')
+  const date = input.date ? (/^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : (() => { throw new InvalidCustodyError('date must be YYYY-MM-DD') })()) : baghdadDate()
+  await assertPeriodOpen(tx, rid, date)
+  await lockCustody(tx, rid, repId)
+  const journal: LineInput[] = []
+  for (const [currency, amount] of amounts) {
+    const balance = await requireAvailableCustody(tx, rid, repId, currency, amount)
+    const rate = await releaseRate(tx, currency, balance, date)
+    const pin = currency === 'IQD' ? {} : { rateIqd: rate }
+    journal.push({ accountCode: cashAccount(currency), side: 'DR', amount, currency, ...pin })
+    journal.push({ accountCode: 'REP_CUSTODY', side: 'CR', amount, currency, partyId: repId, ...pin })
+  }
+  const { entryId } = await postJournal(tx, rid, { date, memo: 'Cash received from a rep', source: { type: 'CUSTODY_DIRECT', id: randomUUID() }, user, lines: journal })
+  return { entryId }
+}
+
+export type RepAccount = {
+  repId: string
+  name: string
+  custody: CustodyRow[]
+  moves: { date: string; number: string; memo: string; sourceType: string; sourceId: string; currency: Currency; amount: Decimal; side: 'DR' | 'CR' }[]
+}
+
+/** Every active rep with his custody and his last movements (custody:confirm): what he collected, handed in and spent. */
+export async function listRepAccounts(tx: Db, rid: string, user: WhUser, moveLimit = 40): Promise<RepAccount[]> {
+  if (!canWh(user.role, 'custody.confirm')) throw new ForbiddenError('custody.confirm')
+  const reps = await tx.whStaff.findMany({ where: { role: 'REP', deactivatedAt: null }, select: { userId: true, user: { select: { name: true } } }, orderBy: { createdAt: 'asc' } })
+  const out: RepAccount[] = []
+  for (const r of reps) {
+    const custody = await getCustody(tx, rid, user, r.userId)
+    const lines = await tx.whJournalLine.findMany({
+      where: { partyId: r.userId, account: { code: 'REP_CUSTODY' } },
+      orderBy: [{ entry: { date: 'desc' } }, { entry: { number: 'desc' } }],
+      take: moveLimit,
+      select: { side: true, amount: true, currency: true, entry: { select: { date: true, number: true, memo: true, sourceType: true, sourceId: true } } },
+    })
+    out.push({
+      repId: r.userId,
+      name: r.user.name,
+      custody,
+      moves: lines.map((l) => ({ date: l.entry.date.toISOString().slice(0, 10), number: l.entry.number.toString(), memo: l.entry.memo, sourceType: l.entry.sourceType, sourceId: l.entry.sourceId, currency: l.currency as Currency, amount: dec(l.amount), side: l.side as 'DR' | 'CR' })),
+    })
+  }
+  return out
 }
