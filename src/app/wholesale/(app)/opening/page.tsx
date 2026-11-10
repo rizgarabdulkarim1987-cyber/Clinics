@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { FileUp, Upload } from 'lucide-react';
-import { Chip, Section } from '../../_ui/Ui';
+import { FileUp } from 'lucide-react';
+import { Chip } from '../../_ui/Ui';
 import { OPENING_COLUMNS, OPENING_KINDS } from '@/server/wholesale/import/opening';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { openingImportsQuery } from '@/server/wholesale/queries/books';
@@ -21,9 +21,9 @@ export default async function OpeningPage() {
     <>
       <PageHeader icon={FileUp} tone="amber" title={t('wh.opening.title')} description={t('wh.opening.description')} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
-        <Section icon={Upload} tone="amber" title={t('wh.opening.title')}>
+        <section className="rounded-xl border border-line bg-raised p-4">
           <OpeningForm done={imports.map((i) => i.kind)} columns={columns} />
-        </Section>
+        </section>
         <section className="flex flex-col gap-3">
           <h2 className="text-md font-semibold">{t('wh.opening.history')}</h2>
           {imports.length === 0 ? (
