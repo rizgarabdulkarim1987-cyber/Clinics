@@ -1119,9 +1119,21 @@ model AccountEntry {
   createdAt   DateTime       @default(now())
   payments    AccountPayment[]
   attachments AccountAttachment[]
+  invoice     AccountInvoice?
 
   @@index([occurredOn])
   @@index([clientId, occurredOn])
+}
+
+/// The invoice issued for an income entry: it only fixes the number (1, 2, 3, never reused) and the day it was first issued; everything else on the page is read from the entry.
+model AccountInvoice {
+  id          String       @id @default(cuid())
+  number      Int          @unique @default(autoincrement())
+  entryId     String       @unique
+  entry       AccountEntry @relation(fields: [entryId], references: [id])
+  issuedOn    DateTime     @db.Date
+  createdById String?
+  createdAt   DateTime     @default(now())
 }
 
 /// A receipt, invoice or contract photo kept with an entry. The bytes live in the row (small files, a Super Admin's own books), so there is no storage bucket to set up. Archived, never deleted.

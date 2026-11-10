@@ -120,3 +120,54 @@ export const accountAttachment = defineQuery({
     return { fileName: row.fileName, mediaType: row.mediaType, bytes: new Uint8Array(row.data) };
   },
 });
+
+export interface InvoiceData {
+  number: number;
+  issuedOn: string;
+  occurredOn: string;
+  currency: AccountCurrency;
+  amountMinor: number;
+  paidMinor: number;
+  service: string;
+  note: string;
+  clientName: string | null;
+  clientPhone: string;
+  payments: BookPayment[];
+}
+
+/** Everything an invoice page shows, for an income that has been given its number. */
+export const accountInvoice = defineQuery({
+  name: 'accounts.invoice',
+  permission: 'platform.settings',
+  input: z.object({ entryId: z.string().min(1).max(100) }),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }, { entryId }): Promise<InvoiceData> => {
+    const row = await db.accountEntry.findFirst({
+      where: { id: entryId, archivedAt: null, kind: 'INCOME', invoice: { isNot: null } },
+      include: {
+        invoice: { select: { number: true, issuedOn: true } },
+        client: { select: { name: true, phone: true } },
+        payments: { where: { archivedAt: null }, orderBy: [{ paidOn: 'asc' }, { createdAt: 'asc' }], select: { id: true, amountMinor: true, paidOn: true, note: true } },
+      },
+    });
+    if (!row?.invoice) throw new StudioError('NOT_FOUND');
+    // An income that is not marked as owed was received in full.
+    const paid = row.owed ? row.payments.reduce((sum, payment) => sum + payment.amountMinor, 0) : row.amountMinor;
+    return {
+      number: row.invoice.number,
+      issuedOn: row.invoice.issuedOn.toISOString().slice(0, 10),
+      occurredOn: row.occurredOn.toISOString().slice(0, 10),
+      currency: row.currency,
+      amountMinor: row.amountMinor,
+      paidMinor: paid,
+      service: row.service,
+      note: row.note,
+      clientName: row.client?.name ?? null,
+      clientPhone: row.client?.phone ?? '',
+      // Paid in full on the day it was typed in, unless it is marked as owed: then the payments received so far.
+      payments: row.owed
+        ? row.payments.map((payment) => ({ id: payment.id, amountMinor: payment.amountMinor, paidOn: payment.paidOn.toISOString().slice(0, 10), note: payment.note }))
+        : [{ id: row.id, amountMinor: row.amountMinor, paidOn: row.occurredOn.toISOString().slice(0, 10), note: row.note }],
+    };
+  },
+});
