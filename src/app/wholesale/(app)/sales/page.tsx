@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Printer } from 'lucide-react';
+import { Handshake, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
@@ -72,6 +72,15 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const itemOptions = usable.map((i) => ({ id: i.id, label: `${nameOf(i.names, locale)}`, units: [...new Set([i.baseUnit, ...i.units.map((u) => u.unit)])] }));
 
   return (
+    <>
+      {!isRep && (
+        <div className="flex flex-wrap items-center gap-2 px-3 pb-1 pt-2">
+          <Link href="/wholesale/agency" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line-strong bg-raised px-3 text-sm font-semibold hover:bg-wh-violet-wash">
+            <Handshake aria-hidden className="size-4 text-wh-violet" />
+            {t('wh.agency.title')}
+          </Link>
+        </div>
+      )}
     <SalesWorkspace
       today={today}
       isRep={isRep}
@@ -259,5 +268,6 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
         )}
       </section>
     </SalesWorkspace>
+    </>
   );
 }
