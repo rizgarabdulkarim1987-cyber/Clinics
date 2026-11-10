@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byClient, byMonth, byService, isLate, owedTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, remainingMinor, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
+import { byClient, byMonth, byService, hasInvoiceActivity, isLate, owedTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, remainingMinor, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
 
 const move = (over: Partial<AccountMovement>): AccountMovement => ({
   kind: 'INCOME',
@@ -228,5 +228,21 @@ describe('byService', () => {
   it('ranks income by service, best first, and ignores expenses', () => {
     const rows = byService([income('ads', 100), income('logo', 500), income('ads', 300), { ...income('rent', 9_000), kind: 'EXPENSE' as const }]);
     expect(rows.map((row) => [row.service, row.totals.IQD.income])).toEqual([['logo', 500], ['ads', 400]]);
+  });
+});
+
+describe('hasInvoiceActivity', () => {
+  const row = (over: Record<string, unknown>) => ({ kind: 'INCOME' as const, clientId: 'a', occurredOn: '2026-10-20', owed: false, payments: [] as { paidOn: string }[], ...over });
+  const nov = { kind: 'month' as const, year: 2026, month: 11 };
+  it('is true for an income typed in during the period, or a payment received during it', () => {
+    expect(hasInvoiceActivity([row({ occurredOn: '2026-11-03' })], 'a', nov)).toBe(true);
+    expect(hasInvoiceActivity([row({ owed: true, payments: [{ paidOn: '2026-11-10' }] })], 'a', nov)).toBe(true);
+  });
+  it('is false for another client, an expense, an owed income with no payment in the period, or paid in full before it', () => {
+    expect(hasInvoiceActivity([row({ occurredOn: '2026-11-03', clientId: 'b' })], 'a', nov)).toBe(false);
+    expect(hasInvoiceActivity([row({ occurredOn: '2026-11-03', kind: 'EXPENSE' })], 'a', nov)).toBe(false);
+    expect(hasInvoiceActivity([row({ owed: true, payments: [{ paidOn: '2026-12-01' }] })], 'a', nov)).toBe(false);
+    expect(hasInvoiceActivity([row({ payments: [{ paidOn: '2026-11-10' }] })], 'a', nov)).toBe(false);
+    expect(hasInvoiceActivity([row({})], 'a', { kind: 'all' })).toBe(true);
   });
 });

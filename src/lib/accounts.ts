@@ -248,3 +248,24 @@ export function parseRate(text: string): { ok: true; rate: number } | { ok: fals
   const rate = Number(digits);
   return rate >= 1 && rate <= RATE_MAX ? { ok: true, rate } : { ok: false };
 }
+
+/** What an invoice for a client over a period needs: the incomes typed in, and the day each payment was received. */
+export interface InvoiceSource {
+  kind: AccountKind;
+  clientId: string | null;
+  occurredOn: string;
+  owed: boolean;
+  payments: readonly { paidOn: string }[];
+}
+
+/**
+ * Whether a client has anything to put on an invoice for a period: an income typed in during it, or a payment received
+ * during it. An income not marked as owed was received in full on the day it was typed in.
+ */
+export function hasInvoiceActivity(movements: readonly InvoiceSource[], clientId: string, period: Period): boolean {
+  return movements.some((row) => {
+    if (row.kind !== 'INCOME' || row.clientId !== clientId) return false;
+    if (inPeriod([row], period).length > 0) return true;
+    return row.owed && inPeriod(row.payments.map((payment) => ({ occurredOn: payment.paidOn })), period).length > 0;
+  });
+}
