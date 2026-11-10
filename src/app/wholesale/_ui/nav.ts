@@ -13,7 +13,7 @@ export interface WhNavItem {
 }
 
 const ALL: WhNavItem[] = [
-  { key: 'home', href: '/wholesale/home', labelKey: 'wh.nav.home', icon: Home, needs: 'catalog.view' },
+  { key: 'home', href: '/wholesale/desk', labelKey: 'wh.nav.home', icon: Home, needs: 'catalog.view' },
   { key: 'catalog', href: '/wholesale/catalog', labelKey: 'wh.nav.catalog', icon: PackageSearch, needs: 'catalog.view' },
   { key: 'stock', href: '/wholesale/stock', labelKey: 'wh.nav.stock', icon: Boxes, needs: 'stock.view' },
   { key: 'customers', href: '/wholesale/customers', labelKey: 'wh.nav.customers', icon: Contact, needs: 'catalog.view' },
