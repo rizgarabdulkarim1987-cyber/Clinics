@@ -49,6 +49,8 @@ export const SERVER_TEXT: Readonly<Record<string, string>> = {
   'Use at most 128 characters': 'error.text.passwordTooLong',
   'This password is too common. Choose one that is harder to guess': 'error.text.passwordCommon',
   'Enter your name': 'error.text.nameEnter',
+  'The exchange rate for this day is missing': 'wh.rates.missingToday',
+  'This is not a wholesale company': 'error.text.notWholesale',
   'Use at most 120 characters': 'error.text.nameTooLong',
   'Choose a picture from your library': 'error.text.introAsset',
   'This video has no poster picture': 'error.text.introPoster',

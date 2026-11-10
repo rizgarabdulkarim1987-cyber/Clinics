@@ -621,6 +621,7 @@ const en: Messages = {
   'error.text.passwordInputTooLong': 'That password is too long',
   'error.text.passwordWrong': 'That password is not correct',
   'error.text.passwordChoose': 'Choose a password',
+  'error.text.notWholesale': "This is not a wholesale company",
   'error.text.passwordTooShort': 'Use at least 12 characters',
   'error.text.passwordTooLong': 'Use at most 128 characters',
   'error.text.passwordCommon': 'This password is too common. Choose one that is harder to guess',

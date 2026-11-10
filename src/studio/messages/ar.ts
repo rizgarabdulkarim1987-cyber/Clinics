@@ -632,6 +632,7 @@ const ar: Messages = {
   'error.text.passwordInputTooLong': 'كلمة المرور هذه طويلة جدًا',
   'error.text.passwordWrong': 'كلمة المرور هذه غير صحيحة',
   'error.text.passwordChoose': 'اختر كلمة مرور',
+  'error.text.notWholesale': "هذه ليست شركة جملة",
   'error.text.passwordTooShort': 'استخدم 12 حرفًا على الأقل',
   'error.text.passwordTooLong': 'استخدم 128 حرفًا على الأكثر',
   'error.text.passwordCommon': 'كلمة المرور هذه شائعة جدًا. اختر كلمة يصعب تخمينها',
