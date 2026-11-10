@@ -37,7 +37,7 @@ export function whNav(role: WhRole): WhNavItem[] {
 
 /** What a section is called, where it leads, which paths belong to it, and the few places inside it. */
 export interface WhGroup {
-  key: 'home' | 'sales' | 'stock' | 'money' | 'admin';
+  key: 'home' | 'sales' | 'stock' | 'money' | 'admin' | 'reports';
   href: string;
   labelKey: string;
   match: string[];
@@ -49,10 +49,8 @@ const HUBS: Partial<Record<WhGroup['key'], string>> = { money: '/wholesale/money
 
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
-  { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
-  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers'] },
-  { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
-  { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
+  { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'sales', 'customers', 'stock', 'catalog', 'purchases', 'suppliers', 'treasury', 'expenses', 'rates', 'assistant'] },
+  { key: 'reports', labelKey: 'wh.nav.reports', keys: ['reports'] },
   { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },
 ];
 

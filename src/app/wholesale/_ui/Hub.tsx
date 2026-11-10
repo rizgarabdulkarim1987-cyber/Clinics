@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 export function Pane({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <section className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-raised shadow-[0_1px_2px_rgb(15_23_42/0.06),0_8px_24px_-12px_rgb(15_23_42/0.12)] ${className}`}>
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto [&_header]:px-4 [&_header]:pb-2 [&_header]:pt-3 [&_header_h1]:text-base [&_header_h1]:font-semibold [&_header_p]:hidden [&_header]:border-b [&_header]:border-line [&_header]:bg-canvas/60">{children}</div>
     </section>
   );
 }
