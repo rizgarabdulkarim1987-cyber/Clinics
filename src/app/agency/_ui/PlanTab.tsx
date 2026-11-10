@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { addAccountRecurring, archiveAccountRecurring, removeAccountBudget, setAccountBudget } from '@/app/studio/_actions/accounts';
-import type { AccountCurrency } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, monthlyCommitments, owedTotals, type AccountCurrency } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
 import { describeFailure } from '@/studio/errors';
 import { useLocale, useT } from '@/studio/i18n';
@@ -38,12 +38,14 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
   const monthKey = today.slice(0, 7);
   const monthName = new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'ar-IQ', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${monthKey}-01T00:00:00Z`));
 
+  const [rKind, setRKind] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
+  const [rClient, setRClient] = useState('');
   const [rService, setRService] = useState('');
   const [rAmount, setRAmount] = useState('');
   const [rCurrency, setRCurrency] = useState<AccountCurrency>('IQD');
   const [rDay, setRDay] = useState('1');
   const [rNote, setRNote] = useState('');
-  const [rErrors, setRErrors] = useState<{ service?: string; amount?: string }>({});
+  const [rErrors, setRErrors] = useState<{ service?: string; amount?: string; client?: string }>({});
 
   const [bService, setBService] = useState('');
   const [bAmount, setBAmount] = useState('');
@@ -62,9 +64,10 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
 
   const submitRecurring = (event: FormEvent) => {
     event.preventDefault();
-    if (!check(rService, rAmount, rCurrency, setRErrors)) return;
+    const fine = check(rService, rAmount, rCurrency, (errors) => setRErrors({ ...errors, ...(rKind === 'INCOME' && !rClient ? { client: t('accounts.plan.error.client') } : {}) }));
+    if (!fine || (rKind === 'INCOME' && !rClient)) return;
     start(async () => {
-      const result = await addAccountRecurring({ service: rService, note: rNote, amount: rAmount, currency: rCurrency, dayOfMonth: Number(rDay) });
+      const result = await addAccountRecurring({ kind: rKind, clientId: rKind === 'INCOME' ? rClient : null, service: rService, note: rNote, amount: rAmount, currency: rCurrency, dayOfMonth: Number(rDay) });
       if (result.ok) {
         toast.success(t('accounts.plan.recurring.added'));
         setRService('');
@@ -107,10 +110,57 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
       } else toast.error(describeFailure(t, locale, result.error).message);
     });
 
+  const commitments = monthlyCommitments(book.recurring);
+  const owed = owedTotals(book.movements);
+  const forecastCodes = ACCOUNT_CURRENCIES.filter((code) => commitments[code].income !== 0 || commitments[code].expense !== 0 || owed[code].income !== 0);
+
   const card = 'flex flex-col gap-4 rounded-lg border border-line bg-raised p-5 lg:max-h-full lg:min-h-0 lg:self-start lg:overflow-y-auto';
 
   return (
-    <div className="flex flex-col gap-4 lg:grid lg:h-full lg:grid-cols-2 lg:gap-5">
+    <div className="flex flex-col gap-4 lg:grid lg:h-full lg:grid-cols-2 lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-5">
+      <section aria-labelledby="forecast-title" className="flex flex-col gap-3 rounded-lg border border-line bg-raised p-5 lg:col-span-2">
+        <div>
+          <h2 id="forecast-title" className="text-md font-semibold">
+            {t('accounts.plan.forecast.title')}
+          </h2>
+          <p className="text-sm text-muted">{t('accounts.plan.forecast.hint')}</p>
+        </div>
+        {forecastCodes.length === 0 ? (
+          <p className="text-sm text-muted">{t('accounts.plan.recurring.empty')}</p>
+        ) : (
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+            {(
+              [
+                ['income', 'accounts.plan.forecast.income'],
+                ['expense', 'accounts.plan.forecast.expense'],
+                ['net', 'accounts.plan.forecast.net'],
+              ] as const
+            ).map(([pick, label]) => (
+              <div key={pick} className="flex flex-col gap-0.5">
+                <dt className="text-sm text-muted">{t(label)}</dt>
+                <dd className="flex flex-col">
+                  {forecastCodes.map((code) => (
+                    <span key={code} dir="ltr" className={cx('text-md font-semibold tabular-nums', pick === 'net' && commitments[code].net > 0 && 'text-success', pick === 'net' && commitments[code].net < 0 && 'text-danger')}>
+                      {formatBook(commitments[code][pick], code)}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+            ))}
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-sm text-muted">{t('accounts.plan.forecast.owed')}</dt>
+              <dd className="flex flex-col">
+                {forecastCodes.map((code) => (
+                  <span key={code} dir="ltr" className="text-md font-semibold tabular-nums">
+                    {formatBook(owed[code].income, code)}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          </dl>
+        )}
+      </section>
+
       <datalist id="plan-services">
         {EXPENSE_SERVICES.map((name) => (
           <option key={name} value={name} />
@@ -132,11 +182,12 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
             {book.recurring.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                 <span className="min-w-0">
-                  <span className="block truncate text-base font-medium">{item.service}</span>
+                  <span className="block truncate text-base font-medium">{item.kind === 'INCOME' ? `${item.clientName ?? ''} · ${item.service}` : item.service}</span>
                   <span className="block truncate text-sm text-muted">{item.note ? `${t('accounts.plan.recurring.day', { day: String(item.dayOfMonth) })} · ${item.note}` : t('accounts.plan.recurring.day', { day: String(item.dayOfMonth) })}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
-                  <span dir="ltr" className="text-base font-semibold tabular-nums">
+                  <span dir="ltr" className={cx('text-base font-semibold tabular-nums', item.kind === 'INCOME' && 'text-success')}>
+                    {item.kind === 'INCOME' ? '+' : ''}
                     {formatBook(item.amountMinor, item.currency)}
                   </span>
                   <IconButton label={t('accounts.plan.recurring.stop')} onClick={() => stopRecurring(item.id)} disabled={pending} icon={<Trash2 aria-hidden />} />
@@ -147,6 +198,27 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
         )}
 
         <form onSubmit={submitRecurring} className="grid grid-cols-2 gap-3 rounded-md bg-surface p-3">
+          <div role="radiogroup" aria-label={t('accounts.kind.label')} className="col-span-2 grid grid-cols-2 gap-1 rounded-md border border-line bg-raised p-1">
+            {(['EXPENSE', 'INCOME'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={rKind === value}
+                onClick={() => setRKind(value)}
+                className={cx('h-9 rounded-sm text-base font-medium transition-colors duration-150', rKind === value ? (value === 'INCOME' ? 'bg-success-wash text-success' : 'bg-danger-wash text-danger') : 'text-muted hover:bg-hover hover:text-text')}
+              >
+                {t(value === 'INCOME' ? 'accounts.plan.recurring.kind.income' : 'accounts.plan.recurring.kind.expense')}
+              </button>
+            ))}
+          </div>
+          {rKind === 'INCOME' && (
+            <div className="col-span-2">
+              <Field label={t('accounts.field.client')} error={rErrors.client}>
+                <Select value={rClient} onChange={(e) => setRClient(e.target.value)} options={[{ value: '', label: '—' }, ...book.clients.map((client) => ({ value: client.id, label: client.name }))]} />
+              </Field>
+            </div>
+          )}
           <Field label={t('accounts.field.service')} error={rErrors.service}>
             <Input list="plan-services" value={rService} onChange={(e) => setRService(e.target.value)} maxLength={60} />
           </Field>

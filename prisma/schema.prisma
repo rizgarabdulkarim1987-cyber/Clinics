@@ -1081,6 +1081,13 @@ enum AccountKind {
   EXPENSE
 }
 
+/// A quote is open until the client answers: accepted (it became an income the client owes) or declined.
+enum AccountQuoteStatus {
+  OPEN
+  ACCEPTED
+  DECLINED
+}
+
 /**
  * A client of Buzzify's own agency business, for its simple books. Not a restaurant: nothing here is tenant data. The
  * slug is made from the name, unique, and never changes. Archived rather than deleted so past movements keep their client.
@@ -1097,6 +1104,8 @@ model AccountClient {
   updatedAt   DateTime       @updatedAt
   entries     AccountEntry[]
   invoices    AccountClientInvoice[]
+  recurring   AccountRecurring[]
+  quotes      AccountQuote[]
 }
 
 /**
@@ -1128,6 +1137,7 @@ model AccountEntry {
   /// Set when a recurring expense posted it, with the month (`2026-11`) it was posted for, so a month is never posted twice.
   recurringId    String?
   recurring      AccountRecurring? @relation(fields: [recurringId], references: [id])
+  quote          AccountQuote?
   recurringMonth String?
 
   @@unique([recurringId, recurringMonth])
@@ -1138,6 +1148,10 @@ model AccountEntry {
 /// An expense that repeats every month (rent, a subscription, a salary): the books post it on its day, from the month it starts, once per month.
 model AccountRecurring {
   id          String         @id @default(cuid())
+  /// EXPENSE: rent, a subscription. INCOME: a monthly contract with a client, posted as money the client owes.
+  kind        AccountKind    @default(EXPENSE)
+  clientId    String?
+  client      AccountClient? @relation(fields: [clientId], references: [id])
   service     String
   note        String         @default("")
   amountMinor Int
@@ -1150,6 +1164,28 @@ model AccountRecurring {
   archivedAt  DateTime?
   createdAt   DateTime       @default(now())
   entries     AccountEntry[]
+}
+
+/// A price offered to a client for one piece of work. Accepting it creates the income (money the client owes) and links it here; the number is never reused.
+model AccountQuote {
+  id          String             @id @default(cuid())
+  number      Int                @unique @default(autoincrement())
+  clientId    String
+  client      AccountClient      @relation(fields: [clientId], references: [id])
+  service     String
+  note        String             @default("")
+  amountMinor Int
+  currency    Currency
+  issuedOn    DateTime           @db.Date
+  validUntil  DateTime           @db.Date
+  status      AccountQuoteStatus @default(OPEN)
+  entryId     String?            @unique
+  entry       AccountEntry?      @relation(fields: [entryId], references: [id])
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime           @default(now())
+
+  @@index([clientId])
 }
 
 /// A monthly ceiling for one kind of expense in one currency (`Subscription`, dollars): the books show how much of it this month has used.
@@ -6017,4 +6053,23 @@ model WhAgencyMovement {
   @@index([orderId, date])
   @@index([journalEntryId])
   @@index([restaurantId])
+}
+
+/// A copy of the whole book taken once a day (kept for 30 days), so a mistaken edit can be looked back on and the
+/// state of any day downloaded as an Excel file. Taken by the page itself, and by the scheduled job when one is set.
+model AccountBackup {
+  id        String   @id @default(cuid())
+  takenOn   DateTime @unique @db.Date
+  entries   Int
+  /// The `AccountsBook` as it was, serialised; read back only by `buildBookWorkbook`.
+  book      Json
+  createdAt DateTime @default(now())
+}
+
+/// Someone who may read the books and enter movements and payments, but never delete, archive or change the settings:
+/// the agency's accountant. A Super Admin gives and takes this away by email; it needs a Studio account and two-factor.
+model AccountAccess {
+  userId      String   @id
+  createdById String?
+  createdAt   DateTime @default(now())
 }

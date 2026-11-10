@@ -218,7 +218,7 @@ export function checkDefinition(
 
 /** Everything a Super Admin holds, and nothing for anyone else: the permissions that apply outside a restaurant. */
 function platformPermissions(actor: Actor): ReadonlySet<Permission> {
-  return effectivePermissions({ isSuperAdmin: actor.isSuperAdmin, isPlatformOwner: actor.isPlatformOwner, role: null, policy: {} });
+  return effectivePermissions({ isSuperAdmin: actor.isSuperAdmin, isPlatformOwner: actor.isPlatformOwner, isAccountant: actor.isAccountant === true, role: null, policy: {} });
 }
 
 /** What `locate` reads of a target's restaurant: the client's stored policy, and what it has bought. */

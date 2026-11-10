@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addAccountRecurring, applyAccountRecurring, archiveAccountRecurring, removeAccountBudget, setAccountBudget } from '@/server/studio/actions/accounts';
+import { addAccountRecurring, applyAccountRecurring, archiveAccountClient, archiveAccountRecurring, createAccountClient, removeAccountBudget, setAccountBudget } from '@/server/studio/actions/accounts';
 import { accountsBook } from '@/server/studio/queries/accounts';
 import { ask, codeOf, dataOf, failureOf, person, prisma, resetWorld, restaurant, run, useTestDatabase, type Person } from '../pos/fixture';
 
@@ -60,6 +60,24 @@ describe('recurring expenses', () => {
     expect(dataOf(await run(admin, applyAccountRecurring, {})).posted).toBe(0);
     expect(await expenses()).toHaveLength(1);
     expect(dataOf(await ask(admin, accountsBook, {})).recurring).toEqual([]);
+  });
+
+  it('bills a monthly contract to the client as money still to receive, and stops when the client is archived', async () => {
+    today('2026-11-10');
+    const client = dataOf(await run(admin, createAccountClient, { name: 'Al Nour' }));
+    expect(codeOf(await run(admin, addAccountRecurring, { kind: 'INCOME', service: 'Social media', amount: '500,000', currency: 'IQD', dayOfMonth: 2 }))).toBe('INVALID');
+    expect(codeOf(await run(admin, addAccountRecurring, { kind: 'INCOME', clientId: 'nope', service: 'Social media', amount: '500,000', currency: 'IQD', dayOfMonth: 2 }))).toBe('NOT_FOUND');
+    dataOf(await run(admin, addAccountRecurring, { kind: 'INCOME', clientId: client.id, service: 'Social media', amount: '500,000', currency: 'IQD', dayOfMonth: 2, startMonth: '2026-10' }));
+    expect(dataOf(await run(admin, applyAccountRecurring, {})).posted).toBe(2);
+    const incomes = await prisma().accountEntry.findMany({ where: { kind: 'INCOME' }, orderBy: { occurredOn: 'asc' }, select: { clientId: true, owed: true, amountMinor: true, recurringMonth: true } });
+    expect(incomes).toEqual([
+      { clientId: client.id, owed: true, amountMinor: 500_000, recurringMonth: '2026-10' },
+      { clientId: client.id, owed: true, amountMinor: 500_000, recurringMonth: '2026-11' },
+    ]);
+    expect(dataOf(await ask(admin, accountsBook, {})).recurring[0]).toMatchObject({ kind: 'INCOME', clientName: 'Al Nour' });
+    dataOf(await run(admin, archiveAccountClient, { id: client.id }));
+    today('2026-12-10');
+    expect(dataOf(await run(admin, applyAccountRecurring, {})).posted).toBe(0);
   });
 
   it('refuses a bad amount, a bad day and anyone but a Super Admin', async () => {

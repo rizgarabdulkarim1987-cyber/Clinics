@@ -50,3 +50,19 @@ export async function setAccountBudget(input: unknown) {
 export async function removeAccountBudget(input: unknown) {
   return invoke(accounts.removeAccountBudget, input);
 }
+
+export async function createAccountQuote(input: unknown) {
+  return invoke(accounts.createAccountQuote, input);
+}
+
+export async function decideAccountQuote(input: unknown) {
+  return invoke(accounts.decideAccountQuote, input);
+}
+
+export async function archiveAccountQuote(input: unknown) {
+  return invoke(accounts.archiveAccountQuote, input);
+}
+
+export async function setAccountAccountant(input: unknown) {
+  return invoke(accounts.setAccountAccountant, input);
+}
