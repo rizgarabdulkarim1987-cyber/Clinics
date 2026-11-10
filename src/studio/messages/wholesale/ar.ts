@@ -105,6 +105,7 @@ const wholesale: Messages = {
   'wh.sw.editStop': 'إلغاء التعديل',
   'wh.sw.editPostFail': 'أُلغيت الفاتورة القديمة لكن الجديدة ما تحفظت. صحّح الأصناف وحفّظ من جديد.',
   'wh.sw.deleted': 'تم حذف الفاتورة',
+  'wh.reports.bySeller': 'المبيعات حسب البائع',
   'wh.stock.qty': 'الموجود',
   'wh.stock.avgCost': 'متوسط الكلفة (دينار)',
   'wh.stock.kind.MAIN': 'الرئيسي',

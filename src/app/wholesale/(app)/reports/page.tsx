@@ -1,4 +1,4 @@
-import { CalendarRange, Download, FileSpreadsheet, Package, Receipt, ShoppingBag, Store, TrendingUp, Wallet } from 'lucide-react';
+import { CalendarRange, Download, FileSpreadsheet, Package, Receipt, ShoppingBag, Store, TrendingUp, UserRound, Wallet } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { addDays } from '@/server/domain/wholesale/forecast';
@@ -117,6 +117,7 @@ async function Profit({ from, to, t, locale }: { from: string; to: string; t: T;
   ];
   const expensesTotal = Number(p.grossIqd) + Number(p.fxIqd) - Number(p.netIqd);
   const maxDay = Math.max(0, ...days.map((d) => Number(d.iqd)));
+  const maxSeller = Math.max(0, ...sales.sellers.map((c) => iqdOf(c.byCurrency)));
   const maxCustomer = Math.max(0, ...sales.customers.map((c) => iqdOf(c.byCurrency)));
   const maxItem = Math.max(0, ...sales.items.map((c) => iqdOf(c.byCurrency)));
   const maxExpense = Math.max(0, ...expenses.map((e) => iqdOf(e.byCurrency)));
@@ -163,6 +164,9 @@ async function Profit({ from, to, t, locale }: { from: string; to: string; t: T;
         </Section>
         <Section icon={CalendarRange} tone="blue" title={t('wh.reports.byDay')}>
           {days.length === 0 ? <EmptyState title={t('wh.home.noSales')} /> : <Ranked rows={days.map((d) => ({ key: d.date, label: d.date, sub: String(d.count), value: money(d.iqd), share: share(Number(d.iqd), maxDay) }))} />}
+        </Section>
+        <Section icon={UserRound} tone="blue" title={t('wh.reports.bySeller')}>
+          {sales.sellers.length === 0 ? <EmptyState title={t('wh.home.noSales')} /> : <Ranked rows={sales.sellers.map((c) => ({ key: c.id, label: c.name, sub: `${t(`wh.role.${c.role}`)} · ${c.count}`, value: cur(c.byCurrency), share: share(iqdOf(c.byCurrency), maxSeller) }))} />}
         </Section>
         <Section icon={Store} tone="teal" title={t('wh.reports.byCustomer')}>
           {sales.customers.length === 0 ? <EmptyState title={t('wh.home.noSales')} /> : <Ranked rows={sales.customers.map((c, i) => ({ key: String(i), label: c.name, sub: String(c.count), value: cur(c.byCurrency), share: share(iqdOf(c.byCurrency), maxCustomer) }))} />}
