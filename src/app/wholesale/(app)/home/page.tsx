@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { addDays } from '@/server/domain/wholesale/forecast';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
-import { alertsQuery, dashboardQuery, expiryQuery } from '@/server/wholesale/queries/reports';
+import { alertsQuery, dashboardQuery, expiryQuery, sellInfoQuery } from '@/server/wholesale/queries/reports';
+import { debtsListQuery, salesQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
 import { Alert } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
@@ -14,70 +16,121 @@ import { SetupButton } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'Home' };
 
-const money = (v: string) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+const money = (v: string | number) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const compact = (n: number) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 type Names = { ckb: string; ar: string; en: string };
 const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : locale === 'ckb' ? names.ckb : names.en) || names.ckb || names.ar || names.en;
-const card = 'flex min-w-0 flex-col justify-center gap-1 rounded-md border border-line bg-raised px-4 py-3 hover:bg-hover';
+const shadow = 'shadow-[0_1px_2px_rgb(15_42_74/0.06)]';
+
+/** One cell of the connected figures bar. */
+function Stat({ label, href, sub, children }: { label: string; href?: string; sub?: ReactNode; children: ReactNode }) {
+  const body = (
+    <>
+      <span className="text-xs text-muted">{label}</span>
+      <span className="text-lg font-bold leading-tight tabular-nums text-wh-rail [overflow-wrap:anywhere]" dir="ltr">
+        {children}
+      </span>
+      {sub && <span className="truncate text-xs text-muted">{sub}</span>}
+    </>
+  );
+  const cls = 'flex min-w-0 flex-col px-3.5 py-2';
+  return href ? (
+    <Link href={href} className={`${cls} hover:bg-hover`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+/** A framed block with its title and an optional link to the full list. */
+function Block({ title, href, more, children }: { title: string; href?: string; more?: string; children: ReactNode }) {
+  return (
+    <section className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-line bg-raised ${shadow}`}>
+      <h2 className="flex shrink-0 items-center justify-between gap-2 border-b border-line px-3.5 py-1.5 text-base font-semibold">
+        {title}
+        {href && more && (
+          <Link href={href} className="inline-flex h-7 items-center rounded-md border border-line-strong bg-raised px-2.5 text-sm font-medium text-text hover:bg-wh-blue hover:text-white">
+            {more}
+          </Link>
+        )}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+const rowCls = 'flex items-center justify-between gap-3 px-3.5 py-1.5 text-sm hover:bg-hover';
 
 /**
- * The first screen, built to fit one screen with no scrolling: the money in four tiles, what is owed in four more, the week
- * and what needs a look beside each other. Partners see how the company stands right now; a rep sees his own way in.
+ * The first screen: the figures that matter in one connected bar (money today, the month, cash, what is owed to us and by us,
+ * the stock), then the week beside what needs a look, then the three lists a manager opens every morning (latest sales, who owes
+ * and by when, what is about to expire). A rep sees the same shape with his own numbers.
  */
 export default async function HomePage() {
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
+  const locale = actor!.locale;
   const isRep = actor!.role === 'REP';
   const [items, warehouses, customers] = await Promise.all([queryWh(itemsQuery), queryWh(warehousesQuery), queryWh(customersQuery)]);
   const needsSetup = !isRep && !warehouses.some((w) => w.kind === 'MAIN') && canWh(actor!.role, 'settings.manage');
   const board = canWh(actor!.role, 'report.view') && !needsSetup ? await queryWh(dashboardQuery) : null;
-  const watch = board ? await queryWh(alertsQuery) : null;
-  const expiry = board ? await queryWh(expiryQuery) : null;
-  const expiring = (expiry?.rows ?? []).filter((r) => r.status !== 'ok');
-  const counts: { label: string; value: number; href: string }[] = [
-    { label: t('wh.home.items'), value: items.filter((i) => (i as { active?: boolean }).active !== false).length, href: '/wholesale/stock' },
-    { label: t('wh.home.warehouses'), value: warehouses.length, href: '/wholesale/stock' },
-    { label: t('wh.home.customers'), value: customers.length, href: '/wholesale/customers' },
-  ];
-  const attention = board
-    ? [
-        { n: board.pending.sales, label: t('wh.home.pendingSales'), href: '/wholesale/sales' },
-        { n: board.pending.handovers, label: t('wh.home.pendingHandovers'), href: '/wholesale/treasury' },
-        { n: board.pending.expenses, label: t('wh.home.pendingExpenses'), href: '/wholesale/expenses' },
-      ].filter((a) => a.n > 0)
-    : [];
+  const ok = !needsSetup;
+  const [watch, expiry, sales, debts, mine] = await Promise.all([
+    board ? queryWh(alertsQuery).catch(() => null) : Promise.resolve(null),
+    ok ? queryWh(expiryQuery).catch(() => null) : Promise.resolve(null),
+    ok ? queryWh(salesQuery).catch(() => null) : Promise.resolve(null),
+    ok ? queryWh(debtsListQuery).catch(() => null) : Promise.resolve(null),
+    ok && !board ? queryWh(sellInfoQuery).catch(() => null) : Promise.resolve(null),
+  ]);
   const today = baghdadDate();
+  const expiring = (expiry?.rows ?? []).filter((r) => r.status !== 'ok');
+  const soldToday = (sales ?? []).filter((x) => x.status === 'POSTED' && x.date === today);
+  const repToday: Record<string, number> = {};
+  for (const x of soldToday) repToday[x.currency] = (repToday[x.currency] ?? 0) + Number(x.totalFinal);
+  const activeItems = items.filter((i) => (i as { active?: boolean }).active !== false).length;
+
   const byDay = new Map((board?.week ?? []).map((d) => [d.date, Number(d.iqd)]));
   const week = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(today, i - 6);
     return { date, iqd: byDay.get(date) ?? 0 };
   });
   const maxDay = Math.max(1, ...week.map((d) => d.iqd));
-  const owed = (m: Record<string, string>) =>
-    Object.keys(m).length === 0 ? (
-      <p className="text-md text-muted">0</p>
-    ) : (
-      Object.entries(m).map(([c, v]) => (
-        <p key={c} className="truncate text-md font-semibold tabular-nums md:text-xl" dir="ltr">
-          {money(v)} {c}
-        </p>
-      ))
-    );
-  const watchRows = [
+  const weekTotal = week.reduce((s, d) => s + d.iqd, 0);
+  const months = (board?.months ?? []).map((m) => ({ month: m.month, iqd: Number(m.iqd) }));
+  const maxMonth = Math.max(1, ...months.map((m) => m.iqd));
+  const yearTotal = months.reduce((s, m) => s + m.iqd, 0);
+
+  const owed = (m: Record<string, string>) => (Object.keys(m).length === 0 ? '0' : Object.entries(m).map(([c, v]) => `${money(v)} ${c}`).join(' · '));
+  const cash = (m: Record<string, string> | null | undefined) => {
+    const parts = (['IQD', 'USD', 'IRT'] as const).filter((c) => Number(m?.[c] ?? 0) !== 0).map((c) => `${money(m![c]!)} ${c}`);
+    return parts.length ? parts.join(' · ') : '0';
+  };
+
+  const need = [
+    ...(board
+      ? [
+          { key: 'ps', n: board.pending.sales, text: t('wh.home.pendingSales'), href: '/wholesale/sales', high: false },
+          { key: 'ph', n: board.pending.handovers, text: t('wh.home.pendingHandovers'), href: '/wholesale/treasury', high: false },
+          { key: 'pe', n: board.pending.expenses, text: t('wh.home.pendingExpenses'), href: '/wholesale/expenses', high: false },
+        ].filter((x) => x.n > 0)
+      : []),
     ...(watch?.alerts ?? []).map((a) => ({
       key: `a-${a.kind}-${a.saleId ?? a.customerId ?? a.customer}`,
+      n: 0,
       href: a.kind === 'overdueDebt' ? `/wholesale/customers/${a.customerId}` : a.saleId ? `/wholesale/sales/${a.saleId}` : '/wholesale/sales',
-      text: t(`wh.alert.${a.kind}`, { ...a.params, name: a.customer || (a.itemNames ? nameOf(a.itemNames as Names, actor!.locale) : '') }),
+      text: t(`wh.alert.${a.kind}`, { ...a.params, name: a.customer || (a.itemNames ? nameOf(a.itemNames as Names, locale) : '') }),
       high: a.severity === 'high',
     })),
-    ...(board?.lowStock ?? []).map((x) => ({ key: `l-${x.itemId}`, href: '/wholesale/stock', text: `${nameOf(x.names as Names, actor!.locale)} · ${money(x.qtyBase)} / ${money(x.reorderPoint)}`, high: false })),
-  ];
+    ...(board?.lowStock ?? []).map((x) => ({ key: `l-${x.itemId}`, n: 0, href: '/wholesale/stock', text: `${nameOf(x.names as Names, locale)} · ${money(x.qtyBase)} / ${money(x.reorderPoint)}`, high: false })),
+  ].slice(0, 7);
+
+  const lateDays = (due: string) => Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${due}T00:00:00Z`)) / 86_400_000);
+
   return (
     <>
-      <PageHeader
-        title={t('wh.home.hello', { name: actor!.name })}
-        description={isRep ? t('wh.home.repHint') : undefined}
-      />
-      <div className="flex flex-col gap-3 px-4 pb-4 md:min-h-0 md:flex-1 md:px-6">
+      <PageHeader title={t('wh.home.hello', { name: actor!.name })} description={isRep ? t('wh.home.repHint') : today} />
+      <div className="flex flex-col gap-2.5 px-4 pb-3 md:px-6">
         <LiveRefresh />
         {needsSetup && (
           <Alert tone="neutral">
@@ -87,139 +140,213 @@ export default async function HomePage() {
             </div>
           </Alert>
         )}
-        {attention.length > 0 && (
-          <section aria-label={t('wh.home.needsYou')} className="flex flex-wrap gap-2">
-            {attention.map((a) => (
-              <Link key={a.href} href={a.href} className="flex items-center gap-2 rounded-md border border-wh-amber bg-wh-amber-wash px-3 py-1.5 hover:brightness-95">
-                <span className="text-lg font-semibold tabular-nums text-wh-amber" dir="ltr">
-                  {a.n}
-                </span>
-                <span className="text-sm font-medium">{a.label}</span>
-              </Link>
-            ))}
-          </section>
+
+        {ok && (
+          <div className={`grid grid-cols-2 divide-line overflow-hidden rounded-lg border border-line bg-raised md:grid-cols-3 xl:grid-cols-6 [&>*]:border-b [&>*]:border-line xl:[&>*]:border-b-0 xl:[&>*:not(:first-child)]:border-s ${shadow}`}>
+            {board ? (
+              <>
+                <Stat label={t('wh.home.todaySales')} href="/wholesale/reports?tab=profit" sub={`${board.todaySales.count} ${t('wh.home.invoices')}`}>
+                  {money(board.todaySales.iqd)} IQD
+                </Stat>
+                <Stat label={t('wh.home.monthProfit')} href="/wholesale/reports?tab=profit">
+                  {money(board.monthProfit.netIqd)} IQD
+                </Stat>
+                <Stat label={t('wh.home.cash')} href="/wholesale/treasury">
+                  {cash(board.cash)}
+                </Stat>
+                <Stat label={t('wh.home.receivable')} href="/wholesale/reports?tab=debts">
+                  {owed(board.receivable)}
+                </Stat>
+                <Stat label={t('wh.home.payable')} href="/wholesale/reports?tab=debts">
+                  {owed(board.payable)}
+                </Stat>
+                <Stat
+                  label={t('wh.home.stockValue')}
+                  href="/wholesale/reports?tab=stock"
+                  sub={`${activeItems} ${t('wh.home.items')} · ${customers.length} ${t('wh.home.customers')}`}
+                >
+                  {money(board.stockValueIqd)} IQD
+                </Stat>
+              </>
+            ) : (
+              <>
+                <Stat label={t('wh.sw.salesToday')} sub={t('wh.sw.invoicesN', { n: soldToday.length })}>
+                  {Object.keys(repToday).length ? Object.entries(repToday).map(([c, v]) => `${money(v)} ${c}`).join(' · ') : '0'}
+                </Stat>
+                <Stat label={t('wh.sw.cashTill')} href="/wholesale/treasury">
+                  {cash(mine?.cash)}
+                </Stat>
+                <Stat label={t('wh.sw.debts')} sub={t('wh.sw.debtsN', { n: debts?.rows.length ?? 0 })} href="/wholesale/sales">
+                  {debts?.rows.length ?? 0}
+                </Stat>
+                <Stat label={t('wh.expiry.title')} href="/wholesale/stock" sub={mine?.next ? `${nameOf(mine.next.names as Names, locale)} · ${t('wh.expiry.days', { n: mine.next.days })}` : undefined}>
+                  {(mine?.expired ?? 0) + (mine?.soon ?? 0)}
+                </Stat>
+              </>
+            )}
+          </div>
         )}
+
         {board && (
-          <>
-            <section className="grid grid-cols-2 gap-3 md:min-h-0 md:flex-1 lg:grid-cols-4">
-              <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-line bg-raised px-4 py-3">
-                <p className="text-sm text-muted">{t('wh.home.cash')}</p>
-                <div className="flex flex-wrap gap-x-8 gap-y-1">
-                  {(['IQD', 'USD', 'IRT'] as const).map((c) => (
-                    <div key={c}>
-                      <p className="text-xs text-muted">{t(`wh.currency.${c}`)}</p>
-                      <p className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
-                        {money(board.cash[c] ?? '0')}
-                      </p>
-                    </div>
-                  ))}
+          <div className="grid gap-2.5 xl:grid-cols-3">
+            <Block title={t('wh.home.last7')}>
+              <div className="flex flex-col gap-1 px-3.5 pb-2 pt-1.5">
+                <p className="flex items-baseline gap-2 text-sm text-muted">
+                  <span className="text-lg font-bold tabular-nums text-wh-rail" dir="ltr">
+                    {money(weekTotal)} IQD
+                  </span>
+                </p>
+                <div className="relative h-28" dir="ltr">
+                  <div aria-hidden className="absolute inset-0 flex flex-col justify-between pb-5">
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className="border-t border-dashed border-line" />
+                    ))}
+                  </div>
+                  <ul className="relative grid h-full grid-cols-7 items-end gap-3">
+                    {week.map((d, i) => {
+                      const last = i === week.length - 1;
+                      return (
+                        <li key={d.date} className="flex h-full min-w-0 flex-col items-center justify-end gap-1" title={`${d.date}: ${money(d.iqd)}`}>
+                          <span className="text-xs font-semibold tabular-nums text-muted">{d.iqd > 0 ? compact(d.iqd) : ''}</span>
+                          <span className={`w-full max-w-12 rounded-t ${last ? 'bg-wh-blue' : 'bg-wh-blue/35'}`} style={{ height: d.iqd > 0 ? `${Math.max(4, (d.iqd / maxDay) * 78)}%` : '2px', opacity: d.iqd > 0 ? 1 : 0.3 }} />
+                          <span className={`text-xs ${last ? 'font-semibold text-text' : 'text-muted'}`}>{d.date.slice(5)}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               </div>
-              <Link href="/wholesale/reports?tab=profit" className={`${card}`}>
-                <span className="text-sm text-muted">{t('wh.home.todaySales')}</span>
-                <span className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
-                  {money(board.todaySales.iqd)}
-                </span>
-                <span className="text-xs text-muted">
-                  {board.todaySales.count} {t('wh.home.invoices')}
-                </span>
-              </Link>
-              <Link href="/wholesale/reports?tab=profit" className={`${card}`}>
-                <span className="text-sm text-muted">{t('wh.home.monthProfit')}</span>
-                <span className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
-                  {money(board.monthProfit.netIqd)}
-                </span>
-                <span className="text-xs text-muted">IQD</span>
-              </Link>
-            </section>
-            <section className="grid grid-cols-2 gap-3 md:min-h-0 md:flex-1 lg:grid-cols-4">
-              <Link href="/wholesale/reports?tab=debts" className={`${card}`}>
-                <p className="text-sm text-muted">{t('wh.home.receivable')}</p>
-                {owed(board.receivable)}
-              </Link>
-              <Link href="/wholesale/reports?tab=debts" className={`${card}`}>
-                <p className="text-sm text-muted">{t('wh.home.payable')}</p>
-                {owed(board.payable)}
-              </Link>
-              <Link href="/wholesale/reports?tab=stock" className={`${card}`}>
-                <p className="text-sm text-muted">{t('wh.home.stockValue')}</p>
-                <p className="truncate text-md font-semibold tabular-nums md:text-xl" dir="ltr">
-                  {money(board.stockValueIqd)} IQD
+            </Block>
+            <Block title={t('wh.home.last12')}>
+              <div className="flex flex-col gap-1 px-3.5 pb-2 pt-1.5">
+                <p className="text-lg font-bold tabular-nums text-wh-rail" dir="ltr">
+                  {money(yearTotal)} IQD
                 </p>
-                {Object.entries(board.repCustody).map(([c, v]) => (
-                  <p key={c} className="truncate text-xs text-muted">
-                    {t('wh.home.withReps')}:{' '}
-                    <span dir="ltr">
-                      {money(v)} {c}
-                    </span>
-                  </p>
-                ))}
-              </Link>
-              <div className="flex min-w-0 items-center justify-around gap-2 rounded-md border border-line bg-raised px-3 py-3">
-                {counts.map((c) => (
-                  <Link key={c.href} href={c.href} className="flex min-w-0 flex-col items-center rounded-md px-2 py-1 hover:bg-hover">
-                    <span className="text-xl font-semibold tabular-nums md:text-2xl" dir="ltr">
-                      {c.value}
-                    </span>
-                    <span className="max-w-full truncate text-xs text-muted">{c.label}</span>
-                  </Link>
-                ))}
+                <div className="relative h-28" dir="ltr">
+                  <div aria-hidden className="absolute inset-0 flex flex-col justify-between pb-5">
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className="border-t border-dashed border-line" />
+                    ))}
+                  </div>
+                  <ul className="relative grid h-full grid-cols-12 items-end gap-1.5">
+                    {months.map((m, i) => {
+                      const last = i === months.length - 1;
+                      return (
+                        <li key={m.month} className="flex h-full min-w-0 flex-col items-center justify-end gap-1" title={`${m.month}: ${money(m.iqd)}`}>
+                          <span className={`w-full rounded-t ${last ? 'bg-wh-blue' : 'bg-wh-blue/35'}`} style={{ height: m.iqd > 0 ? `${Math.max(4, (m.iqd / maxMonth) * 82)}%` : '2px', opacity: m.iqd > 0 ? 1 : 0.3 }} />
+                          <span className={`text-[10px] ${last ? 'font-semibold text-text' : 'text-muted'}`}>{m.month.slice(5)}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               </div>
-            </section>
-            <section className="grid gap-3 md:min-h-0 md:flex-[2] lg:grid-cols-4">
-              <div className="flex flex-col rounded-md border border-line bg-raised px-4 py-3 lg:col-span-2">
-                <h2 className="text-sm font-semibold">{t('wh.home.last7')}</h2>
-                <ul className="mt-2 grid h-28 grid-cols-7 items-end gap-2 md:h-auto md:min-h-24 md:flex-1" dir="ltr">
-                  {week.map((d) => (
-                    <li key={d.date} className="flex h-full min-w-0 flex-col items-center justify-end gap-1" title={`${d.date}: ${money(String(d.iqd))}`}>
-                      <span className="w-full max-w-10 rounded-sm bg-wh-blue" style={{ height: d.iqd > 0 ? `${Math.max(6, (d.iqd / maxDay) * 100)}%` : '3px', opacity: d.iqd > 0 ? 1 : 0.25 }} />
-                      <span className="text-xs text-muted">{d.date.slice(5)}</span>
+            </Block>
+            <Block title={t('wh.home.needsYou')} href={canWh(actor!.role, 'ai.use') ? '/wholesale/assistant' : undefined} more={t('wh.nav.assistant')}>
+              {need.length === 0 ? (
+                <p className="px-4 py-4 text-center text-sm text-muted">{t('wh.home.allClear')}</p>
+              ) : (
+                <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
+                  {need.map((r) => (
+                    <li key={r.key}>
+                      <Link href={r.href} className={rowCls} title={r.text}>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span aria-hidden className={`size-2 shrink-0 rounded-full ${r.high ? 'bg-wh-rose' : 'bg-wh-amber'}`} />
+                          <span className="truncate" dir="auto">
+                            {r.text}
+                          </span>
+                        </span>
+                        {r.n > 0 && (
+                          <span className="shrink-0 rounded-full bg-wh-amber px-2 py-0.5 text-xs font-bold tabular-nums text-white" dir="ltr">
+                            {r.n}
+                          </span>
+                        )}
+                      </Link>
                     </li>
                   ))}
                 </ul>
-              </div>
-              <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-4 py-3">
-                <h2 className="text-sm font-semibold">{t('wh.expiry.title')}</h2>
-                {expiring.length === 0 ? (
-                  <p className="mt-2 text-sm text-muted">{expiry && expiry.rows.length > 0 ? t('wh.home.allClear') : t('wh.expiry.none')}</p>
-                ) : (
-                  <ul className="mt-2 flex flex-col gap-1 overflow-y-auto md:min-h-0 md:flex-1">
-                    {expiring.map((r) => (
-                      <li key={`${r.itemId}-${r.expiry}-${r.warehouse ?? ''}`}>
-                        <Link href="/wholesale/stock" className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm hover:bg-hover ${r.status === 'expired' ? 'bg-danger-wash text-danger' : ''}`} title={`${r.expiry}`}>
-                          <span className="truncate" dir="auto">{nameOf(r.names as Names, actor!.locale)}</span>
-                          <span className="shrink-0 tabular-nums" dir="ltr">{r.status === 'expired' ? t('wh.expiry.expired') : t('wh.expiry.days', { n: r.daysLeft })}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-4 py-3">
-                <h2 className="flex items-center justify-between gap-2 text-sm font-semibold">
-                  {t('wh.alert.title')}
-                  {canWh(actor!.role, 'ai.use') && (
-                    <Link href="/wholesale/assistant" className="rounded-md border border-line-strong px-2 py-0.5 text-xs font-medium hover:bg-hover">
-                      {t('wh.nav.assistant')}
-                    </Link>
-                  )}
-                </h2>
-                {watchRows.length === 0 ? (
-                  <p className="mt-2 text-sm text-muted">{t('wh.home.allClear')}</p>
-                ) : (
-                  <ul className="mt-2 flex flex-col gap-1 overflow-y-auto md:min-h-0 md:flex-1">
-                    {watchRows.map((r) => (
-                      <li key={r.key}>
-                        <Link href={r.href} className={`block truncate rounded-md px-2 py-1 text-sm hover:bg-hover ${r.high ? 'bg-danger-wash text-danger' : ''}`} dir="auto" title={r.text}>
-                          {r.text}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </section>
-          </>
+              )}
+            </Block>
+          </div>
+        )}
+
+        {ok && (
+          <div className="grid gap-2.5 lg:grid-cols-3">
+            <Block title={t('wh.home.recent')} href="/wholesale/sales" more={t('wh.home.all')}>
+              {(sales ?? []).length === 0 ? (
+                <p className="px-4 py-4 text-center text-sm text-muted">{t('wh.sw.noRecent')}</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {(sales ?? []).slice(0, 6).map((x) => (
+                    <li key={x.id}>
+                      <Link href={`/wholesale/sales/${x.id}`} className={rowCls}>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium" dir="auto">
+                            #{x.number} · {x.customer.name}
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-muted" dir="ltr">
+                            <span aria-hidden className={`size-1.5 rounded-full ${x.paymentMode === 'CREDIT' ? 'bg-wh-amber' : 'bg-wh-green'}`} />
+                            {x.date}
+                            {x.status !== 'POSTED' ? ` · ${t(`wh.sales.status.${x.status}`)}` : ''}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums" dir="ltr">
+                          {money(x.totalFinal)} {x.currency}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Block>
+
+            <Block title={t('wh.sw.debts')} href="/wholesale/sales" more={t('wh.home.all')}>
+              {(debts?.rows ?? []).length === 0 ? (
+                <p className="px-4 py-4 text-center text-sm text-muted">{t('wh.sw.debtsNone')}</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {(debts?.rows ?? []).slice(0, 6).map((d) => (
+                    <li key={d.id}>
+                      <Link href={`/wholesale/sales?c=${d.id}`} className={rowCls}>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium" dir="auto">
+                            {d.name}
+                          </span>
+                          <span className={`text-xs ${d.overdue ? 'font-semibold text-wh-rose' : 'text-muted'}`}>
+                            {d.overdue && d.due ? t('wh.sw.overdueDays', { n: lateDays(d.due) }) : d.due ? t('wh.sw.dueOn', { d: d.due }) : t('wh.sw.noDue')}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums" dir="ltr">
+                          {Object.entries(d.totals).map(([c, v]) => `${money(v)} ${c}`).join(' · ')}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Block>
+
+            <Block title={t('wh.expiry.title')} href="/wholesale/stock" more={t('wh.home.all')}>
+              {expiring.length === 0 ? (
+                <p className="px-4 py-4 text-center text-sm text-muted">{expiry && expiry.rows.length > 0 ? t('wh.home.allClear') : t('wh.expiry.none')}</p>
+              ) : (
+                <ul className="divide-y divide-line">
+                  {expiring.slice(0, 6).map((r) => (
+                    <li key={`${r.itemId}-${r.expiry}-${r.warehouse ?? ''}`}>
+                      <Link href="/wholesale/stock" className={rowCls} title={r.expiry}>
+                        <span className="truncate font-medium" dir="auto">
+                          {nameOf(r.names as Names, locale)}
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${r.status === 'expired' ? 'bg-wh-rose-wash text-wh-rose' : 'bg-wh-amber-wash text-wh-amber'}`}>
+                          {r.status === 'expired' ? t('wh.expiry.expired') : t('wh.expiry.days', { n: r.daysLeft })}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Block>
+          </div>
         )}
       </div>
     </>

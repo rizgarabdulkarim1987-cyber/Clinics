@@ -37,7 +37,9 @@ export const dashboardQuery = defineQuery({
     const { db, user } = scoped(ctx);
     const today = baghdadDate();
     const monthStart = `${today.slice(0, 7)}-01`;
-    const [position, owed, month, todaySales, week, stock, pendingSales, pendingHandovers, pendingExpenses] = await Promise.all([
+    const yearAgo = new Date(`${monthStart}T00:00:00Z`);
+    yearAgo.setUTCMonth(yearAgo.getUTCMonth() - 11);
+    const [position, owed, month, todaySales, week, stock, pendingSales, pendingHandovers, pendingExpenses, year] = await Promise.all([
       cashPosition(db),
       debts(db),
       profit(db, { from: monthStart, to: today }),
@@ -47,9 +49,19 @@ export const dashboardQuery = defineQuery({
       listPendingSales(db),
       listPendingHandovers(db),
       listExpenses(db, user, 'PENDING'),
+      salesByDay(db, { from: yearAgo.toISOString().slice(0, 10), to: today }),
     ]);
+    const perMonth = new Map<string, number>();
+    for (const d of year) perMonth.set(d.date.slice(0, 7), (perMonth.get(d.date.slice(0, 7)) ?? 0) + Number(d.iqd));
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const m = new Date(yearAgo);
+      m.setUTCMonth(m.getUTCMonth() + i);
+      const key = m.toISOString().slice(0, 7);
+      return { month: key, iqd: String(perMonth.get(key) ?? 0) };
+    });
     return plain({
       date: today,
+      months,
       cash: position.cash,
       repCustody: position.repCustody,
       receivable: owed.receivable,
