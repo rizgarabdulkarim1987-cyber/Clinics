@@ -5,7 +5,7 @@ import { whPlaceInput, whTargetOf } from '@/server/wholesale/actions/catalog';
 import { getCustody, listPendingHandovers } from '@/server/wholesale/posting/custody';
 import { listExpenses } from '@/server/wholesale/posting/expense';
 import { cashPosition, debts, lowStock, partyBalances, profit, salesByDay, stockValue } from '@/server/wholesale/posting/reports';
-import { listPendingSales, receivables } from '@/server/wholesale/posting/sale';
+import { listPendingSales, receivables, sellersOf } from '@/server/wholesale/posting/sale';
 import { computeAlerts, ODD_PRICE_WINDOW_DAYS, SALES_DROP_TRAILING_DAYS } from '@/server/domain/wholesale/alerts';
 import { D } from '@/server/domain/wholesale/money';
 import { canWh } from '@/server/domain/wholesale/permissions';
@@ -139,7 +139,7 @@ export const salesBreakdownQuery = defineQuery({
     const { db } = scoped(ctx);
     const range = { gte: toDate(from), lte: toDate(to) };
     const [sales, lines] = await Promise.all([
-      db.whSale.findMany({ where: { status: 'POSTED', date: range }, select: { currency: true, totalFinal: true, customer: { select: { id: true, name: true } } }, take: 20000 }),
+      db.whSale.findMany({ where: { status: 'POSTED', date: range }, select: { currency: true, totalFinal: true, userId: true, customer: { select: { id: true, name: true } } }, take: 20000 }),
       db.whSaleLine.findMany({ where: { sale: { status: 'POSTED', date: range } }, select: { qtyBase: true, lineTotal: true, item: { select: { id: true, code: true, names: true, baseUnit: true } }, sale: { select: { currency: true } } }, take: 50000 }),
     ]);
     const cust = new Map<string, { name: string; count: number; by: Record<string, number> }>();
@@ -149,6 +149,14 @@ export const salesBreakdownQuery = defineQuery({
       addTo(e.by, s.currency, s.totalFinal);
       cust.set(s.customer.id, e);
     }
+    const bySeller = new Map<string, { count: number; by: Record<string, number> }>();
+    for (const s of sales) {
+      const e = bySeller.get(s.userId) ?? { count: 0, by: {} };
+      e.count += 1;
+      addTo(e.by, s.currency, s.totalFinal);
+      bySeller.set(s.userId, e);
+    }
+    const names = await sellersOf(db, [...bySeller.keys()]);
     const item = new Map<string, { code: string; names: unknown; baseUnit: string; qty: number; by: Record<string, number> }>();
     for (const l of lines) {
       const e = item.get(l.item.id) ?? { code: l.item.code, names: l.item.names, baseUnit: l.item.baseUnit as string, qty: 0, by: {} };
@@ -158,6 +166,9 @@ export const salesBreakdownQuery = defineQuery({
     }
     const weight = (by: Record<string, number>) => Object.values(by).reduce((a, b) => a + b, 0);
     return plain({
+      sellers: [...bySeller.entries()]
+        .sort((a, b) => weight(b[1].by) - weight(a[1].by))
+        .map(([id, e]) => ({ id, name: names.get(id)?.name ?? '—', role: names.get(id)?.role ?? 'OWNER', count: e.count, byCurrency: fixed(e.by) })),
       customers: [...cust.values()].sort((a, b) => weight(b.by) - weight(a.by)).slice(0, 200).map((e) => ({ name: e.name, count: e.count, byCurrency: fixed(e.by) })),
       items: [...item.values()].sort((a, b) => weight(b.by) - weight(a.by)).slice(0, 200).map((e) => ({ code: e.code, names: e.names, baseUnit: e.baseUnit, qty: String(Math.round(e.qty * 10000) / 10000), byCurrency: fixed(e.by) })),
     });

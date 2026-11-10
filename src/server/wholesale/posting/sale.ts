@@ -725,7 +725,11 @@ export async function sellersOf(tx: Db, userIds: string[]): Promise<Map<string, 
   const ids = [...new Set(userIds)]
   if (ids.length === 0) return new Map()
   const rows = await tx.whStaff.findMany({ where: { userId: { in: ids } }, select: { userId: true, role: true, user: { select: { name: true } } } })
-  return new Map(rows.map((r) => [r.userId, { name: r.user.name, role: r.role as string }]))
+  const out = new Map(rows.map((r) => [r.userId, { name: r.user.name, role: r.role as string }]))
+  // the company's Studio owner has no staff row: anyone else who sold is the owner
+  const missing = ids.filter((id) => !out.has(id))
+  if (missing.length > 0) for (const u of await tx.user.findMany({ where: { id: { in: missing } }, select: { id: true, name: true } })) out.set(u.id, { name: u.name, role: 'OWNER' })
+  return out
 }
 
 export async function listSales(tx: Db, user: WhUser) {
