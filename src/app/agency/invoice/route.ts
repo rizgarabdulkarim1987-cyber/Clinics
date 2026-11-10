@@ -1,6 +1,6 @@
 import { renderClientInvoicePage } from '@/server/accounts/client-invoice';
 import { renderInvoicePage } from '@/server/accounts/invoice';
-import { issueAccountInvoice } from '@/server/studio/actions/accounts';
+import { issueAccountClientInvoice, issueAccountInvoice } from '@/server/studio/actions/accounts';
 import { getActor } from '@/server/studio/auth/actor';
 import { invoke, invokeQuery } from '@/server/studio/framework/invoke';
 import { accountClientInvoice, accountInvoice } from '@/server/studio/queries/accounts';
@@ -42,7 +42,9 @@ export async function GET(request: Request): Promise<Response> {
     const period = params.get('period') ?? '';
     const whole = await invokeQuery(accountClientInvoice, { clientId, period });
     if (!whole.ok) return refuse(whole.error.message, STATUS[whole.error.code] ?? 400);
-    return page(renderClientInvoicePage(whole.data, getStudioTranslator(locale), locale, { clientId, period }));
+    const issued = await invoke(issueAccountClientInvoice, { clientId, period });
+    if (!issued.ok) return refuse(issued.error.message, STATUS[issued.error.code] ?? 400);
+    return page(renderClientInvoicePage(whole.data, getStudioTranslator(locale), locale, { clientId, period, number: issued.data.number }));
   }
 
   const entryId = params.get('entry');

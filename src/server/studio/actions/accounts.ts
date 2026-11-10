@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ATTACHMENT_MAX_BYTES, ATTACHMENTS_PER_ENTRY, cleanAttachmentName, sniffAttachment } from '@/lib/attachments';
-import { nextSlug, parseRate, RATE_SETTING_KEY, slugFromName } from '@/lib/accounts';
+import { nextSlug, parsePeriod, parseRate, RATE_SETTING_KEY, slugFromName } from '@/lib/accounts';
 import { defineAction } from '@/server/studio/framework/action';
 import { StudioError } from '@/server/studio/framework/result';
 import { parseAmountInput, type AmountInputProblem } from '@/studio/money-input';
@@ -324,6 +324,25 @@ export const issueAccountInvoice = defineAction({
       if (entry.invoice) return { number: entry.invoice.number };
       const row = await tx.accountInvoice.create({ data: { entryId: entry.id, issuedOn: toDay(todayInBaghdad())!, createdById: ctx.actor.userId }, select: { id: true, number: true } });
       ctx.audit({ action: 'account.invoice.issued', entityType: 'AccountInvoice', entityId: row.id });
+      return { number: row.number };
+    }),
+});
+
+/** Gives one client's invoice for a period its number the first time it is asked for; asking again returns the same one. */
+export const issueAccountClientInvoice = defineAction({
+  name: 'account.clientInvoice.issue',
+  permission: 'platform.settings',
+  input: z.object({ clientId: z.string().min(1).max(100), period: z.string().max(20) }),
+  target: () => PLATFORM,
+  run: (ctx, { clientId, period }) =>
+    ctx.transaction(async (tx) => {
+      if (!parsePeriod(period)) throw new StudioError('INVALID');
+      const client = await tx.accountClient.findFirst({ where: { id: clientId, archivedAt: null }, select: { id: true } });
+      if (!client) throw new StudioError('NOT_FOUND');
+      const known = await tx.accountClientInvoice.findUnique({ where: { clientId_period: { clientId, period } }, select: { number: true } });
+      if (known) return { number: known.number };
+      const row = await tx.accountClientInvoice.create({ data: { clientId, period, issuedOn: toDay(todayInBaghdad())!, createdById: ctx.actor.userId }, select: { id: true, number: true } });
+      ctx.audit({ action: 'account.clientInvoice.issued', entityType: 'AccountClientInvoice', entityId: row.id });
       return { number: row.number };
     }),
 });

@@ -1096,6 +1096,7 @@ model AccountClient {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   entries     AccountEntry[]
+  invoices    AccountClientInvoice[]
 }
 
 /**
@@ -1138,6 +1139,20 @@ model AccountInvoice {
   issuedOn    DateTime     @db.Date
   createdById String?
   createdAt   DateTime     @default(now())
+}
+
+/// The number of one client's invoice for one period (`month:2026-11`, `year:2026`, `all`): asking again for the same client and period gives the same number. Its own series, `INV-C0001`.
+model AccountClientInvoice {
+  id          String        @id @default(cuid())
+  number      Int           @unique @default(autoincrement())
+  clientId    String
+  client      AccountClient @relation(fields: [clientId], references: [id])
+  period      String
+  issuedOn    DateTime      @db.Date
+  createdById String?
+  createdAt   DateTime      @default(now())
+
+  @@unique([clientId, period])
 }
 
 /// A receipt, invoice or contract photo kept with an entry. The bytes live in the row (small files, a Super Admin's own books), so there is no storage bucket to set up. Archived, never deleted.
