@@ -2,7 +2,7 @@ import { ACCOUNT_CURRENCIES, parsePeriod, type AccountCurrency } from '@/lib/acc
 import type { Locale } from '@/lib/locale';
 import type { Translate } from '@/lib/i18n';
 import type { ClientInvoiceData } from '@/server/studio/queries/accounts';
-import { escapeHtml as esc, formatInvoiceMoney, INVOICE_STYLE } from './invoice';
+import { clientInvoiceNumber, escapeHtml as esc, formatInvoiceMoney, INVOICE_STYLE } from './invoice';
 
 /**
  * One invoice for a whole client over a period: each service (website, social media, anything else) is a line, the
@@ -18,11 +18,11 @@ function periodText(key: string, t: Translate, locale: Locale): string {
   return `${month} ${period.year}`;
 }
 
-export function renderClientInvoicePage(data: ClientInvoiceData, t: Translate, locale: Locale, links: { clientId: string; period: string }): string {
+export function renderClientInvoicePage(data: ClientInvoiceData, t: Translate, locale: Locale, links: { clientId: string; period: string; number: number }): string {
   const dir = locale === 'en' ? 'ltr' : 'rtl';
   const base = `client=${encodeURIComponent(links.clientId)}&amp;period=${encodeURIComponent(links.period)}`;
   const switcher = (['ar', 'ckb', 'en'] as const)
-    .map((code) => `<a href="/agency/invoice?${base}&amp;lang=${code}"${code === locale ? ' aria-current="true"' : ''}>${code === 'en' ? 'English' : code === 'ar' ? 'العربية' : 'کوردی'}</a>`)
+    .map((code) => `<a href="/agency/invoice?${base}&amp;lang=${code}"${code === locale ? ' aria-current="true"' : ''}>${code === 'en' ? 'English' : code === 'ar' ? 'Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©' : 'Ú©ÙˆØ±Ø¯ÛŒ'}</a>`)
     .join('');
 
   const sums: Record<AccountCurrency, { total: number; paid: number; period: number }> = { IQD: { total: 0, paid: 0, period: 0 }, USD: { total: 0, paid: 0, period: 0 } };
@@ -56,7 +56,7 @@ export function renderClientInvoicePage(data: ClientInvoiceData, t: Translate, l
     .sort((a, b) => a.paidOn.localeCompare(b.paidOn));
   const paymentRows = payments.length
     ? `<h2>${esc(t('accounts.invoice.payments'))}</h2><table class="lines">${payments
-        .map((payment) => `<tr><td><span dir="ltr">${esc(payment.paidOn)}</span> · ${esc(payment.service || t('accounts.kind.income'))}${payment.note ? `<div class="sub">${esc(payment.note)}</div>` : ''}</td><td dir="ltr" class="num">${esc(formatInvoiceMoney(payment.amountMinor, payment.currency))}</td></tr>`)
+        .map((payment) => `<tr><td><span dir="ltr">${esc(payment.paidOn)}</span> Â· ${esc(payment.service || t('accounts.kind.income'))}${payment.note ? `<div class="sub">${esc(payment.note)}</div>` : ''}</td><td dir="ltr" class="num">${esc(formatInvoiceMoney(payment.amountMinor, payment.currency))}</td></tr>`)
         .join('')}</table>`
     : '';
 
@@ -66,7 +66,7 @@ export function renderClientInvoicePage(data: ClientInvoiceData, t: Translate, l
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${esc(`${t('accounts.invoice.title')} - ${data.clientName}`)}</title>
+<title>${esc(`${clientInvoiceNumber(links.number)} - ${data.clientName}`)}</title>
 <style>${INVOICE_STYLE}</style>
 </head>
 <body>
@@ -76,7 +76,8 @@ export function renderClientInvoicePage(data: ClientInvoiceData, t: Translate, l
     <img src="/agency/logo.webp" alt="Buzzify" width="96" height="96">
     <div class="meta">
       <h1>${esc(t('accounts.invoice.title'))}</h1>
-      <div class="no">${esc(periodText(links.period, t, locale))}</div>
+      <div class="no" dir="ltr">${esc(clientInvoiceNumber(links.number))}</div>
+      <div class="period">${esc(periodText(links.period, t, locale))}</div>
       <span class="status">${esc(t(`accounts.invoice.status.${status}`))}</span>
     </div>
   </header>

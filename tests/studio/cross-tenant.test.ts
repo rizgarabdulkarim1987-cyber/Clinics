@@ -1044,6 +1044,7 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
   'account.payment.archive': [c('a payment', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'account.attachment.create': [c('an attachment', () => ({ entryId: 'nope', fileName: 'a.pdf', mediaType: 'application/pdf', data: new Uint8Array([37, 80, 68, 70]) }), ONLY_FORBIDDEN)],
   'account.invoice.issue': [c('an invoice', () => ({ entryId: 'nope' }), ONLY_FORBIDDEN)],
+  'account.clientInvoice.issue': [c('a client invoice', () => ({ clientId: 'nope', period: 'all' }), ONLY_FORBIDDEN)],
   'account.attachment.archive': [c('an attachment', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'account.entry.archive': [c('an entry', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'platform.intro': [c('the platform intro', () => ({}), ONLY_FORBIDDEN)],
