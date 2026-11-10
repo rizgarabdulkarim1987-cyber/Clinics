@@ -94,6 +94,7 @@ export const GLOBAL_MODELS = [
   'AccountClientInvoice',
   'AccountRecurring',
   'AccountBudget',
+  'AccountQuote',
   // Billing catalog and history: the products, their prices, and a subscription's events (reached through its subscription).
   'Application',
   'PlanPrice',

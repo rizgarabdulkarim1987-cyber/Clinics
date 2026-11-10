@@ -519,3 +519,108 @@ export const removeAccountBudget = defineAction({
       return { id };
     }),
 });
+
+const QUOTE_DAYS = [7, 14, 30, 60] as const;
+
+/** `YYYY-MM-DD` plus some days (calendar arithmetic in UTC, so no daylight saving to trip on). */
+function addDays(day: string, days: number): string {
+  const date = toDay(day)!;
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export const createAccountQuote = defineAction({
+  name: 'account.quote.create',
+  permission: 'platform.settings',
+  input: z.object({
+    clientId: z.string().min(1).max(100),
+    service: z.string().trim().min(1, 'Type what it is for').max(60, 'Use at most 60 characters'),
+    note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
+    amount: z.string().max(40),
+    currency: z.enum(['IQD', 'USD']),
+    /** How long the offer stands. */
+    validDays: z.number().int().refine((value) => (QUOTE_DAYS as readonly number[]).includes(value)),
+  }),
+  target: () => PLATFORM,
+  run: (ctx, input) => {
+    const amount = parseAmountInput(input.amount, input.currency);
+    if (!amount.ok) throw new StudioError('INVALID', undefined, { amount: AMOUNT_MESSAGES[amount.reason] });
+    if (amount.minor <= 0) throw new StudioError('INVALID', undefined, { amount: 'The amount must be more than zero' });
+    return ctx.transaction(async (tx) => {
+      const client = await tx.accountClient.findFirst({ where: { id: input.clientId, archivedAt: null }, select: { id: true } });
+      if (!client) throw new StudioError('NOT_FOUND');
+      const today = todayInBaghdad();
+      const row = await tx.accountQuote.create({
+        data: {
+          clientId: client.id,
+          service: input.service,
+          note: input.note ?? '',
+          amountMinor: amount.minor,
+          currency: input.currency,
+          issuedOn: toDay(today)!,
+          validUntil: toDay(addDays(today, input.validDays))!,
+          createdById: ctx.actor.userId,
+        },
+        select: { id: true, number: true },
+      });
+      ctx.audit({ action: 'account.quote.created', entityType: 'AccountQuote', entityId: row.id });
+      return { id: row.id, number: row.number };
+    });
+  },
+});
+
+/** The client's answer: accepting makes the income (money the client owes, dated today) and links it to the quote. */
+export const decideAccountQuote = defineAction({
+  name: 'account.quote.decide',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100), decision: z.enum(['ACCEPT', 'DECLINE']) }),
+  target: () => PLATFORM,
+  run: (ctx, { id, decision }) =>
+    ctx.transaction(async (tx) => {
+      const quote = await tx.accountQuote.findFirst({ where: { id, archivedAt: null }, include: { client: { select: { archivedAt: true } } } });
+      if (!quote) throw new StudioError('NOT_FOUND');
+      if (quote.status !== 'OPEN') throw new StudioError('INVALID');
+      if (decision === 'DECLINE') {
+        await tx.accountQuote.update({ where: { id }, data: { status: 'DECLINED' } });
+        ctx.audit({ action: 'account.quote.declined', entityType: 'AccountQuote', entityId: id });
+        return { id, entryId: null as string | null };
+      }
+      if (quote.client.archivedAt) throw new StudioError('NOT_FOUND');
+      const setting = await tx.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } });
+      const stored = setting?.value;
+      const rate = typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 ? stored : null;
+      const entry = await tx.accountEntry.create({
+        data: {
+          kind: 'INCOME',
+          owed: true,
+          rate,
+          clientId: quote.clientId,
+          amountMinor: quote.amountMinor,
+          currency: quote.currency,
+          service: quote.service,
+          note: quote.note,
+          occurredOn: toDay(todayInBaghdad())!,
+          createdById: ctx.actor.userId,
+        },
+        select: { id: true },
+      });
+      await tx.accountQuote.update({ where: { id }, data: { status: 'ACCEPTED', entryId: entry.id } });
+      ctx.audit({ action: 'account.quote.accepted', entityType: 'AccountQuote', entityId: id });
+      return { id, entryId: entry.id as string | null };
+    }),
+});
+
+export const archiveAccountQuote = defineAction({
+  name: 'account.quote.archive',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => PLATFORM,
+  run: (ctx, { id }) =>
+    ctx.transaction(async (tx) => {
+      const found = await tx.accountQuote.findFirst({ where: { id, archivedAt: null }, select: { id: true } });
+      if (!found) throw new StudioError('NOT_FOUND');
+      await tx.accountQuote.update({ where: { id }, data: { archivedAt: new Date() } });
+      ctx.audit({ action: 'account.quote.archived', entityType: 'AccountQuote', entityId: id });
+      return { id };
+    }),
+});

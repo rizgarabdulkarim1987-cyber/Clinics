@@ -1081,6 +1081,13 @@ enum AccountKind {
   EXPENSE
 }
 
+/// A quote is open until the client answers: accepted (it became an income the client owes) or declined.
+enum AccountQuoteStatus {
+  OPEN
+  ACCEPTED
+  DECLINED
+}
+
 /**
  * A client of Buzzify's own agency business, for its simple books. Not a restaurant: nothing here is tenant data. The
  * slug is made from the name, unique, and never changes. Archived rather than deleted so past movements keep their client.
@@ -1098,6 +1105,7 @@ model AccountClient {
   entries     AccountEntry[]
   invoices    AccountClientInvoice[]
   recurring   AccountRecurring[]
+  quotes      AccountQuote[]
 }
 
 /**
@@ -1129,6 +1137,7 @@ model AccountEntry {
   /// Set when a recurring expense posted it, with the month (`2026-11`) it was posted for, so a month is never posted twice.
   recurringId    String?
   recurring      AccountRecurring? @relation(fields: [recurringId], references: [id])
+  quote          AccountQuote?
   recurringMonth String?
 
   @@unique([recurringId, recurringMonth])
@@ -1155,6 +1164,28 @@ model AccountRecurring {
   archivedAt  DateTime?
   createdAt   DateTime       @default(now())
   entries     AccountEntry[]
+}
+
+/// A price offered to a client for one piece of work. Accepting it creates the income (money the client owes) and links it here; the number is never reused.
+model AccountQuote {
+  id          String             @id @default(cuid())
+  number      Int                @unique @default(autoincrement())
+  clientId    String
+  client      AccountClient      @relation(fields: [clientId], references: [id])
+  service     String
+  note        String             @default("")
+  amountMinor Int
+  currency    Currency
+  issuedOn    DateTime           @db.Date
+  validUntil  DateTime           @db.Date
+  status      AccountQuoteStatus @default(OPEN)
+  entryId     String?            @unique
+  entry       AccountEntry?      @relation(fields: [entryId], references: [id])
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime           @default(now())
+
+  @@index([clientId])
 }
 
 /// A monthly ceiling for one kind of expense in one currency (`Subscription`, dollars): the books show how much of it this month has used.

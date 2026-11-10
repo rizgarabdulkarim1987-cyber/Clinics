@@ -23,6 +23,7 @@ const row = (over: Partial<BookMovement>): BookMovement => ({
 });
 
 const book: AccountsBook = {
+  quotes: [],
   recurring: [],
   budgets: [],
   clients: [{ id: 'c1', name: 'Al <Nour>', slug: 'al-nour', phone: '' }],

@@ -74,7 +74,22 @@ export interface BookBudget {
   limitMinor: number;
 }
 
+export interface BookQuote {
+  id: string;
+  number: number;
+  clientId: string;
+  clientName: string;
+  service: string;
+  note: string;
+  amountMinor: number;
+  currency: AccountCurrency;
+  issuedOn: string;
+  validUntil: string;
+  status: 'OPEN' | 'ACCEPTED' | 'DECLINED';
+}
+
 export interface AccountsBook {
+  quotes: BookQuote[];
   recurring: BookRecurring[];
   budgets: BookBudget[];
   clients: BookClient[];
@@ -91,7 +106,7 @@ export const accountsBook = defineQuery({
   input: z.unknown(),
   target: () => ({ kind: 'platform' }),
   run: async ({ db }): Promise<AccountsBook> => {
-    const [clients, rows, setting, recurring, budgets] = await Promise.all([
+    const [clients, rows, setting, recurring, budgets, quotes] = await Promise.all([
       db.accountClient.findMany({ where: { archivedAt: null }, orderBy: { name: 'asc' }, select: { id: true, name: true, slug: true, phone: true } }),
       db.accountEntry.findMany({
         where: { archivedAt: null },
@@ -106,11 +121,25 @@ export const accountsBook = defineQuery({
       db.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } }),
       db.accountRecurring.findMany({ where: { archivedAt: null }, orderBy: [{ dayOfMonth: 'asc' }, { createdAt: 'asc' }], select: { id: true, kind: true, clientId: true, client: { select: { name: true } }, service: true, note: true, amountMinor: true, currency: true, dayOfMonth: true, startMonth: true } }),
       db.accountBudget.findMany({ orderBy: [{ service: 'asc' }, { currency: 'asc' }], select: { id: true, service: true, currency: true, limitMinor: true } }),
+      db.accountQuote.findMany({ where: { archivedAt: null }, orderBy: { number: 'desc' }, take: 200, include: { client: { select: { name: true } } } }),
     ]);
     const stored = setting?.value;
     return {
       rate: typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 && stored <= RATE_MAX ? stored : null,
       clients,
+      quotes: quotes.map((quote) => ({
+        id: quote.id,
+        number: quote.number,
+        clientId: quote.clientId,
+        clientName: quote.client.name,
+        service: quote.service,
+        note: quote.note,
+        amountMinor: quote.amountMinor,
+        currency: quote.currency,
+        issuedOn: quote.issuedOn.toISOString().slice(0, 10),
+        validUntil: quote.validUntil.toISOString().slice(0, 10),
+        status: quote.status,
+      })),
       recurring: recurring.map(({ client, ...item }) => ({ ...item, clientName: client?.name ?? null })),
       budgets,
       movements: rows.map((row) => ({
@@ -263,5 +292,35 @@ export const accountClientInvoice = defineQuery({
     }
     if (lines.length === 0) throw new StudioError('NOT_FOUND');
     return { clientName: client.name, clientPhone: client.phone, issuedOn: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baghdad' }).format(new Date()), lines };
+  },
+});
+
+export interface QuoteData extends BookQuote {
+  clientPhone: string;
+}
+
+/** One quote for its printable page. */
+export const accountQuote = defineQuery({
+  name: 'accounts.quote',
+  permission: 'platform.settings',
+  input: z.object({ id: z.string().min(1).max(100) }),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }, { id }): Promise<QuoteData> => {
+    const quote = await db.accountQuote.findFirst({ where: { id, archivedAt: null }, include: { client: { select: { name: true, phone: true } } } });
+    if (!quote) throw new StudioError('NOT_FOUND');
+    return {
+      id: quote.id,
+      number: quote.number,
+      clientId: quote.clientId,
+      clientName: quote.client.name,
+      clientPhone: quote.client.phone,
+      service: quote.service,
+      note: quote.note,
+      amountMinor: quote.amountMinor,
+      currency: quote.currency,
+      issuedOn: quote.issuedOn.toISOString().slice(0, 10),
+      validUntil: quote.validUntil.toISOString().slice(0, 10),
+      status: quote.status,
+    };
   },
 });
