@@ -57,6 +57,8 @@ export async function refusingBooks<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (error) {
+    // The most common slip: no rate for today. Say it in the person's language, not as the service's English.
+    if (error instanceof RateMissingError) throw new StudioError('INVALID', 'The exchange rate for this day is missing');
     if (CONFLICTS.some((c) => error instanceof c)) throw new StudioError('CONFLICT', (error as Error).message);
     if (REFUSALS.some((c) => error instanceof c)) throw new StudioError('INVALID', (error as Error).message);
     throw error;

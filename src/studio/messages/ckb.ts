@@ -625,6 +625,7 @@ const ckb: Messages = {
   'error.text.passwordInputTooLong': 'ئەو وشە نهێنییە زۆر درێژە',
   'error.text.passwordWrong': 'ئەو وشە نهێنییە هەڵەیە',
   'error.text.passwordChoose': 'وشەیەکی نهێنی هەڵبژێرە',
+  'error.text.notWholesale': "ئەمە کۆمپانیای فرۆشتنی کۆ نییە",
   'error.text.passwordTooShort': 'لانیکەم 12 پیت بەکاربهێنە',
   'error.text.passwordTooLong': 'زۆرترین 128 پیت بەکاربهێنە',
   'error.text.passwordCommon': 'ئەم وشە نهێنییە زۆر باوە. یەکێک هەڵبژێرە کە مەزەندەکردنی قورستر بێت',
