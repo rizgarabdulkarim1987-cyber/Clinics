@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { Plus, ShoppingCart, Truck } from 'lucide-react';
+import { Chip, Fold } from '../../_ui/Ui';
 import Link from 'next/link';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { canWh } from '@/server/domain/wholesale/permissions';
@@ -22,11 +24,9 @@ export default async function PurchasesPage() {
   const [purchases, suppliers, items, warehouses] = await Promise.all([queryWh(purchasesQuery), queryWh(suppliersQuery), queryWh(itemsQuery), queryWh(warehousesQuery)]);
   return (
     <>
-      <PageHeader title={t('wh.purchases.title')} description={t('wh.purchases.description')} actions={canWh(actor!.role, 'catalog.manage') ? <HeaderLink href="/wholesale/suppliers">{t('wh.nav.suppliers')}</HeaderLink> : undefined} />
+      <PageHeader icon={ShoppingCart} tone="amber" title={t('wh.purchases.title')} description={t('wh.purchases.description')} actions={canWh(actor!.role, 'catalog.manage') ? <HeaderLink href="/wholesale/suppliers">{t('wh.nav.suppliers')}</HeaderLink> : undefined} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
-        <details className="rounded-md border border-line bg-raised">
-          <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.purchases.new')}</summary>
-          <div className="border-t border-line p-4">
+        <Fold icon={Plus} tone="green" title={t('wh.purchases.new')}>
             <PurchaseForm
               today={baghdadDate()}
               suppliers={suppliers.filter((s) => s.active)}
@@ -35,16 +35,16 @@ export default async function PurchasesPage() {
                 .map((i) => ({ id: i.id, label: `${nameOf(i.names, actor!.locale)} · ${i.code}`, units: [...new Set([i.baseUnit, ...i.units.map((u) => u.unit)])] }))}
               warehouses={warehouses.filter((w) => w.kind !== 'DAMAGE').map((w) => ({ id: w.id, label: w.name }))}
             />
-          </div>
-        </details>
+        </Fold>
         {purchases.length === 0 ? (
           <EmptyState title={t('wh.purchases.empty')} />
         ) : (
           <ul className="flex flex-col gap-3">
             {purchases.map((p) => (
               <li key={p.id}>
-                <Link href={`/wholesale/purchases/${p.id}`} className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-line bg-raised p-4 hover:border-ink">
-                  <span>
+                <Link href={`/wholesale/purchases/${p.id}`} className="flex items-center gap-3 rounded-xl border border-line bg-raised p-3 hover:border-wh-blue">
+                  <Chip icon={Truck} tone="amber" />
+                  <span className="min-w-0 flex-1">
                     <span className="text-base font-semibold" dir="auto">
                       #{p.number} · {p.supplierName}
                     </span>

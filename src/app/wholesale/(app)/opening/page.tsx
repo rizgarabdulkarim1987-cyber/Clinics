@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { FileUp, Upload } from 'lucide-react';
+import { Chip, Section } from '../../_ui/Ui';
 import { OPENING_COLUMNS, OPENING_KINDS } from '@/server/wholesale/import/opening';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { openingImportsQuery } from '@/server/wholesale/queries/books';
@@ -17,11 +19,11 @@ export default async function OpeningPage() {
   const columns = Object.fromEntries(OPENING_KINDS.map((k) => [k, [...OPENING_COLUMNS[k].required, ...OPENING_COLUMNS[k].optional.map((c) => `${c}?`)].join(', ')]));
   return (
     <>
-      <PageHeader title={t('wh.opening.title')} description={t('wh.opening.description')} />
+      <PageHeader icon={FileUp} tone="amber" title={t('wh.opening.title')} description={t('wh.opening.description')} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
-        <section className="rounded-md border border-line bg-raised p-4">
+        <Section icon={Upload} tone="amber" title={t('wh.opening.title')}>
           <OpeningForm done={imports.map((i) => i.kind)} columns={columns} />
-        </section>
+        </Section>
         <section className="flex flex-col gap-3">
           <h2 className="text-md font-semibold">{t('wh.opening.history')}</h2>
           {imports.length === 0 ? (
@@ -29,8 +31,9 @@ export default async function OpeningPage() {
           ) : (
             <ul className="flex flex-col gap-2">
               {imports.map((i) => (
-                <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-raised p-3 text-base">
-                  <span className="font-semibold">{t(`wh.opening.k.${i.kind}`)}</span>
+                <li key={i.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-raised p-3 text-base">
+                  <Chip icon={FileUp} tone="amber" size="size-8" />
+                  <span className="flex-1 font-semibold">{t(`wh.opening.k.${i.kind}`)}</span>
                   <span className="text-muted tabular-nums" dir="ltr">
                     {i.date} · {i.rows} · {money(i.totalIqd)} IQD
                   </span>

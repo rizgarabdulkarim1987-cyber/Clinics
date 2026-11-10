@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Coins } from 'lucide-react';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { ratesQuery } from '@/server/wholesale/queries/purchase';
 import { getStudioTranslator } from '@/studio/messages';
@@ -15,20 +16,20 @@ export default async function RatesPage() {
   const haveToday = new Set(rates.filter((r) => r.date === today).map((r) => r.currency));
   return (
     <>
-      <PageHeader title={t('wh.rates.title')} description={t('wh.rates.description')} />
+      <PageHeader icon={Coins} tone="violet" title={t('wh.rates.title')} description={t('wh.rates.description')} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {(!haveToday.has('USD') || !haveToday.has('IRT')) && (
           <p role="status" className="rounded-md border border-line bg-raised p-4 text-base">
             {t('wh.rates.missingToday')}
           </p>
         )}
-        <section className="rounded-md border border-line bg-raised p-4">
+        <section className="rounded-xl border border-line bg-raised p-4">
           <RateForm today={today} />
         </section>
         {rates.length === 0 ? (
           <EmptyState title={t('wh.rates.empty')} />
         ) : (
-          <div className="overflow-x-auto rounded-md border border-line bg-raised">
+          <div className="overflow-x-auto rounded-xl border border-line bg-raised">
             <table className="w-full text-base">
               <caption className="sr-only">{t('wh.rates.title')}</caption>
               <thead className="border-b border-line text-sm text-muted">

@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { Plus, Receipt } from 'lucide-react';
+import { Chip, Fold } from '../../_ui/Ui';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { expensesQuery } from '@/server/wholesale/queries/treasury';
@@ -21,7 +23,7 @@ export default async function ExpensesPage() {
   const pending = approver ? expenses.filter((e) => e.status === 'PENDING') : [];
   return (
     <>
-      <PageHeader title={t('wh.expenses.title')} description={isRep ? t('wh.expenses.descriptionRep') : t('wh.expenses.description')} />
+      <PageHeader icon={Receipt} tone="amber" title={t('wh.expenses.title')} description={isRep ? t('wh.expenses.descriptionRep') : t('wh.expenses.description')} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {pending.length > 0 && (
           <section className="flex flex-col gap-3 rounded-md border border-line bg-raised p-4">
@@ -40,19 +42,17 @@ export default async function ExpensesPage() {
             ))}
           </section>
         )}
-        <details className="rounded-md border border-line bg-raised">
-          <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.expenses.new')}</summary>
-          <div className="border-t border-line p-4">
-            <ExpenseForm today={baghdadDate()} isRep={isRep} />
-          </div>
-        </details>
+        <Fold icon={Plus} tone="green" title={t('wh.expenses.new')}>
+          <ExpenseForm today={baghdadDate()} isRep={isRep} />
+        </Fold>
         {expenses.length === 0 ? (
           <EmptyState title={t('wh.expenses.empty')} />
         ) : (
           <ul className="flex flex-col gap-3">
             {expenses.map((e) => (
-              <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-line bg-raised p-4">
-                <span>
+              <li key={e.id} className="flex items-center gap-3 rounded-xl border border-line bg-raised p-3">
+                <Chip icon={Receipt} tone="amber" />
+                <span className="min-w-0 flex-1">
                   <span className="text-base font-semibold" dir="auto">
                     #{e.number} · {t(`wh.expenses.cat.${e.category}`)}
                   </span>

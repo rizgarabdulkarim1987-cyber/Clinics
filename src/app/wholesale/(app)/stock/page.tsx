@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { ArrowLeftRight, ClipboardList, Package, PackagePlus } from 'lucide-react';
+import { Chip, Fold } from '../../_ui/Ui';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { itemsQuery, stockQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
@@ -15,8 +17,6 @@ export const metadata: Metadata = { title: 'Items and stock' };
 type Names = { ckb: string; ar: string; en: string };
 const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : locale === 'ckb' ? names.ckb : names.en) || names.ckb || names.ar || names.en;
 const number = (v: string) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 4 });
-const folded = 'rounded-md border border-line bg-raised';
-const foldedTitle = 'flex min-h-10 cursor-pointer items-center px-4 text-base font-semibold';
 
 /**
  * Items and their stock on one screen: each item is one line with what is in each warehouse, its prices and (for a partner)
@@ -41,46 +41,38 @@ export default async function StockPage() {
   const where = (r: (typeof rows)[number]) => (r.warehouseKind === 'REP' ? r.warehouseName : t(`wh.stock.kind.${r.warehouseKind}`));
   return (
     <>
-      <PageHeader title={t('wh.stock.title')} description={t('wh.stock.description')} />
+      <PageHeader icon={Package} tone="blue" title={t('wh.stock.title')} description={t('wh.stock.description')} />
       <div className="flex flex-col gap-3 px-4 pb-4 md:px-6">
         {canManage && (
-          <details className={folded}>
-            <summary className={foldedTitle}>{t('wh.catalog.new')}</summary>
-            <div className="border-t border-line p-4">
-              <ItemForm />
-            </div>
-          </details>
+          <Fold icon={PackagePlus} tone="green" title={t('wh.catalog.new')}>
+            <ItemForm />
+          </Fold>
         )}
         {canTransfer && (
-          <details className={folded}>
-            <summary className={foldedTitle}>{t('wh.stock.transferTitle')}</summary>
-            <div className="border-t border-line p-4">
+          <Fold icon={ArrowLeftRight} tone="violet" title={t('wh.stock.transferTitle')}>
               <p className="mb-3 text-sm text-muted">{t('wh.stock.transferBody')}</p>
               <TransferForm
                 items={all.filter((i) => i.active).map((i) => ({ id: i.id, label: `${nameOf(i.names, locale)} · ${i.code}` }))}
                 warehouses={warehouses.filter((w) => w.kind === 'REP').map((w) => ({ id: w.id, label: w.name }))}
               />
-            </div>
-          </details>
+          </Fold>
         )}
         {canCount && (
-          <details className={folded}>
-            <summary className={foldedTitle}>{t('wh.count.title')}</summary>
-            <div className="border-t border-line p-4">
+          <Fold icon={ClipboardList} tone="teal" title={t('wh.count.title')}>
               <p className="mb-3 text-sm text-muted">{t('wh.count.body')}</p>
               <StockCountForm warehouses={warehouses.filter((w) => w.kind !== 'DAMAGE').map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))} rows={countRows} unitLabels={unitLabels} />
-            </div>
-          </details>
+          </Fold>
         )}
         {all.length === 0 ? (
           <EmptyState title={t('wh.catalog.empty')} />
         ) : (
-          <ul className="flex flex-col divide-y divide-line overflow-y-auto rounded-md border border-line bg-raised md:max-h-[calc(100dvh-17.5rem)]">
+          <ul className="flex flex-col divide-y divide-line overflow-y-auto rounded-xl border border-line bg-raised md:max-h-[calc(100dvh-17.5rem)]">
             {all.map((item) => {
               const stock = byItem.get(item.id) ?? [];
               return (
-                <li key={item.id} className="px-4 py-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
+                  <Chip icon={Package} tone="blue" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <p className="min-w-0 text-base font-semibold" dir="auto">
                       {nameOf(item.names, locale)} <span className="font-normal text-muted">· {item.code}</span>
                     </p>

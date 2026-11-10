@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { CalendarDays, Settings } from 'lucide-react';
+import { Chip, Fold } from '../../_ui/Ui';
 import { DEMO_CUSTOMER_NAMES, DEMO_ITEM_CODES, DEMO_SUPPLIER_NAMES } from '@/server/wholesale/demoFill';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
@@ -23,20 +25,20 @@ export default async function SettingsPage() {
   const canRemove = items.some((i) => demoItems.has(i.code) && i.active) || suppliers.some((s) => demoSuppliers.has(s.name)) || customers.some((c) => demoCustomers.has(c.name));
   return (
     <>
-      <PageHeader title={t('wh.settings.title')} description={t('wh.settings.description')} actions={canWh(actor!.role, 'import.apply') ? <HeaderLink href="/wholesale/opening">{t('wh.nav.opening')}</HeaderLink> : undefined} />
+      <PageHeader icon={Settings} tone="violet" title={t('wh.settings.title')} description={t('wh.settings.description')} actions={canWh(actor!.role, 'import.apply') ? <HeaderLink href="/wholesale/opening">{t('wh.nav.opening')}</HeaderLink> : undefined} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <section className="rounded-md border border-line bg-raised p-4">
           <SettingsForm values={settings} />
         </section>
         {(canAdd || canRemove) && <DemoFill canAdd={canAdd} canRemove={canRemove} />}
-        <details className="rounded-md border border-line bg-raised">
-          <summary className="flex min-h-10 cursor-pointer items-center px-4 text-md font-semibold">{t('wh.periods.title')}</summary>
-          <div className="flex flex-col gap-3 border-t border-line p-4">
+        <Fold icon={CalendarDays} tone="teal" title={t('wh.periods.title')}>
+          <div className="flex flex-col gap-3">
           <p className="text-sm text-muted">{t('wh.periods.hint')}</p>
           <ul className="grid gap-2 overflow-y-auto md:max-h-[40dvh] md:grid-cols-2">
             {periods.map((p) => (
-              <li key={p.month} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-raised px-4 py-2">
+              <li key={p.month} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-raised px-3 py-2">
                 <span className="flex items-center gap-3">
+                  <Chip icon={CalendarDays} tone="teal" size="size-8" />
                   <span className="text-base font-semibold tabular-nums" dir="ltr">
                     {p.month}
                   </span>
@@ -50,7 +52,7 @@ export default async function SettingsPage() {
             ))}
           </ul>
           </div>
-        </details>
+        </Fold>
       </div>
     </>
   );

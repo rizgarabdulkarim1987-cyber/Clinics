@@ -1,4 +1,7 @@
 import type { Metadata } from 'next';
+import { ArrowLeftRight, Wallet } from 'lucide-react';
+import { Chip } from '../../_ui/Ui';
+import { Fold } from '../../_ui/Ui';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
@@ -24,7 +27,7 @@ export default async function TreasuryPage() {
   ]);
   return (
     <>
-      <PageHeader title={t('wh.treasury.title')} description={isRep ? t('wh.treasury.descriptionRep') : t('wh.treasury.description')} actions={canWh(actor!.role, 'rate.set') ? <HeaderLink href="/wholesale/rates">{t('wh.nav.rates')}</HeaderLink> : undefined} />
+      <PageHeader icon={Wallet} tone="teal" title={t('wh.treasury.title')} description={isRep ? t('wh.treasury.descriptionRep') : t('wh.treasury.description')} actions={canWh(actor!.role, 'rate.set') ? <HeaderLink href="/wholesale/rates">{t('wh.nav.rates')}</HeaderLink> : undefined} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         {isRep && (
           <>
@@ -62,19 +65,17 @@ export default async function TreasuryPage() {
         )}
         {manage && (
           <>
-            <details className="rounded-md border border-line bg-raised">
-              <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.treasury.convert')}</summary>
-              <div className="border-t border-line p-4">
-                <ConvertForm today={baghdadDate()} />
-              </div>
-            </details>
+            <Fold icon={ArrowLeftRight} tone="blue" title={t('wh.treasury.convert')}>
+              <ConvertForm today={baghdadDate()} />
+            </Fold>
             {conversions.length === 0 ? (
               <EmptyState title={t('wh.treasury.noConversions')} />
             ) : (
               <ul className="flex flex-col gap-3">
                 {conversions.map((c) => (
-                  <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-md border border-line bg-raised p-4">
-                    <span className="text-base" dir="ltr">
+                  <li key={c.id} className="flex items-center gap-3 rounded-xl border border-line bg-raised p-3">
+                    <Chip icon={ArrowLeftRight} tone="blue" />
+                    <span className="min-w-0 flex-1 text-base" dir="ltr">
                       #{c.number} · {c.date}
                     </span>
                     <span className="text-base font-semibold tabular-nums" dir="ltr">
