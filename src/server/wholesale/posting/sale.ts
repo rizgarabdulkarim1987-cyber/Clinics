@@ -732,11 +732,16 @@ export async function sellersOf(tx: Db, userIds: string[]): Promise<Map<string, 
   return out
 }
 
-export async function listSales(tx: Db, user: WhUser) {
+export async function listSales(tx: Db, user: WhUser, filter: { from?: string; to?: string; sellerId?: string } = {}) {
+  const ranged = Boolean(filter.from || filter.to)
   const rows = await tx.whSale.findMany({
-    where: saleScope(user),
+    where: {
+      ...saleScope(user),
+      ...(ranged ? { date: { ...(filter.from ? { gte: new Date(`${filter.from}T00:00:00Z`) } : {}), ...(filter.to ? { lte: new Date(`${filter.to}T00:00:00Z`) } : {}) } } : {}),
+      ...(filter.sellerId ? { userId: filter.sellerId } : {}),
+    },
     orderBy: { number: 'desc' },
-    take: 200,
+    take: ranged ? 1000 : 200,
     select: {
       id: true,
       number: true,

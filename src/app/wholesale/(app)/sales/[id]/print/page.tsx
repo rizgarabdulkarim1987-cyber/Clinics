@@ -19,7 +19,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
   const s = await queryWh(saleQuery, { id });
-  if (!s) notFound();
+  // a cancelled or refused invoice has no receipt
+  if (!s || (s.status !== 'POSTED' && s.status !== 'PENDING_APPROVAL')) notFound();
   const shop = (await queryWh(customersQuery).catch(() => [])).find((c) => c.id === s.customer.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 bg-white p-4 text-black md:p-8 print:max-w-none print:p-0">
