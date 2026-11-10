@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { Plus, ShoppingCart, Truck } from 'lucide-react';
+import { Coins, Plus, ShoppingCart, Truck } from 'lucide-react';
 import { Chip, Fold } from '../../_ui/Ui';
 import Link from 'next/link';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { itemsQuery, suppliersQuery, warehousesQuery } from '@/server/wholesale/queries/catalog';
-import { purchasesQuery } from '@/server/wholesale/queries/purchase';
+import { purchasesQuery, ratesQuery } from '@/server/wholesale/queries/purchase';
 import { getStudioTranslator } from '@/studio/messages';
 import { EmptyState, StatusBadge } from '@/studio/ui';
 import { HeaderLink, PageHeader } from '../../_ui/PageHeader';
@@ -21,11 +21,20 @@ const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : l
 export default async function PurchasesPage() {
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
-  const [purchases, suppliers, items, warehouses] = await Promise.all([queryWh(purchasesQuery), queryWh(suppliersQuery), queryWh(itemsQuery), queryWh(warehousesQuery)]);
+  const [purchases, suppliers, items, warehouses, rateBook] = await Promise.all([queryWh(purchasesQuery), queryWh(suppliersQuery), queryWh(itemsQuery), queryWh(warehousesQuery), queryWh(ratesQuery).catch(() => null)]);
+  const haveToday = new Set((rateBook?.rates ?? []).filter((r) => r.date === rateBook?.today).map((r) => r.currency));
+  const rateMissing = rateBook !== null && (!haveToday.has('USD') || !haveToday.has('IRT'));
   return (
     <>
       <PageHeader icon={ShoppingCart} tone="amber" title={t('wh.purchases.title')} description={t('wh.purchases.description')} actions={canWh(actor!.role, 'catalog.manage') ? <HeaderLink href="/wholesale/suppliers">{t('wh.nav.suppliers')}</HeaderLink> : undefined} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
+        {rateMissing && (
+          <Link href="/wholesale/rates" role="status" className="flex items-center gap-3 rounded-xl border border-wh-amber bg-wh-amber-wash p-3 text-base font-semibold text-wh-amber">
+            <Coins aria-hidden className="size-5 shrink-0" />
+            <span className="min-w-0 flex-1">{t('wh.rates.missingToday')}</span>
+            <span className="shrink-0 underline">{t('wh.rates.title')}</span>
+          </Link>
+        )}
         <Fold icon={Plus} tone="green" title={t('wh.purchases.new')}>
             <PurchaseForm
               today={baghdadDate()}

@@ -30,7 +30,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
   const showCost = canWh(actor!.role, 'cost.view') && 'totalCostIqd' in s;
   return (
     <>
-      <PageHeader title={`${t('wh.sales.number')} ${s.number}`} description={`${s.customer.name} · ${s.date}`} />
+      <PageHeader title={`${t('wh.sales.number')} ${s.number}`} description={`${s.customer.name} · ${s.date}${s.seller ? ` · ${t('wh.sales.seller')}: ${s.seller.name} (${t(`wh.role.${s.seller.role}`)})` : ''}`} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
         <section className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-md border border-line bg-raised p-4">
           <div>
