@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { ACCOUNT_CURRENCIES, byClient, byMonth, byService, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
@@ -167,7 +167,7 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                     <th scope="col" className="h-9 px-4 text-end">
                       {t('accounts.col.net')}
                     </th>
-                    <th scope="col" className="w-10 p-0">
+                    <th scope="col" className="w-20 p-0">
                       <span className="sr-only">{t('accounts.statement')}</span>
                     </th>
                   </tr>
@@ -184,7 +184,19 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                       <td className="px-4 py-2.5 text-end font-semibold">
                         <MoneyStack totals={row.totals} pick="net" locale={locale} tone="net" sign />
                       </td>
-                      <td className="w-10 ps-0 pe-3 py-1.5 text-end">
+                      <td className="w-20 ps-0 pe-3 py-1.5 text-end">
+                        {row.clientId && (
+                          <a
+                            href={`/agency/invoice?client=${row.clientId}&period=all`}
+                            target="_blank"
+                            rel="noopener"
+                            aria-label={`${t('accounts.statement.pdf')}: ${row.name ?? ''}`}
+                            title={t('accounts.statement.pdf')}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-surface hover:text-text"
+                          >
+                            <FileText aria-hidden className="size-4" />
+                          </a>
+                        )}
                         {row.clientId && (
                           <a
                             href={`/agency/statement?client=${row.clientId}`}

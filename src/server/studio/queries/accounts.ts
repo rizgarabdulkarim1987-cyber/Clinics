@@ -56,6 +56,9 @@ export interface BookPayment {
 
 export interface BookRecurring {
   id: string;
+  kind: AccountKind;
+  clientId: string | null;
+  clientName: string | null;
   service: string;
   note: string;
   amountMinor: number;
@@ -101,14 +104,14 @@ export const accountsBook = defineQuery({
         },
       }),
       db.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } }),
-      db.accountRecurring.findMany({ where: { archivedAt: null }, orderBy: [{ dayOfMonth: 'asc' }, { createdAt: 'asc' }], select: { id: true, service: true, note: true, amountMinor: true, currency: true, dayOfMonth: true, startMonth: true } }),
+      db.accountRecurring.findMany({ where: { archivedAt: null }, orderBy: [{ dayOfMonth: 'asc' }, { createdAt: 'asc' }], select: { id: true, kind: true, clientId: true, client: { select: { name: true } }, service: true, note: true, amountMinor: true, currency: true, dayOfMonth: true, startMonth: true } }),
       db.accountBudget.findMany({ orderBy: [{ service: 'asc' }, { currency: 'asc' }], select: { id: true, service: true, currency: true, limitMinor: true } }),
     ]);
     const stored = setting?.value;
     return {
       rate: typeof stored === 'number' && Number.isInteger(stored) && stored >= 1 && stored <= RATE_MAX ? stored : null,
       clients,
-      recurring,
+      recurring: recurring.map(({ client, ...item }) => ({ ...item, clientName: client?.name ?? null })),
       budgets,
       movements: rows.map((row) => ({
         id: row.id,

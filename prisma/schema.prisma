@@ -1097,6 +1097,7 @@ model AccountClient {
   updatedAt   DateTime       @updatedAt
   entries     AccountEntry[]
   invoices    AccountClientInvoice[]
+  recurring   AccountRecurring[]
 }
 
 /**
@@ -1138,6 +1139,10 @@ model AccountEntry {
 /// An expense that repeats every month (rent, a subscription, a salary): the books post it on its day, from the month it starts, once per month.
 model AccountRecurring {
   id          String         @id @default(cuid())
+  /// EXPENSE: rent, a subscription. INCOME: a monthly contract with a client, posted as money the client owes.
+  kind        AccountKind    @default(EXPENSE)
+  clientId    String?
+  client      AccountClient? @relation(fields: [clientId], references: [id])
   service     String
   note        String         @default("")
   amountMinor Int

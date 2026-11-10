@@ -21,8 +21,10 @@ import { Field } from '@/studio/ui/Field';
 import { IconButton } from '@/studio/ui/IconButton';
 import { Input } from '@/studio/ui/Input';
 import { Select } from '@/studio/ui/Select';
-import { Money } from './money';
+import { whatsappLink } from '@/lib/whatsapp';
+import { formatBook, Money } from './money';
 import { RateHint } from './RateHint';
+import { RemindButton } from './RemindButton';
 import { TotalsCard } from './TotalsCard';
 
 /** Names people give the work: offered as suggestions, never forced. */
@@ -170,6 +172,14 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
   const dollarsAndDinars = summarize(month);
   const owedAll = owedTotals(book.movements, book.rate);
   const owedCodes = ACCOUNT_CURRENCIES.filter((code) => owedAll[code].income > 0);
+  const phoneOf = new Map(book.clients.map((client) => [client.id, client.phone] as const));
+  /** The WhatsApp chat with the client, the reminder already typed; null when the client has no usable phone. */
+  const reminderLink = (clientId: string | null, name: string | null, left: Partial<Record<AccountCurrency, number>>, service: string) => {
+    const phone = clientId ? phoneOf.get(clientId) : '';
+    if (!phone) return null;
+    const amount = ACCOUNT_CURRENCIES.filter((code) => (left[code] ?? 0) > 0).map((code) => formatBook(left[code]!, code)).join(' + ');
+    return whatsappLink(phone, t('accounts.remind.text', { name: name ?? '', amount, what: service || t('accounts.remind.work') }));
+  };
   // Who owes the most waiting time first: the clients with money still to receive, the oldest debt on top.
   const debtors = [
     ...book.movements
@@ -342,6 +352,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
                       {ACCOUNT_CURRENCIES.filter((code) => debtor.left[code] > 0).map((code) => (
                         <Money key={code} minor={debtor.left[code]} currency={code} locale={locale} />
                       ))}
+                      <RemindButton href={reminderLink(debtor.key === 'none' ? null : debtor.key, debtor.name, debtor.left, '')} label={t('accounts.remind.label')} missing={t('accounts.remind.noPhone')} />
                     </span>
                   </li>
                 ))}
@@ -419,6 +430,7 @@ export function EntryTab({ book, today }: { book: AccountsBook; today: string })
                       <Money minor={income ? row.amountMinor : -row.amountMinor} currency={row.currency} locale={locale} tone="net" sign className="font-semibold" />
                       <div className="flex items-center">
                         {income && row.owed && <IconButton label={t('accounts.payment.add')} onClick={() => setPayingId(row.id)} icon={<HandCoins aria-hidden />} />}
+                        {income && row.owed && remainingMinor(row) > 0 && <RemindButton href={reminderLink(row.clientId, row.clientName, { [row.currency]: remainingMinor(row) }, row.service)} label={t('accounts.remind.label')} missing={t('accounts.remind.noPhone')} />}
                         <IconButton label={`${t('accounts.attachments')}${row.attachments.length ? ` (${row.attachments.length})` : ''}`} onClick={() => setFilesId(row.id)} icon={<Paperclip aria-hidden className={row.attachments.length ? 'text-text' : undefined} />} />
                         <IconButton label={t('accounts.edit')} onClick={() => startEdit(row)} icon={<Pencil aria-hidden />} />
                         <IconButton label={t('accounts.archive')} onClick={() => setRemoving(row)} icon={<Trash2 aria-hidden />} />

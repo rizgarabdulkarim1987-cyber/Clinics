@@ -368,6 +368,9 @@ export const addAccountRecurring = defineAction({
   name: 'account.recurring.create',
   permission: 'platform.settings',
   input: z.object({
+    /** EXPENSE (the default) repeats a cost; INCOME is a monthly contract with a client, which needs the `clientId`. */
+    kind: z.enum(['INCOME', 'EXPENSE']).optional(),
+    clientId: z.string().min(1).max(100).nullable().optional(),
     service: z.string().trim().min(1, 'Type what it is for').max(60, 'Use at most 60 characters'),
     note: z.string().trim().max(120, 'Use at most 120 characters').optional(),
     amount: z.string().max(40),
@@ -381,9 +384,17 @@ export const addAccountRecurring = defineAction({
     const amount = parseAmountInput(input.amount, input.currency);
     if (!amount.ok) throw new StudioError('INVALID', undefined, { amount: AMOUNT_MESSAGES[amount.reason] });
     if (amount.minor <= 0) throw new StudioError('INVALID', undefined, { amount: 'The amount must be more than zero' });
+    const kind = input.kind ?? 'EXPENSE';
+    if (kind === 'INCOME' && !input.clientId) throw new StudioError('INVALID', undefined, { clientId: 'Choose the client' });
     return ctx.transaction(async (tx) => {
+      if (kind === 'INCOME') {
+        const client = await tx.accountClient.findFirst({ where: { id: input.clientId!, archivedAt: null }, select: { id: true } });
+        if (!client) throw new StudioError('NOT_FOUND');
+      }
       const row = await tx.accountRecurring.create({
         data: {
+          kind,
+          clientId: kind === 'INCOME' ? input.clientId! : null,
           service: input.service,
           note: input.note ?? '',
           amountMinor: amount.minor,
@@ -428,7 +439,8 @@ export const applyAccountRecurring = defineAction({
   run: (ctx) =>
     ctx.transaction(async (tx) => {
       const today = todayInBaghdad();
-      const items = await tx.accountRecurring.findMany({ where: { archivedAt: null } });
+      // A contract with a client who has since been archived stops posting.
+      const items = await tx.accountRecurring.findMany({ where: { archivedAt: null, OR: [{ clientId: null }, { client: { archivedAt: null } }] } });
       if (items.length === 0) return { posted: 0 };
       const setting = await tx.platformSetting.findUnique({ where: { key: RATE_SETTING_KEY }, select: { value: true } });
       const stored = setting?.value;
@@ -442,7 +454,10 @@ export const applyAccountRecurring = defineAction({
         if (due.length === 0) continue;
         const made = await tx.accountEntry.createMany({
           data: due.map(({ month, day }) => ({
-            kind: 'EXPENSE' as const,
+            kind: item.kind,
+            // A contract is billed to the client: money still to receive until payments say otherwise.
+            owed: item.kind === 'INCOME',
+            clientId: item.clientId,
             amountMinor: item.amountMinor,
             currency: item.currency,
             service: item.service,

@@ -38,12 +38,14 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
   const monthKey = today.slice(0, 7);
   const monthName = new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'ar-IQ', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${monthKey}-01T00:00:00Z`));
 
+  const [rKind, setRKind] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
+  const [rClient, setRClient] = useState('');
   const [rService, setRService] = useState('');
   const [rAmount, setRAmount] = useState('');
   const [rCurrency, setRCurrency] = useState<AccountCurrency>('IQD');
   const [rDay, setRDay] = useState('1');
   const [rNote, setRNote] = useState('');
-  const [rErrors, setRErrors] = useState<{ service?: string; amount?: string }>({});
+  const [rErrors, setRErrors] = useState<{ service?: string; amount?: string; client?: string }>({});
 
   const [bService, setBService] = useState('');
   const [bAmount, setBAmount] = useState('');
@@ -62,9 +64,10 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
 
   const submitRecurring = (event: FormEvent) => {
     event.preventDefault();
-    if (!check(rService, rAmount, rCurrency, setRErrors)) return;
+    const fine = check(rService, rAmount, rCurrency, (errors) => setRErrors({ ...errors, ...(rKind === 'INCOME' && !rClient ? { client: t('accounts.plan.error.client') } : {}) }));
+    if (!fine || (rKind === 'INCOME' && !rClient)) return;
     start(async () => {
-      const result = await addAccountRecurring({ service: rService, note: rNote, amount: rAmount, currency: rCurrency, dayOfMonth: Number(rDay) });
+      const result = await addAccountRecurring({ kind: rKind, clientId: rKind === 'INCOME' ? rClient : null, service: rService, note: rNote, amount: rAmount, currency: rCurrency, dayOfMonth: Number(rDay) });
       if (result.ok) {
         toast.success(t('accounts.plan.recurring.added'));
         setRService('');
@@ -132,11 +135,12 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
             {book.recurring.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                 <span className="min-w-0">
-                  <span className="block truncate text-base font-medium">{item.service}</span>
+                  <span className="block truncate text-base font-medium">{item.kind === 'INCOME' ? `${item.clientName ?? ''} · ${item.service}` : item.service}</span>
                   <span className="block truncate text-sm text-muted">{item.note ? `${t('accounts.plan.recurring.day', { day: String(item.dayOfMonth) })} · ${item.note}` : t('accounts.plan.recurring.day', { day: String(item.dayOfMonth) })}</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
-                  <span dir="ltr" className="text-base font-semibold tabular-nums">
+                  <span dir="ltr" className={cx('text-base font-semibold tabular-nums', item.kind === 'INCOME' && 'text-success')}>
+                    {item.kind === 'INCOME' ? '+' : ''}
                     {formatBook(item.amountMinor, item.currency)}
                   </span>
                   <IconButton label={t('accounts.plan.recurring.stop')} onClick={() => stopRecurring(item.id)} disabled={pending} icon={<Trash2 aria-hidden />} />
@@ -147,6 +151,27 @@ export function PlanTab({ book, today }: { book: AccountsBook; today: string }) 
         )}
 
         <form onSubmit={submitRecurring} className="grid grid-cols-2 gap-3 rounded-md bg-surface p-3">
+          <div role="radiogroup" aria-label={t('accounts.kind.label')} className="col-span-2 grid grid-cols-2 gap-1 rounded-md border border-line bg-raised p-1">
+            {(['EXPENSE', 'INCOME'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={rKind === value}
+                onClick={() => setRKind(value)}
+                className={cx('h-9 rounded-sm text-base font-medium transition-colors duration-150', rKind === value ? (value === 'INCOME' ? 'bg-success-wash text-success' : 'bg-danger-wash text-danger') : 'text-muted hover:bg-hover hover:text-text')}
+              >
+                {t(value === 'INCOME' ? 'accounts.plan.recurring.kind.income' : 'accounts.plan.recurring.kind.expense')}
+              </button>
+            ))}
+          </div>
+          {rKind === 'INCOME' && (
+            <div className="col-span-2">
+              <Field label={t('accounts.field.client')} error={rErrors.client}>
+                <Select value={rClient} onChange={(e) => setRClient(e.target.value)} options={[{ value: '', label: '—' }, ...book.clients.map((client) => ({ value: client.id, label: client.name }))]} />
+              </Field>
+            </div>
+          )}
           <Field label={t('accounts.field.service')} error={rErrors.service}>
             <Input list="plan-services" value={rService} onChange={(e) => setRService(e.target.value)} maxLength={60} />
           </Field>

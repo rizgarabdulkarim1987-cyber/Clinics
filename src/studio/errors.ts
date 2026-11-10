@@ -174,6 +174,7 @@ export const SERVER_TEXT: Readonly<Record<string, string>> = {
   'The amount must be more than zero': 'accounts.error.amount',
   'Use a real date': 'accounts.error.date',
   'Type what it is for': 'accounts.plan.error.service',
+  'Choose the client': 'accounts.plan.error.client',
   'That is more than what is left to receive': 'accounts.error.tooMuch',
   'That file is empty': 'accounts.error.fileEmpty',
   'A file can be at most 5 MB': 'accounts.error.fileTooBig',
