@@ -89,7 +89,7 @@ export function PurchaseForm({
     (v) => {
       const lines = Array.from({ length: lineCount }, (_, i) => ({
         itemId: v[`l${i}_item`] ?? '',
-        unit: v[`l${i}_unit`] ?? 'CARTON',
+        unit: v[`l${i}_unit`] ?? 'PIECE',
         qty: v[`l${i}_qty`] ?? '',
         unitPrice: v[`l${i}_price`] ?? '',
         expiry: v[`l${i}_expiry`] || null,

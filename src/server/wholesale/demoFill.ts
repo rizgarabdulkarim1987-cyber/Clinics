@@ -41,17 +41,17 @@ export const SUPPLIERS: { name: string; country: string; foreign: boolean; phone
 ];
 
 // cost and price are IQD per piece; carton = pieces per carton; stock = cartons to receive.
-export const ITEMS: { code: string; ar: string; ckb: string; en: string; category: string; cost: number; price: number; carton: number; stock: number }[] = [
-  { code: 'SUGAR-1', ar: 'سكر 1 كغم', ckb: 'شەکر ١ کیلۆ', en: 'Sugar 1 kg', category: 'Basics', cost: 900, price: 1250, carton: 20, stock: 60 },
-  { code: 'FLOUR-5', ar: 'طحين 5 كغم', ckb: 'ئارد ٥ کیلۆ', en: 'Flour 5 kg', category: 'Grains', cost: 4300, price: 5600, carton: 4, stock: 80 },
+export const ITEMS: { code: string; ar: string; ckb: string; en: string; category: string; cost: number; price: number; carton: number; stock: number; kg?: true }[] = [
+  { code: 'SUGAR-1', ar: 'سكر', ckb: 'شەکر', en: 'Sugar', category: 'Weight goods', cost: 900, price: 1250, carton: 1000, stock: 20, kg: true },
+  { code: 'FLOUR-5', ar: 'طحين', ckb: 'ئارد', en: 'Flour', category: 'Weight goods', cost: 860, price: 1120, carton: 1000, stock: 30, kg: true },
   { code: 'TOMATO-400', ar: 'معجون طماطم 400 غم', ckb: 'ڕەبی تەماتە ٤٠٠ گرام', en: 'Tomato paste 400 g', category: 'Canned', cost: 850, price: 1200, carton: 24, stock: 50 },
   { code: 'PASTA-500', ar: 'مكرونة 500 غم', ckb: 'ماکارۆنی ٥٠٠ گرام', en: 'Pasta 500 g', category: 'Grains', cost: 700, price: 1000, carton: 20, stock: 70 },
-  { code: 'LENTIL-1', ar: 'عدس 1 كغم', ckb: 'نەسک ١ کیلۆ', en: 'Lentils 1 kg', category: 'Legumes', cost: 2100, price: 2800, carton: 12, stock: 40 },
-  { code: 'CHICKPEA-1', ar: 'حمص 1 كغم', ckb: 'نۆک ١ کیلۆ', en: 'Chickpeas 1 kg', category: 'Legumes', cost: 2400, price: 3200, carton: 12, stock: 40 },
-  { code: 'SALT-750', ar: 'ملح 750 غم', ckb: 'خوێ ٧٥٠ گرام', en: 'Salt 750 g', category: 'Basics', cost: 250, price: 450, carton: 24, stock: 30 },
+  { code: 'LENTIL-1', ar: 'عدس', ckb: 'نەسک', en: 'Lentils', category: 'Weight goods', cost: 2100, price: 2800, carton: 1000, stock: 12, kg: true },
+  { code: 'CHICKPEA-1', ar: 'حمص', ckb: 'نۆک', en: 'Chickpeas', category: 'Weight goods', cost: 2400, price: 3200, carton: 1000, stock: 10, kg: true },
+  { code: 'SALT-750', ar: 'ملح', ckb: 'خوێ', en: 'Salt', category: 'Weight goods', cost: 333, price: 600, carton: 1000, stock: 8, kg: true },
   { code: 'MILK-400', ar: 'حليب بودرة 400 غم', ckb: 'شیری ئاردکراو ٤٠٠ گرام', en: 'Milk powder 400 g', category: 'Dairy', cost: 3900, price: 5000, carton: 12, stock: 35 },
   { code: 'TUNA-160', ar: 'تونة 160 غم', ckb: 'تۆنا ١٦٠ گرام', en: 'Canned tuna 160 g', category: 'Canned', cost: 1300, price: 1800, carton: 48, stock: 25 },
-  { code: 'DATES-1', ar: 'تمر 1 كغم', ckb: 'خورما ١ کیلۆ', en: 'Dates 1 kg', category: 'Dried fruit', cost: 3300, price: 4500, carton: 10, stock: 45 },
+  { code: 'DATES-1', ar: 'تمر', ckb: 'خورما', en: 'Dates', category: 'Weight goods', cost: 3300, price: 4500, carton: 1000, stock: 6, kg: true },
 ];
 
 export async function fillDemoData(tx: ScopedTx, rid: string, user: { id: string }): Promise<{ suppliers: number; items: number }> {
@@ -67,16 +67,18 @@ export async function fillDemoData(tx: ScopedTx, rid: string, user: { id: string
       code: it.code,
       names: { ar: it.ar, ckb: it.ckb, en: it.en },
       category: it.category,
-      baseUnit: 'PIECE',
-      units: [
-        { unit: 'PIECE', factorToBase: '1' },
-        { unit: 'CARTON', factorToBase: String(it.carton) },
-      ],
+      baseUnit: it.kg ? 'KG' : 'PIECE',
+      units: it.kg
+        ? [
+            { unit: 'KG', factorToBase: '1' },
+            { unit: 'TON', factorToBase: '1000' },
+          ]
+        : [
+            { unit: 'PIECE', factorToBase: '1' },
+            { unit: 'CARTON', factorToBase: String(it.carton) },
+          ],
     });
-    await setItemPrices(tx, rid, made.id, [
-      { unit: 'PIECE', priceIqd: String(it.price) },
-      { unit: 'CARTON', priceIqd: String(it.price * it.carton) },
-    ]);
+    await setItemPrices(tx, rid, made.id, it.kg ? [{ unit: 'KG', priceIqd: String(it.price) }, { unit: 'TON', priceIqd: String(it.price * 1000) }] : [{ unit: 'PIECE', priceIqd: String(it.price) }, { unit: 'CARTON', priceIqd: String(it.price * it.carton) }]);
     await receiveStock(tx, { restaurantId: rid, itemId: made.id, warehouseId: main.id, qtyBase: new D(it.carton * it.stock), unitCostIqd: new D(it.cost), ref: { type: 'DEMO', id: it.code }, user });
   }
   return { suppliers: newSuppliers.length, items: newItems.length };

@@ -71,6 +71,7 @@ const wholesale: Messages = {
   'wh.unit.PIECE': 'مفرد',
   'wh.unit.CARTON': 'كرتون',
   'wh.unit.TON': 'طن',
+  'wh.unit.KG': 'كيلو',
 
   'wh.stock.title': 'المخزون',
   'wh.stock.description': 'ما هو موجود في كل مخزن.',

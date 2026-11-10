@@ -22,7 +22,7 @@ export type SaleCustomer = { id: string; name: string; phone: string | null };
 type Line = { key: string; itemId: string; unit: string; qty: string; mode: 'OFFICIAL' | 'PERCENT' | 'MANUAL'; value: string };
 
 const CURRENCIES = ['IQD', 'USD', 'IRT'] as const;
-const UNIT_ORDER = ['CARTON', 'PIECE', 'TON'];
+const UNIT_ORDER = ['PIECE', 'KG', 'TON', 'CARTON'];
 const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 const num = (s: string) => {
   const n = Number(s.replace(',', '.'));

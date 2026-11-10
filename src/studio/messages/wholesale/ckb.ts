@@ -71,6 +71,7 @@ const wholesale: Messages = {
   'wh.unit.PIECE': 'دانە',
   'wh.unit.CARTON': 'کارتۆن',
   'wh.unit.TON': 'تەن',
+  'wh.unit.KG': 'کیلۆ',
 
   'wh.stock.title': 'کۆگا',
   'wh.stock.description': 'ئەوەی لە هەر کۆگایەکدا هەیە.',

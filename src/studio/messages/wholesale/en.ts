@@ -71,6 +71,7 @@ const wholesale: Messages = {
   'wh.unit.PIECE': 'Piece',
   'wh.unit.CARTON': 'Carton',
   'wh.unit.TON': 'Ton',
+  'wh.unit.KG': 'Kilo',
 
   'wh.stock.title': 'Stock',
   'wh.stock.description': 'What is on hand in each warehouse.',

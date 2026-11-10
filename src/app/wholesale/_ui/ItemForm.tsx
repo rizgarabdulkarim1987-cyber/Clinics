@@ -8,7 +8,7 @@ import { useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
 import { Button, Field, FormError, Input, Select } from '@/studio/ui';
 
-const UNITS = ['PIECE', 'CARTON', 'TON'] as const;
+const UNITS = ['PIECE', 'KG', 'TON', 'CARTON'] as const;
 type Unit = (typeof UNITS)[number];
 
 export interface ItemRow {
@@ -86,7 +86,7 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
         <legend className="px-1 text-sm font-semibold">{t('wh.catalog.units')}</legend>
         <p className="text-sm text-muted">{t('wh.catalog.unitFactorHint')}</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {(['CARTON', 'TON', 'PIECE'] as const).map((unit) => (
+          {UNITS.map((unit) => (
             <Field key={unit} label={t('wh.catalog.unitFactor', { base: t('wh.catalog.baseUnit'), unit: t(`wh.unit.${unit}`) })} optional>
               <Input name={`factor_${unit}`} inputMode="decimal" defaultValue={form.value(`factor_${unit}`) ?? factor(unit)} dir="ltr" />
             </Field>

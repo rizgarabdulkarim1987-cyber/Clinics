@@ -67,7 +67,7 @@ function linesOf(v: FormValues, prefix: string, count: number, withPrice: boolea
     const mode = withPrice ? (v[`${p}_mode`] ?? 'OFFICIAL') : 'OFFICIAL';
     return {
       itemId: v[`${p}_item`] ?? '',
-      unit: v[`${p}_unit`] ?? 'CARTON',
+      unit: v[`${p}_unit`] ?? 'PIECE',
       qty: v[`${p}_qty`] ?? '',
       mode,
       percent: mode === 'PERCENT' ? v[`${p}_value`] || null : null,

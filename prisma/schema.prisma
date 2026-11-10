@@ -4678,6 +4678,7 @@ enum WhUnit {
   PIECE
   CARTON
   TON
+  KG
 }
 
 enum WhWarehouseKind {
