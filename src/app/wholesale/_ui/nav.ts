@@ -44,8 +44,9 @@ export interface WhGroup {
   places: { key: WhNavKey; href: string; labelKey: string; tab: boolean }[];
 }
 
-/** Places reached by a link inside another page, not by a tab: fewer tabs, the same places. */
-const LINKED: ReadonlySet<WhNavKey> = new Set(['assistant', 'opening', 'rates', 'suppliers', 'catalog']);
+/** A section's own screen when it has several parts: they sit side by side on it instead of in tabs. */
+const HUBS: Partial<Record<WhGroup['key'], string>> = { money: '/wholesale/money', stock: '/wholesale/inventory', admin: '/wholesale/admin' };
+
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
@@ -61,9 +62,11 @@ export function whGroups(role: WhRole): WhGroup[] {
   return GROUPS.flatMap((g) => {
     const places = g.keys.flatMap((k) => {
       const i = visible.get(k);
-      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey, tab: !LINKED.has(i.key) }] : [];
+      return i ? [{ key: i.key, href: i.href, labelKey: i.labelKey, tab: false }] : [];
     });
     if (places.length === 0) return [];
-    return [{ key: g.key, href: places[0]!.href, labelKey: g.labelKey, match: places.map((p) => p.href), places }];
+    const hub = HUBS[g.key];
+    const hrefs = places.map((p) => p.href);
+    return [{ key: g.key, href: hub && places.length > 1 ? hub : places[0]!.href, labelKey: g.labelKey, match: hub ? [hub, ...hrefs] : hrefs, places }];
   });
 }

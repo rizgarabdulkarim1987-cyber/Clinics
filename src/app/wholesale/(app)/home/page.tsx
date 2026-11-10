@@ -101,7 +101,7 @@ export default async function HomePage() {
         )}
         {board && (
           <>
-            <section className="grid grid-cols-2 gap-3 md:min-h-0 md:flex-1 lg:grid-cols-4">
+            <section className="grid grid-cols-2 gap-3 md:min-h-0 md:flex-1 lg:grid-cols-3">
               <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-line border-s-4 border-s-wh-green bg-raised px-4 py-3">
                 <p className="text-sm text-muted">{t('wh.home.cash')}</p>
                 <div className="flex flex-wrap gap-x-8 gap-y-1">
@@ -178,6 +178,7 @@ export default async function HomePage() {
                   ))}
                 </ul>
               </div>
+              <div className="grid min-h-0 gap-3 md:grid-rows-2">
               <div className="flex min-h-0 flex-col rounded-md border border-line border-s-4 border-s-wh-rose bg-raised px-4 py-3">
                 <h2 className="text-sm font-semibold">{t('wh.expiry.title')}</h2>
                 {expiring.length === 0 ? (
@@ -217,6 +218,7 @@ export default async function HomePage() {
                     ))}
                   </ul>
                 )}
+              </div>
               </div>
             </section>
           </>
