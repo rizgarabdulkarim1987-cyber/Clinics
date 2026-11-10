@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, CalendarClock, HandCoins, ChevronDown, Minus, Plus, Receipt, Search, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, CalendarClock, HandCoins, ChevronDown, Minus, Plus, Printer, Receipt, Search, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
@@ -18,7 +18,8 @@ import { Button, cx } from '@/studio/ui';
  * screen (`children`, rendered by the page), so nothing sends the seller to another page. The cart survives it all.
  */
 
-export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string>; marketPrices: Record<string, string> };
+export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string>; marketPrices: Record<string, string>; stock: Record<string, string>; expiry: { date: string; status: string } | null };
+export type TodaySale = { id: string; number: number | null; customer: string; total: string; currency: string; mode: string; status: string; seller: string };
 export type SaleCustomer = { id: string; name: string; phone: string | null; type: 'WHOLESALE' | 'MARKET' };
 export type DebtRow = { id: string; name: string; phone: string | null; totals: Record<string, string>; due: string | null; overdue: boolean; invoices: { id: string; number: number | null; date: string; due: string | null; currency: string; amount: string; open: string }[] };
 /** The numbers kept in view on the sell screen. */
@@ -136,6 +137,7 @@ export function SalesWorkspace({
   attention,
   info,
   debts,
+  todaySales,
   children,
 }: {
   customers: SaleCustomer[];
@@ -150,6 +152,7 @@ export function SalesWorkspace({
   attention: number;
   info: SellInfo;
   debts: DebtRow[];
+  todaySales: TodaySale[];
   children: ReactNode;
 }) {
   const t = useT();
@@ -168,6 +171,7 @@ export function SalesWorkspace({
   const [query, setQuery] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
+  const [lastSale, setLastSale] = useState<{ id: string; held: boolean } | null>(null);
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('IQD');
   const [payment, setPayment] = useState<'CASH' | 'CREDIT'>('CASH');
   const [dueDate, setDueDate] = useState('');
@@ -281,6 +285,7 @@ export function SalesWorkspace({
         }
       }
       toast.success(held ? t('wh.sales.held') : t('wh.sales.posted'));
+      setLastSale({ id: result.data.saleId, held });
       setPaidNow('');
       setLines([]);
       setEditing(null);
@@ -416,18 +421,19 @@ export function SalesWorkspace({
           {shown.length === 0 ? (
             <p className="py-6 text-center text-base text-muted">{t('wh.sw.noItems')}</p>
           ) : (
-            <ul className="grid min-h-0 flex-1 content-start grid-cols-2 gap-2 overflow-y-auto pe-1 sm:grid-cols-3 xl:grid-cols-4">
+            <ul className="grid min-h-0 flex-[3] content-start grid-cols-2 gap-2 overflow-y-auto pe-1 sm:grid-cols-3 xl:grid-cols-4">
               {shown.map((i) => {
                 const u = unitsOf(i)[0] ?? i.baseUnit;
                 const p = listPrice(i, u);
                 const h = hueOf(i.id);
                 const n = inCart(i.id);
+                const onHand = Number(i.stock[warehouseId] ?? 0);
                 return (
                   <li key={i.id}>
                     <button
                       type="button"
                       onClick={() => addItem(i)}
-                      className={cx('relative flex min-h-20 w-full flex-col items-start justify-between gap-1 rounded-md border border-line px-3 py-2 text-start transition-colors active:brightness-95', n > 0 ? h.wash : cx('bg-raised', h.hover))}
+                      className={cx('relative flex min-h-28 w-full flex-col items-start justify-between gap-1 rounded-md border border-line px-3 py-2 text-start transition-colors active:brightness-95', n > 0 ? h.wash : cx('bg-raised', h.hover))}
                     >
                       <span aria-hidden className={cx("absolute end-2 top-2 size-2 rounded-full", h.chip)} />
                       <span className="line-clamp-2 text-base font-semibold leading-snug" dir="auto">
@@ -436,6 +442,15 @@ export function SalesWorkspace({
                       <span className={cx('text-base font-bold tabular-nums', h.ink)} dir="ltr">
                         {Number.isFinite(p) ? money(p) : i.code} <span className="text-xs font-medium text-muted">{Number.isFinite(p) ? `/ ${t(`wh.unit.${u}`)}` : ''}</span>
                       </span>
+                      <span className={cx('inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold tabular-nums', onHand > 0 ? 'bg-wh-teal-wash text-wh-teal' : 'bg-wh-rose-wash text-wh-rose')} dir="ltr">
+                        {onHand.toLocaleString('en-US', { maximumFractionDigits: 2 })} {t(`wh.unit.${i.baseUnit}`)}
+                      </span>
+                      {i.expiry && (
+                        <span className={cx('inline-flex items-center gap-1 text-xs tabular-nums', i.expiry.status === 'expired' ? 'font-semibold text-wh-rose' : i.expiry.status === 'soon' ? 'font-semibold text-wh-amber' : 'text-muted')} dir="ltr">
+                          <CalendarClock aria-hidden className="size-3" />
+                          {i.expiry.date}
+                        </span>
+                      )}
                       {n > 0 && <span className={cx('absolute end-1.5 top-1.5 grid min-w-6 place-items-center rounded-full px-1.5 text-sm font-bold text-white tabular-nums', h.chip)}>{n}</span>}
                     </button>
                   </li>
@@ -443,6 +458,49 @@ export function SalesWorkspace({
               })}
             </ul>
           )}
+          <div className="mt-3 flex min-h-0 flex-[2] flex-col border-t border-line pt-3">
+            <h3 className="mb-2 flex shrink-0 items-center gap-2 text-base font-semibold">
+              <Receipt aria-hidden className="size-4 text-wh-blue" />
+              {t('wh.sw.salesToday')}
+              <span className="rounded-full bg-hover px-2 text-sm tabular-nums">{todaySales.length}</span>
+              {info.todayTotals.length > 0 && (
+                <span className="ms-auto text-sm font-bold tabular-nums text-wh-blue" dir="ltr">
+                  {info.todayTotals.map((x) => `${money(x.amount)} ${x.currency}`).join(' · ')}
+                </span>
+              )}
+            </h3>
+            {todaySales.length === 0 ? (
+              <p className="py-4 text-center text-base text-muted">{t('wh.home.noSales')}</p>
+            ) : (
+              <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">
+                {todaySales.map((x) => (
+                  <li key={x.id} className="flex items-center gap-3 py-2">
+                    <span className="w-10 shrink-0 text-sm tabular-nums text-muted" dir="ltr">
+                      #{x.number ?? '—'}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base" dir="auto">
+                        {x.customer}
+                      </span>
+                      {x.seller && (
+                        <span className="block truncate text-sm text-wh-blue" dir="auto">
+                          {x.seller}
+                        </span>
+                      )}
+                    </span>
+                    <span className={cx('shrink-0 rounded-full px-2 text-xs font-semibold', x.mode === 'CREDIT' ? 'bg-wh-amber-wash text-wh-amber' : 'bg-wh-green-wash text-wh-green')}>{x.mode === 'CREDIT' ? t('wh.purchases.credit') : t('wh.purchases.cash')}</span>
+                    {x.status !== 'POSTED' && <span className="shrink-0 rounded-full bg-hover px-2 text-xs">{t(`wh.sales.status.${x.status}`)}</span>}
+                    <span className="shrink-0 text-base font-semibold tabular-nums" dir="ltr">
+                      {money(Number(x.total))} {x.currency}
+                    </span>
+                    <Link href={`/wholesale/sales/${x.id}/print`} target="_blank" aria-label={t('wh.print.open')} className="grid size-9 shrink-0 place-items-center rounded-md border border-line-strong text-muted hover:bg-hover hover:text-ink">
+                      <Printer aria-hidden className="size-4" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         {/* the invoice, the payment and the post button */}
@@ -453,7 +511,15 @@ export function SalesWorkspace({
           </h2>
           <div className="min-h-[14rem] flex-1 overflow-y-auto">
             {lines.length === 0 ? (
-              <p className="px-3 py-10 text-center text-base text-muted">{t('wh.sw.cartEmpty')}</p>
+              <div className="flex flex-col items-center gap-3 px-3 py-10 text-center">
+                {lastSale && !lastSale.held && (
+                  <Link href={`/wholesale/sales/${lastSale.id}/print`} target="_blank" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-wh-blue px-5 text-base font-semibold text-white">
+                    <Printer aria-hidden className="size-5" />
+                    {t('wh.print.open')}
+                  </Link>
+                )}
+                <p className="text-base text-muted">{lastSale && !lastSale.held ? t('wh.sales.posted') : t('wh.sw.cartEmpty')}</p>
+              </div>
             ) : (
               <ul>
                 {lines.map((l) => {

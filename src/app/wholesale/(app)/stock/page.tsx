@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { ArrowLeftRight, ChevronDown, ClipboardList, Package, PackagePlus, Pencil, Tag } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, ClipboardList, Package, PackagePlus, Pencil, Printer, Tag, UserRound, Warehouse } from 'lucide-react';
+import Link from 'next/link';
 import { Chip, Fold } from '../../_ui/Ui';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
@@ -39,10 +40,46 @@ export default async function StockPage() {
   const countRows = all.filter((i) => i.active).map((i) => ({ itemId: i.id, label: nameOf(i.names, locale), unit: i.baseUnit, book: Object.fromEntries((byItem.get(i.id) ?? []).map((r) => [r.warehouseId, r.qtyBase])) }));
   const unitLabels = Object.fromEntries([...new Set(all.map((i) => i.baseUnit))].map((u) => [u, t(`wh.unit.${u}`)]));
   const where = (r: (typeof rows)[number]) => (r.warehouseKind === 'REP' ? r.warehouseName : t(`wh.stock.kind.${r.warehouseKind}`));
+  const sheets = warehouses
+    .filter((w) => w.kind === 'MAIN' || w.kind === 'REP')
+    .map((w) => {
+      const mine = rows.filter((r) => r.warehouseId === w.id && Number(r.qtyBase) !== 0);
+      const worth = mine.reduce((sum, r) => sum + ('avgCostIqd' in r ? Number(r.qtyBase) * Number(r.avgCostIqd) : 0), 0);
+      return { id: w.id, kind: w.kind, name: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name, count: mine.length, worth };
+    });
   return (
     <>
       <PageHeader icon={Package} tone="blue" title={t('wh.stock.title')} description={t('wh.stock.description')} />
       <div className="flex flex-col gap-3 px-4 pb-4 md:px-6">
+        {sheets.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {sheets.map((w) => (
+              <div key={w.id} className="flex items-center gap-3 rounded-xl border border-line bg-raised p-3 shadow-[0_1px_2px_rgb(15_42_74/0.06)]">
+                <Chip icon={w.kind === 'MAIN' ? Warehouse : UserRound} tone={w.kind === 'MAIN' ? 'blue' : 'teal'} size="size-12" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-md font-semibold" dir="auto">
+                    {w.name}
+                  </div>
+                  <div className="text-sm text-muted">
+                    <span className="font-semibold tabular-nums text-ink">{w.count}</span> {t('wh.stock.itemsCount')}
+                    {showCost && w.worth > 0 && (
+                      <>
+                        {' · '}
+                        <span className="tabular-nums" dir="ltr">
+                          {Math.round(w.worth).toLocaleString('en-US')} IQD
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <Link href={`/wholesale/stock/print?w=${w.id}`} target="_blank" aria-label={`${t('wh.stock.printOne')} — ${w.name}`} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-wh-rail px-3 text-base font-semibold text-white hover:opacity-90">
+                  <Printer aria-hidden className="size-4" />
+                  {t('wh.stock.printOne')}
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
         {canManage && (
           <Fold icon={PackagePlus} tone="green" title={t('wh.catalog.new')}>
             <ItemForm />
