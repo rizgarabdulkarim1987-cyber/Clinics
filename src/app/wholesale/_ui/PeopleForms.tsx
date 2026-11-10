@@ -20,10 +20,13 @@ export function CustomerForm({
   customer,
   cities,
   reps,
+  isRep = false,
 }: {
-  customer?: { id: string; name: string; phone: string | null; cityId: string; repId: string | null; creditLimitIqd: string | null; type?: 'WHOLESALE' | 'MARKET' };
+  customer?: { id: string; name: string; phone: string | null; cityId: string; repId: string | null; creditLimitIqd: string | null; type?: 'WHOLESALE' | 'MARKET'; ownerName?: string | null; address?: string | null };
   cities: CityOption[];
   reps: { userId: string; name: string }[];
+  /** A rep adds shops that are his own, so the rep and the credit limit are not his to choose. */
+  isRep?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -32,11 +35,20 @@ export function CustomerForm({
       settle(() =>
         saveCustomer({
           ...(customer ? { customerId: customer.id } : {}),
-          customer: { name: v.name ?? '', phone: v.phone || null, cityId: v.cityId ?? '', repId: v.repId || null, creditLimitIqd: v.creditLimitIqd || null, type: v.type === 'MARKET' ? 'MARKET' : 'WHOLESALE' },
+          customer: {
+            name: v.name ?? '',
+            phone: v.phone || null,
+            cityId: v.cityId ?? '',
+            repId: v.repId || null,
+            creditLimitIqd: v.creditLimitIqd || null,
+            type: v.type === 'MARKET' ? 'MARKET' : 'WHOLESALE',
+            ownerName: v.ownerName || null,
+            address: v.address || null,
+          },
         }),
       ),
     {
-      validate: (v) => requireFields(v, { name: t('wh.customers.name'), cityId: t('wh.customers.city') }),
+      validate: (v) => requireFields(v, { name: t('wh.customers.shop'), ownerName: t('wh.customers.owner'), phone: t('wh.customers.phone'), cityId: t('wh.customers.province'), address: t('wh.customers.address') }),
       onSuccess: () => {
         toast.success(t('wh.common.saved'));
         router.refresh();
@@ -45,26 +57,36 @@ export function CustomerForm({
   );
   return (
     <form {...form.props} className="flex flex-col gap-4">
-      <FormError form={form} fields={['name', 'phone', 'cityId', 'repId', 'creditLimitIqd', 'type']} />
+      <FormError form={form} fields={['name', 'ownerName', 'phone', 'cityId', 'address', 'repId', 'creditLimitIqd', 'type']} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t('wh.customers.name')} error={form.fieldError('name')}>
+        <Field label={t('wh.customers.shop')} error={form.fieldError('name')}>
           <Input name="name" defaultValue={form.value('name') ?? customer?.name ?? ''} maxLength={120} dir="auto" />
-        </Field>
-        <Field label={t('wh.customers.phone')} optional error={form.fieldError('phone')}>
-          <Input name="phone" inputMode="tel" defaultValue={form.value('phone') ?? customer?.phone ?? ''} dir="ltr" />
         </Field>
         <Field label={t('wh.customers.type')} error={form.fieldError('type')}>
           <Select name="type" defaultValue={form.value('type') ?? customer?.type ?? 'WHOLESALE'} options={[{ value: 'WHOLESALE', label: t('wh.customers.type.WHOLESALE') }, { value: 'MARKET', label: t('wh.customers.type.MARKET') }]} />
         </Field>
-        <Field label={t('wh.customers.city')} error={form.fieldError('cityId')}>
+        <Field label={t('wh.customers.owner')} error={form.fieldError('ownerName')}>
+          <Input name="ownerName" defaultValue={form.value('ownerName') ?? customer?.ownerName ?? ''} maxLength={120} dir="auto" />
+        </Field>
+        <Field label={t('wh.customers.phone')} error={form.fieldError('phone')}>
+          <Input name="phone" inputMode="tel" defaultValue={form.value('phone') ?? customer?.phone ?? ''} dir="ltr" />
+        </Field>
+        <Field label={t('wh.customers.province')} error={form.fieldError('cityId')}>
           <Select name="cityId" defaultValue={form.value('cityId') ?? customer?.cityId ?? cities[0]?.id ?? ''} options={cities.map((c) => ({ value: c.id, label: c.label }))} />
         </Field>
-        <Field label={t('wh.customers.rep')} optional error={form.fieldError('repId')}>
-          <Select name="repId" defaultValue={form.value('repId') ?? customer?.repId ?? ''} options={[{ value: '', label: t('wh.common.none') }, ...reps.map((r) => ({ value: r.userId, label: r.name }))]} />
+        <Field label={t('wh.customers.address')} error={form.fieldError('address')}>
+          <Input name="address" defaultValue={form.value('address') ?? customer?.address ?? ''} maxLength={300} dir="auto" />
         </Field>
-        <Field label={t('wh.customers.credit')} optional error={form.fieldError('creditLimitIqd')}>
-          <Input name="creditLimitIqd" inputMode="decimal" defaultValue={form.value('creditLimitIqd') ?? customer?.creditLimitIqd ?? ''} dir="ltr" />
-        </Field>
+        {!isRep && (
+          <Field label={t('wh.customers.rep')} optional error={form.fieldError('repId')}>
+            <Select name="repId" defaultValue={form.value('repId') ?? customer?.repId ?? ''} options={[{ value: '', label: t('wh.common.none') }, ...reps.map((r) => ({ value: r.userId, label: r.name }))]} />
+          </Field>
+        )}
+        {!isRep && (
+          <Field label={t('wh.customers.credit')} optional error={form.fieldError('creditLimitIqd')}>
+            <Input name="creditLimitIqd" inputMode="decimal" defaultValue={form.value('creditLimitIqd') ?? customer?.creditLimitIqd ?? ''} dir="ltr" />
+          </Field>
+        )}
       </div>
       <div>
         <Button type="submit" variant="primary" pending={form.pending}>

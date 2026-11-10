@@ -16,6 +16,7 @@ export default async function CustomersPage() {
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
   const canManage = canWh(actor!.role, 'catalog.manage');
+  const isRep = actor!.role === 'REP';
   const [customers, cities, staff] = await Promise.all([queryWh(customersQuery), queryWh(cityListQuery), canManage ? queryWh(staffQuery) : Promise.resolve([])]);
   const cityOptions = cities.map((c) => ({ id: c.id, label: nameOf(c.name, actor!.locale) }));
   const reps = staff.filter((s) => s.role === 'REP').map((s) => ({ userId: s.userId, name: s.name }));
@@ -23,11 +24,11 @@ export default async function CustomersPage() {
     <>
       <PageHeader title={t('wh.customers.title')} description={t('wh.customers.description')} />
       <div className="flex flex-col gap-4 px-4 pb-6 md:px-6">
-        {canManage && cityOptions.length > 0 && (
+        {cityOptions.length > 0 && (
           <details className="rounded-md border border-line bg-raised">
             <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">{t('wh.customers.new')}</summary>
             <div className="border-t border-line p-4">
-              <CustomerForm cities={cityOptions} reps={reps} />
+              <CustomerForm cities={cityOptions} reps={reps} isRep={isRep} />
             </div>
           </details>
         )}
@@ -37,9 +38,13 @@ export default async function CustomersPage() {
           <ul className="flex flex-col gap-3">
             {customers.map((c) => (
               <li key={c.id} className="rounded-md border border-line bg-raised p-4">
-                <p className="text-base font-semibold" dir="auto">{c.name}</p>
+                <p className="text-base font-semibold" dir="auto">
+                  {c.name} <span className="text-sm font-normal text-muted">· {t(`wh.customers.type.${c.type}`)}</span>
+                </p>
                 <p className="text-sm text-muted" dir="auto">
+                  {c.ownerName ? `${c.ownerName} · ` : ''}
                   {nameOf(c.city, actor!.locale)}
+                  {c.address ? ` · ${c.address}` : ''}
                   {c.phone ? ` · ${c.phone}` : ''}
                   {c.creditLimitIqd ? ` · ${t('wh.customers.credit')}: ${Number(c.creditLimitIqd).toLocaleString('en-US')}` : ''}
                 </p>

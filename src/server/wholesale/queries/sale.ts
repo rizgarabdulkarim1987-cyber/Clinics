@@ -99,7 +99,8 @@ export const debtsListQuery = defineQuery({
         for (const d of open) totals[d.currency] = (totals[d.currency] ? Number(totals[d.currency]) + Number(d.open.toFixed()) : Number(d.open.toFixed())).toString();
         const dues = open.map((d) => d.dueDate).filter((x): x is string => !!x).sort();
         const due = dues[0] ?? null;
-        return { id: c.id, name: c.name, phone: c.phone ?? null, totals, due, overdue: due !== null && due < today };
+        const invoices = open.map((d) => ({ id: d.id, number: d.number === null ? null : Number(d.number), date: d.date, due: d.dueDate, currency: d.currency as string, amount: d.amount.toFixed(), open: d.open.toFixed() }));
+        return { id: c.id, name: c.name, phone: c.phone ?? null, totals, due, overdue: due !== null && due < today, invoices };
       }),
     );
     const list = rows.filter((r): r is NonNullable<typeof r> => r !== null);

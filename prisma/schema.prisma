@@ -5001,6 +5001,9 @@ model WhCustomer {
   creditLimitIqd Decimal?          @db.Decimal(24, 4)
   /// WHOLESALE buys at the list price; MARKET (a shop selling to the public) at the market price when the item has one.
   type WhCustomerType      @default(WHOLESALE)
+  /// The shop owner and the street address (the province is the city).
+  ownerName String?
+  address String?
   active Boolean           @default(true)
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt

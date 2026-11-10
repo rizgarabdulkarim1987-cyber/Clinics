@@ -20,6 +20,8 @@ export const WH_PERMISSIONS = [
   'sale.return',
   /** Prices other than the list price, approving a rep's held sale, cancelling a sale. */
   'sale.override',
+  /** Adding a shop (customer); a rep's shops are his own. */
+  'customer.create',
   'payment.collect',
   'treasury.manage',
   'expense.manage',
@@ -39,7 +41,7 @@ export const WH_PERMISSIONS = [
 ] as const;
 export type WhPermission = (typeof WH_PERMISSIONS)[number];
 
-const REP: readonly WhPermission[] = ['catalog.view', 'stock.view', 'sale.create', 'sale.return', 'payment.collect', 'custody.submit', 'expense.submit'];
+const REP: readonly WhPermission[] = ['catalog.view', 'customer.create', 'stock.view', 'sale.create', 'sale.return', 'payment.collect', 'custody.submit', 'expense.submit'];
 
 const MATRIX: Record<WhRole, readonly WhPermission[]> = {
   OWNER: WH_PERMISSIONS,

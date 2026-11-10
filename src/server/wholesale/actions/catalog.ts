@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { InsufficientStockError, InvalidStockError, NoStockToRecostError } from '@/server/domain/wholesale/costing';
 import { InvalidCatalogError, ItemLockedError, UNITS } from '@/server/domain/wholesale/catalog';
-import { WH_ROLES } from '@/server/domain/wholesale/permissions';
+import { canWh, WH_ROLES } from '@/server/domain/wholesale/permissions';
 import {
   createCustomer,
   createItem,
@@ -114,17 +114,23 @@ const customerShape = z.object({
   repId: z.string().max(64).nullish(),
   creditLimitIqd: decimalText.nullish(),
   type: z.enum(['WHOLESALE', 'MARKET']).optional(),
+  ownerName: text(120).nullish(),
+  address: text(300).nullish(),
   active: z.boolean().optional(),
 });
 
 export const saveCustomerAction = defineAction({
   name: 'wh.customer.save',
   permission: null,
-  wh: 'catalog.manage',
+  wh: 'customer.create',
   input: whPlaceInput.extend({ customerId: z.string().min(1).max(64).optional(), customer: customerShape }),
   target: whTargetOf,
-  run: (ctx, { restaurantId, customerId, customer }) =>
+  run: (ctx, { restaurantId, customerId, customer: given }) =>
     ctx.transaction(async (tx) => {
+      const manager = canWh(ctx.wh!.role, 'catalog.manage');
+      // A rep only adds shops, always his own, with no credit limit of his choosing; changing one is for the partners.
+      if (!manager && customerId) throw new StudioError('FORBIDDEN', 'Only a partner changes a customer');
+      const customer = manager ? given : { ...given, repId: ctx.wh!.userId, creditLimitIqd: null, active: undefined };
       if (customerId) {
         await refusing(() => updateCustomer(tx, restaurantId, customerId, customer));
         ctx.audit({ action: 'wh.customer.update', entityType: 'WhCustomer', entityId: customerId, changes: { name: { before: null, after: customer.name } } });

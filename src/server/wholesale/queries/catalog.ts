@@ -78,6 +78,8 @@ export const customersQuery = defineQuery({
       repId: c.repId,
       creditLimitIqd: c.creditLimitIqd?.toFixed() ?? null,
       type: c.type as 'WHOLESALE' | 'MARKET',
+      ownerName: c.ownerName,
+      address: c.address,
       active: c.active,
     }));
   },

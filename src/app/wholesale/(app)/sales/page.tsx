@@ -99,11 +99,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
         marketPrices: Object.fromEntries(i.prices.flatMap((p) => (p.marketPriceIqd ? [[p.unit, p.marketPriceIqd]] : []))),
       }))}
     >
-      {mine?.target && goal && (
-        <details className="rounded-md border border-line bg-raised">
+      {isRep && goal && (
+        <details className="rounded-md border border-line bg-raised" open={Boolean(mine?.target)}>
           <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base font-semibold">{t('wh.target.mine')}</summary>
           <div className="border-t border-line p-3">
-            <TargetBars row={mine} pace={goal.progress} t={t} locale={locale} />
+            {mine?.target ? <TargetBars row={mine} pace={goal.progress} t={t} locale={locale} /> : <p className="text-sm text-muted">{t('wh.target.none')}</p>}
           </div>
         </details>
       )}

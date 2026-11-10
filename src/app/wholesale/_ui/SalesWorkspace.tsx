@@ -20,7 +20,7 @@ import { Button, cx } from '@/studio/ui';
 
 export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string>; marketPrices: Record<string, string> };
 export type SaleCustomer = { id: string; name: string; phone: string | null; type: 'WHOLESALE' | 'MARKET' };
-export type DebtRow = { id: string; name: string; phone: string | null; totals: Record<string, string>; due: string | null; overdue: boolean };
+export type DebtRow = { id: string; name: string; phone: string | null; totals: Record<string, string>; due: string | null; overdue: boolean; invoices: { id: string; number: number | null; date: string; due: string | null; currency: string; amount: string; open: string }[] };
 /** The numbers kept in view on the sell screen. */
 export type SellInfo = {
   todayCount: number;
@@ -625,6 +625,19 @@ export function SalesWorkspace({
                       <span className="rounded-md bg-wh-green px-2.5 py-0.5 text-sm font-semibold text-white">{t('wh.sw.repay')}</span>
                       </span>
                     </button>
+                    <ul className="flex flex-col gap-0.5 border-t border-line bg-bg px-3 py-1.5 text-sm">
+                      {d.invoices.map((v) => (
+                        <li key={v.id} className="flex items-baseline justify-between gap-2">
+                          <span className="text-muted" dir="ltr">
+                            {v.number === null ? t('wh.sw.opening') : `#${v.number}`} · {v.date}
+                            {v.due ? ` → ${v.due}` : ''}
+                          </span>
+                          <span className="tabular-nums" dir="ltr">
+                            {money(Number(v.open))} / {money(Number(v.amount))} {v.currency}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </li>
                 );
               })}

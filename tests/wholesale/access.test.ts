@@ -126,6 +126,18 @@ describe('who is let into a wholesale company', () => {
 });
 
 describe('what each role may do', () => {
+  it('lets a rep add a shop that is his own, and only a partner change one', async () => {
+    const city = await prisma().whCity.findFirstOrThrow({ where: { restaurantId: A } });
+    const shop = { name: 'Aso Market', ownerName: 'Aso', phone: '0750', cityId: city.id, address: 'Main road', type: 'MARKET' as const };
+    const made = dataOf(await act(rep, catalogActions.saveCustomerAction, { restaurantId: A, customer: { ...shop, creditLimitIqd: '999' } }));
+    const row = await prisma().whCustomer.findUniqueOrThrow({ where: { id: made.id } });
+    expect(row).toMatchObject({ ownerName: 'Aso', address: 'Main road', type: 'MARKET', repId: rep.userId });
+    expect(row.creditLimitIqd).toBeNull();
+    expect(codeOf(await act(rep, catalogActions.saveCustomerAction, { restaurantId: A, customerId: made.id, customer: shop }))).toBe('FORBIDDEN');
+    const byPartner = dataOf(await act(partner, catalogActions.saveCustomerAction, { restaurantId: A, customer: { ...shop, name: 'Partner shop' } }));
+    expect((await prisma().whCustomer.findUniqueOrThrow({ where: { id: byPartner.id } })).repId).toBeNull();
+  });
+
   it('lets a partner build the catalog and refuses the rep', async () => {
     const made = dataOf(await act(partner, catalogActions.createItemAction, { restaurantId: A, item: rice }));
     expect(made.code).toBe('RICE');

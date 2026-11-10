@@ -36,6 +36,15 @@ const CITIES: { code: string; name: Names }[] = [
   { code: 'karbala', name: { ckb: 'کەربەلا', ar: 'كربلاء', en: 'Karbala' } },
   { code: 'ramadi', name: { ckb: 'ڕەمادی', ar: 'الرمادي', en: 'Ramadi' } },
   { code: 'halabja', name: { ckb: 'هەڵەبجە', ar: 'حلبجة', en: 'Halabja' } },
+  { code: 'anbar', name: { ckb: 'ئەنبار', ar: 'الأنبار', en: 'Anbar' } },
+  { code: 'babil', name: { ckb: 'بابل', ar: 'بابل', en: 'Babil' } },
+  { code: 'diyala', name: { ckb: 'دیالە', ar: 'ديالى', en: 'Diyala' } },
+  { code: 'dhiqar', name: { ckb: 'زیقار', ar: 'ذي قار', en: 'Dhi Qar' } },
+  { code: 'maysan', name: { ckb: 'میسان', ar: 'ميسان', en: 'Maysan' } },
+  { code: 'muthanna', name: { ckb: 'موسەننا', ar: 'المثنى', en: 'Muthanna' } },
+  { code: 'qadisiyyah', name: { ckb: 'قادسیە', ar: 'القادسية', en: 'Qadisiyyah' } },
+  { code: 'salahuddin', name: { ckb: 'سەلاحەدین', ar: 'صلاح الدين', en: 'Salah al-Din' } },
+  { code: 'wasit', name: { ckb: 'واست', ar: 'واسط', en: 'Wasit' } },
   { code: 'zakho', name: { ckb: 'زاخۆ', ar: 'زاخو', en: 'Zakho' } },
 ];
 
@@ -254,6 +263,8 @@ export type CustomerInput = {
   repId?: string | null;
   creditLimitIqd?: string | null;
   type?: 'WHOLESALE' | 'MARKET';
+  ownerName?: string | null;
+  address?: string | null;
   active?: boolean;
 };
 
@@ -271,6 +282,8 @@ async function cleanCustomer(tx: Db, rid: string, input: CustomerInput) {
     name,
     phone: optionalText(input.phone),
     cityId: city.id,
+    ownerName: optionalText(input.ownerName),
+    address: optionalText(input.address),
     repId,
     type: (input.type === 'MARKET' ? 'MARKET' : 'WHOLESALE') as 'WHOLESALE' | 'MARKET',
     creditLimitIqd: limit === null ? null : parseDecimal(limit, { dp: 4, label: 'credit limit' }).toFixed(),
