@@ -193,6 +193,8 @@ model Restaurant {
   whPurchaseReturns WhPurchaseReturn[]
   whPurchaseReturnLines WhPurchaseReturnLine[]
   whRepTargets WhRepTarget[]
+  whAgencyOrders WhAgencyOrder[]
+  whAgencyMovements WhAgencyMovement[]
   whRepItemTargets WhRepItemTarget[]
   whStaffs WhStaff[]
   retailOutbox          RetailOutbox?
@@ -4857,6 +4859,7 @@ model WhJournalEntry {
   sale WhSale?               @relation("SaleEntry")
   saleCancel WhSale?               @relation("SaleCancelEntry")
   customerPayments WhCustomerPayment[]   @relation("CustomerPaymentEntry")
+  agencyMovements WhAgencyMovement[]   @relation("AgencyMovementEntry")
   saleReturn WhSaleReturn?         @relation("SaleReturnEntry")
   conversion WhCurrencyConversion? @relation("ConversionEntry")
   handover WhCustodyHandover?    @relation("HandoverEntry")
@@ -5010,6 +5013,7 @@ model WhCustomer {
   sales WhSale[]
   payments WhCustomerPayment[]
   openingDebts WhOpeningDebt[]
+  agencyOrders WhAgencyOrder[]
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
@@ -5883,5 +5887,80 @@ model WhRepItemTarget {
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([targetId, itemId])
+  @@index([restaurantId])
+}
+
+enum WhAgencyStatus {
+  OPEN
+  DELIVERED
+  CLOSED
+  CANCELLED
+}
+
+enum WhAgencyMovementKind {
+  /// Money received from the principal in advance (the company holds it for him).
+  ADVANCE
+  /// Money the company paid out for the principal's goods (recoverable from him).
+  COST
+  /// The company's commission, charged to the principal at settlement.
+  COMMISSION
+  /// An advance used against what the principal owes (at settlement).
+  APPLIED
+  /// An unused advance paid back to the principal.
+  REFUND
+  /// Money the principal paid later against the remainder.
+  COLLECTION
+}
+
+/// An order the company handles on behalf of another company (the principal, an existing customer): it buys or imports for the
+/// principal, takes advances, and keeps a commission. Goods never enter the company's own stock or sales. One currency per order.
+model WhAgencyOrder {
+  id String   @id @default(uuid())
+  restaurantId String
+  number BigInt   @unique @default(autoincrement())
+  principalId String
+  principal WhCustomer @relation(fields: [principalId], references: [id])
+  title String
+  note String?
+  currency WhCurrency
+  /// What the principal and the company agreed the whole order comes to (goods and commission); a reference, not a posting.
+  agreedTotal Decimal @db.Decimal(24, 4)
+  status WhAgencyStatus @default(OPEN)
+  date DateTime @db.Date
+  settledAt DateTime?
+  createdById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  movements WhAgencyMovement[]
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@index([principalId])
+}
+
+/// One posted step of an agency order. `amount` is always positive and in the order's currency; the journal entry carries
+/// the accounting (CUSTOMER_ADVANCES, AGENCY_RECEIVABLE, AGENCY_COMMISSION). A settlement writes several rows with one entry.
+model WhAgencyMovement {
+  id String   @id @default(uuid())
+  restaurantId String
+  orderId String
+  order WhAgencyOrder @relation(fields: [orderId], references: [id])
+  kind WhAgencyMovementKind
+  amount Decimal @db.Decimal(24, 4)
+  currency WhCurrency
+  date DateTime @db.Date
+  note String?
+  /// Advance or collection that went to a rep's custody instead of the till.
+  custodyRepId String?
+  journalEntryId String
+  journalEntry WhJournalEntry @relation("AgencyMovementEntry", fields: [journalEntryId], references: [id])
+  userId String
+  createdAt DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, date])
+  @@index([journalEntryId])
   @@index([restaurantId])
 }
