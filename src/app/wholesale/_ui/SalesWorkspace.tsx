@@ -80,59 +80,46 @@ function Segmented<T extends string>({ value, onChange, options, label, tone = (
 
 function InfoStrip({ info, t, debtCount, onDebts }: { info: SellInfo; t: (k: string, p?: Record<string, string | number>) => string; debtCount: number; onDebts: () => void }) {
   const cash = info.cash ? (['IQD', 'USD', 'IRT'] as const).filter((c) => Number(info.cash![c] ?? 0) !== 0) : [];
-  const stat = 'flex min-w-0 items-center gap-2.5 px-3.5 py-1.5';
-  const icon = 'grid size-8 shrink-0 place-items-center rounded-full';
+  const stat = 'flex min-w-0 items-center gap-2 px-3 py-1';
+  const icon = 'grid size-6 shrink-0 place-items-center rounded-full';
+  const label = 'text-xs text-muted';
+  const value = 'whitespace-nowrap text-sm font-bold tabular-nums';
+  const expiryText = info.expired === 0 && info.soon === 0 ? t('wh.sw.expiryNone') : [info.expired > 0 ? t('wh.sw.expiredN', { n: info.expired }) : '', info.soon > 0 ? t('wh.sw.soonN', { n: info.soon }) : ''].filter(Boolean).join(' · ');
   return (
     <div className="flex shrink-0 flex-wrap divide-x divide-line rounded-lg border border-line bg-raised shadow-[0_1px_2px_rgb(15_42_74/0.06)] rtl:divide-x-reverse xl:flex-nowrap">
-      <div className={stat}>
+      <div className={stat} title={t('wh.sw.invoicesN', { n: info.todayCount })}>
         <span className={cx(icon, 'bg-wh-blue-wash text-wh-blue')}>
-          <Receipt aria-hidden className="size-4" />
+          <Receipt aria-hidden className="size-3.5" />
         </span>
-        <p className="min-w-0">
-          <span className="block text-xs text-muted">{t('wh.sw.salesToday')}</span>
-          <span className="block whitespace-nowrap text-base font-bold tabular-nums" dir="ltr">
-            {info.todayTotals.length === 0 ? '0' : info.todayTotals.map((x) => `${money(x.amount)} ${x.currency}`).join(' · ')}
-          </span>
-          <span className="block text-xs text-muted">{t('wh.sw.invoicesN', { n: info.todayCount })}</span>
-        </p>
+        <span className={label}>{t('wh.sw.salesToday')}</span>
+        <span className={value} dir="ltr">
+          {info.todayTotals.length === 0 ? '0' : info.todayTotals.map((x) => `${money(x.amount)} ${x.currency}`).join(' · ')}
+        </span>
       </div>
       {info.cash && (
         <div className={stat}>
           <span className={cx(icon, 'bg-wh-green-wash text-wh-green')}>
-            <Banknote aria-hidden className="size-4" />
+            <Banknote aria-hidden className="size-3.5" />
           </span>
-          <p className="min-w-0">
-            <span className="block text-xs text-muted">{t('wh.sw.cashTill')}</span>
-            <span className="block whitespace-nowrap text-base font-bold tabular-nums" dir="ltr">
-              {cash.length === 0 ? '0' : cash.map((c) => `${money(Number(info.cash![c]))} ${c}`).join(' · ')}
-            </span>
-          </p>
+          <span className={label}>{t('wh.sw.cashTill')}</span>
+          <span className={value} dir="ltr">
+            {cash.length === 0 ? '0' : cash.map((c) => `${money(Number(info.cash![c]))} ${c}`).join(' · ')}
+          </span>
         </div>
       )}
-      <div className={stat}>
+      <div className={stat} title={info.next ? t('wh.sw.nextExpiry', { name: info.next.name, d: info.next.days }) : undefined}>
         <span className={cx(icon, info.expired > 0 ? 'bg-wh-rose-wash text-wh-rose' : info.soon > 0 ? 'bg-wh-amber-wash text-wh-amber' : 'bg-wh-teal-wash text-wh-teal')}>
-          <CalendarClock aria-hidden className="size-4" />
+          <CalendarClock aria-hidden className="size-3.5" />
         </span>
-        <p className="min-w-0">
-          <span className="block text-xs text-muted">{t('wh.sw.expiry')}</span>
-          <span className="block whitespace-nowrap text-base font-bold">
-            {info.expired === 0 && info.soon === 0 ? t('wh.sw.expiryNone') : [info.expired > 0 ? t('wh.sw.expiredN', { n: info.expired }) : '', info.soon > 0 ? t('wh.sw.soonN', { n: info.soon }) : ''].filter(Boolean).join(' · ')}
-          </span>
-          {info.next && (
-            <span className="block max-w-56 truncate text-xs text-muted" dir="auto">
-              {t('wh.sw.nextExpiry', { name: info.next.name, d: info.next.days })}
-            </span>
-          )}
-        </p>
+        <span className={label}>{t('wh.sw.expiry')}</span>
+        <span className={value}>{expiryText}</span>
       </div>
       <button type="button" onClick={onDebts} className={cx(stat, 'text-start hover:bg-hover')}>
         <span className={cx(icon, debtCount > 0 ? 'bg-wh-amber-wash text-wh-amber' : 'bg-wh-teal-wash text-wh-teal')}>
-          <HandCoins aria-hidden className="size-4" />
+          <HandCoins aria-hidden className="size-3.5" />
         </span>
-        <p className="min-w-0">
-          <span className="block text-xs text-muted">{t('wh.sw.debts')}</span>
-          <span className="block whitespace-nowrap text-base font-bold">{debtCount > 0 ? t('wh.sw.debtsN', { n: debtCount }) : t('wh.sw.debtsNone')}</span>
-        </p>
+        <span className={label}>{t('wh.sw.debts')}</span>
+        <span className={value}>{debtCount > 0 ? t('wh.sw.debtsN', { n: debtCount }) : t('wh.sw.debtsNone')}</span>
       </button>
     </div>
   );
@@ -304,28 +291,28 @@ export function SalesWorkspace({
     <div className="flex flex-col gap-3 p-3 md:p-4 lg:min-h-0 lg:flex-1">
       <div className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-stretch">
       {/* customer bar */}
-      <div className={cx(card, 'p-1.5 xl:flex-1 xl:justify-center')}>
+      <div className={cx(card, 'justify-center p-1 xl:flex-1')}>
         {current && !changing ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-wh-blue-wash text-wh-blue">
-              <UserRound aria-hidden className="size-5" />
+          <div className="flex items-center gap-2">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-wh-blue-wash text-wh-blue">
+              <UserRound aria-hidden className="size-4" />
             </span>
-            <p className="min-w-0 flex-1">
-              <span className="block truncate text-md font-semibold" dir="auto">
+            <p className="flex min-w-0 flex-1 items-baseline gap-2">
+              <span className="truncate text-base font-semibold" dir="auto">
                 {current.name}
               </span>
               {current.phone && (
-                <span className="block text-sm text-muted" dir="ltr">
+                <span className="shrink-0 text-sm text-muted" dir="ltr">
                   {current.phone}
                 </span>
               )}
             </p>
             {debt && (
-              <span className="rounded-full bg-wh-amber-wash px-3 py-1 text-base font-semibold text-wh-amber tabular-nums" dir="ltr" title={t('wh.sw.debt')}>
+              <span className="rounded-full bg-wh-amber-wash px-2.5 py-0.5 text-sm font-semibold text-wh-amber tabular-nums" dir="ltr" title={t('wh.sw.debt')}>
                 {debt}
               </span>
             )}
-            <button type="button" onClick={() => setPanel(true)} className="relative inline-flex min-h-9 items-center gap-2 rounded-md bg-wh-blue-wash px-3 text-base font-semibold text-wh-blue hover:bg-wh-blue hover:text-white">
+            <button type="button" onClick={() => setPanel(true)} className="relative inline-flex h-8 items-center gap-2 rounded-md bg-wh-blue-wash px-3 text-base font-semibold text-wh-blue hover:bg-wh-blue hover:text-white">
               <Wallet aria-hidden className="size-4" />
               {t('wh.sw.account')}
               {attention > 0 && <span className="absolute -end-1 -top-1 size-3 rounded-full border-2 border-raised bg-wh-rose" aria-hidden />}
@@ -354,7 +341,7 @@ export function SalesWorkspace({
                 onClick={() => setListOpen(true)}
                 onKeyDown={onCustomerKey}
                 placeholder={t('wh.sw.pickCustomer')}
-                className="min-h-9 w-full rounded-md border border-line-strong bg-raised px-3 ps-9 pe-9 text-base focus:border-wh-blue"
+                className="h-8 w-full rounded-md border border-line-strong bg-raised px-3 ps-9 pe-9 text-base focus:border-wh-blue"
                 dir="auto"
                 autoFocus={!current}
               />
@@ -396,7 +383,7 @@ export function SalesWorkspace({
               </Button>
             )}
             {!current && attention > 0 && (
-              <button type="button" onClick={() => setPanel(true)} className="min-h-11 rounded-md bg-wh-rose-wash px-4 text-base font-semibold text-wh-rose">
+              <button type="button" onClick={() => setPanel(true)} className="h-8 rounded-md bg-wh-rose-wash px-3 text-base font-semibold text-wh-rose">
                 {attention}
               </button>
             )}
