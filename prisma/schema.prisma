@@ -4723,6 +4723,11 @@ enum WhSaleStatus {
   CANCELLED
 }
 
+enum WhCustomerType {
+  WHOLESALE
+  MARKET
+}
+
 enum WhPriceMode {
   OFFICIAL
   PERCENT
@@ -4962,6 +4967,8 @@ model WhPriceListEntry {
   item WhItem    @relation(fields: [itemId], references: [id])
   unit WhUnit
   priceIqd Decimal @db.Decimal(24, 4)
+  /// The price for a MARKET customer; empty means the list price.
+  marketPriceIqd Decimal? @db.Decimal(24, 4)
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
@@ -4992,6 +4999,8 @@ model WhCustomer {
   /// The sales rep this customer belongs to; a REP only ever sees customers whose repId is their own user id.
   repId String?
   creditLimitIqd Decimal?          @db.Decimal(24, 4)
+  /// WHOLESALE buys at the list price; MARKET (a shop selling to the public) at the market price when the item has one.
+  type WhCustomerType      @default(WHOLESALE)
   active Boolean           @default(true)
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt

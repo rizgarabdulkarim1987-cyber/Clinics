@@ -21,7 +21,7 @@ export function CustomerForm({
   cities,
   reps,
 }: {
-  customer?: { id: string; name: string; phone: string | null; cityId: string; repId: string | null; creditLimitIqd: string | null };
+  customer?: { id: string; name: string; phone: string | null; cityId: string; repId: string | null; creditLimitIqd: string | null; type?: 'WHOLESALE' | 'MARKET' };
   cities: CityOption[];
   reps: { userId: string; name: string }[];
 }) {
@@ -32,7 +32,7 @@ export function CustomerForm({
       settle(() =>
         saveCustomer({
           ...(customer ? { customerId: customer.id } : {}),
-          customer: { name: v.name ?? '', phone: v.phone || null, cityId: v.cityId ?? '', repId: v.repId || null, creditLimitIqd: v.creditLimitIqd || null },
+          customer: { name: v.name ?? '', phone: v.phone || null, cityId: v.cityId ?? '', repId: v.repId || null, creditLimitIqd: v.creditLimitIqd || null, type: v.type === 'MARKET' ? 'MARKET' : 'WHOLESALE' },
         }),
       ),
     {
@@ -45,13 +45,16 @@ export function CustomerForm({
   );
   return (
     <form {...form.props} className="flex flex-col gap-4">
-      <FormError form={form} fields={['name', 'phone', 'cityId', 'repId', 'creditLimitIqd']} />
+      <FormError form={form} fields={['name', 'phone', 'cityId', 'repId', 'creditLimitIqd', 'type']} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={t('wh.customers.name')} error={form.fieldError('name')}>
           <Input name="name" defaultValue={form.value('name') ?? customer?.name ?? ''} maxLength={120} dir="auto" />
         </Field>
         <Field label={t('wh.customers.phone')} optional error={form.fieldError('phone')}>
           <Input name="phone" inputMode="tel" defaultValue={form.value('phone') ?? customer?.phone ?? ''} dir="ltr" />
+        </Field>
+        <Field label={t('wh.customers.type')} error={form.fieldError('type')}>
+          <Select name="type" defaultValue={form.value('type') ?? customer?.type ?? 'WHOLESALE'} options={[{ value: 'WHOLESALE', label: t('wh.customers.type.WHOLESALE') }, { value: 'MARKET', label: t('wh.customers.type.MARKET') }]} />
         </Field>
         <Field label={t('wh.customers.city')} error={form.fieldError('cityId')}>
           <Select name="cityId" defaultValue={form.value('cityId') ?? customer?.cityId ?? cities[0]?.id ?? ''} options={cities.map((c) => ({ value: c.id, label: c.label }))} />

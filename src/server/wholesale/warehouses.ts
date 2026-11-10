@@ -103,7 +103,7 @@ const orderBy = [{ warehouse: { kind: 'asc' } }, { warehouse: { name: 'asc' } },
 
 /**
  * Stock list for a viewer. A partner (cost.view): every warehouse with quantity and average cost. A rep: quantities only (the
- * cost column is never selected), for the warehouse whose rep is the viewer and no other.
+ * cost column is never selected), for the main warehouse and the one whose rep is the viewer, and no other.
  */
 export async function stockFor(
   tx: Db,
@@ -138,7 +138,7 @@ export async function stockFor(
     return rows.map((r) => ({ ...shape(r), avgCostIqd: new D(r.avgCostIqd.toString()) }));
   }
   const rows = await tx.whStockBalance.findMany({
-    where: { restaurantId: rid, warehouse: { kind: 'REP', repUserId: viewer.userId } },
+    where: { restaurantId: rid, warehouse: { OR: [{ kind: 'REP', repUserId: viewer.userId }, { kind: 'MAIN' }] } },
     select: base,
     orderBy: [...orderBy],
   });

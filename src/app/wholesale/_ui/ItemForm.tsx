@@ -19,7 +19,7 @@ export interface ItemRow {
   baseUnit: Unit;
   reorderPoint: string | null;
   units: { unit: Unit; factorToBase: string; barcode: string | null }[];
-  prices: { unit: Unit; priceIqd: string }[];
+  prices: { unit: Unit; priceIqd: string; marketPriceIqd?: string | null }[];
 }
 
 const FIELDS = ['code', 'names', 'baseUnit', 'units', 'reorderPoint', 'category'] as const;
@@ -111,7 +111,7 @@ export function PricesForm({ item, onDone }: { item: ItemRow; onDone?: () => voi
       settle(() =>
         setPrices({
           itemId: item.id,
-          prices: item.units.map((u) => ({ unit: u.unit, priceIqd: (v[`price_${u.unit}`] ?? '').trim() })),
+          prices: item.units.map((u) => ({ unit: u.unit, priceIqd: (v[`price_${u.unit}`] ?? '').trim(), marketPriceIqd: (v[`market_${u.unit}`] ?? '').trim() })),
         }),
       ),
     {
@@ -128,9 +128,14 @@ export function PricesForm({ item, onDone }: { item: ItemRow; onDone?: () => voi
       <p className="text-sm text-muted">{t('wh.catalog.pricesHint')}</p>
       <div className="grid gap-3 sm:grid-cols-3">
         {item.units.map((u) => (
-          <Field key={u.unit} label={`${t(`wh.unit.${u.unit}`)} (IQD)`}>
-            <Input name={`price_${u.unit}`} inputMode="decimal" defaultValue={form.value(`price_${u.unit}`) ?? item.prices.find((p) => p.unit === u.unit)?.priceIqd ?? ''} dir="ltr" />
-          </Field>
+          <div key={u.unit} className="flex flex-col gap-2">
+            <Field label={`${t(`wh.unit.${u.unit}`)} · ${t('wh.customers.type.WHOLESALE')} (IQD)`}>
+              <Input name={`price_${u.unit}`} inputMode="decimal" defaultValue={form.value(`price_${u.unit}`) ?? item.prices.find((p) => p.unit === u.unit)?.priceIqd ?? ''} dir="ltr" />
+            </Field>
+            <Field label={`${t(`wh.unit.${u.unit}`)} · ${t('wh.customers.type.MARKET')} (IQD)`} optional>
+              <Input name={`market_${u.unit}`} inputMode="decimal" defaultValue={form.value(`market_${u.unit}`) ?? item.prices.find((p) => p.unit === u.unit)?.marketPriceIqd ?? ''} dir="ltr" />
+            </Field>
+          </div>
         ))}
       </div>
       <div>

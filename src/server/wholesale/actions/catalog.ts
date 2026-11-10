@@ -92,7 +92,7 @@ export const setPricesAction = defineAction({
   name: 'wh.item.setPrices',
   permission: null,
   wh: 'catalog.manage',
-  input: whPlaceInput.extend({ itemId: z.string().min(1).max(64), prices: z.array(z.object({ unit: unitSchema, priceIqd: decimalText })).max(3) }),
+  input: whPlaceInput.extend({ itemId: z.string().min(1).max(64), prices: z.array(z.object({ unit: unitSchema, priceIqd: decimalText, marketPriceIqd: decimalText.nullish() })).max(3) }),
   target: whTargetOf,
   run: (ctx, { restaurantId, itemId, prices }) =>
     ctx.transaction(async (tx) => {
@@ -113,6 +113,7 @@ const customerShape = z.object({
   cityId: z.string().min(1).max(64),
   repId: z.string().max(64).nullish(),
   creditLimitIqd: decimalText.nullish(),
+  type: z.enum(['WHOLESALE', 'MARKET']).optional(),
   active: z.boolean().optional(),
 });
 

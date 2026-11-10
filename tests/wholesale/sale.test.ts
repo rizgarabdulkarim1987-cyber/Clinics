@@ -86,6 +86,18 @@ describe('selling', () => {
     await assertBalanced();
   });
 
+  it('prices a market customer at the market price and falls back to the list price without one', async () => {
+    const city = await prisma().whCity.findFirstOrThrow();
+    const market = (await run(A, (tx) => createCustomer(tx, A, { name: 'Market shop', cityId: city.id, type: 'MARKET' }))).id;
+    await run(A, (tx) => setItemPrices(tx, A, item, [{ unit: 'PIECE', priceIqd: '3000', marketPriceIqd: '3500' }, { unit: 'CARTON', priceIqd: '36000' }]));
+    const piece = await sell(PARTNER, { customerId: market, lines: [line({ unit: 'PIECE', qty: '2' })] });
+    expect((await run(A, (tx) => getSale(tx, PARTNER, piece.saleId)))?.totalFinal.toString()).toBe('7000');
+    const carton = await sell(PARTNER, { customerId: market, lines: [line()] });
+    expect((await run(A, (tx) => getSale(tx, PARTNER, carton.saleId)))?.totalFinal.toString()).toBe('72000');
+    const wholesale = await sell(PARTNER, { lines: [line({ unit: 'PIECE', qty: '2' })] });
+    expect((await run(A, (tx) => getSale(tx, PARTNER, wholesale.saleId)))?.totalFinal.toString()).toBe('6000');
+  });
+
   it('sells in dollars at the day rate', async () => {
     const { saleId } = await sell(PARTNER, { currency: 'USD', lines: [line()] });
     const s = await run(A, (tx) => getSale(tx, PARTNER, saleId));

@@ -200,7 +200,7 @@ export async function updateItem(tx: Db, rid: string, id: string, input: ItemInp
   };
 }
 
-export type PriceInput = { unit: Unit; priceIqd: string };
+export type PriceInput = { unit: Unit; priceIqd: string; marketPriceIqd?: string | null };
 
 /** One IQD price per unit. A blank price removes that unit's entry. Units the item does not have are refused. */
 export async function setItemPrices(tx: Db, rid: string, itemId: string, prices: PriceInput[]): Promise<{ unit: Unit; priceIqd: string | null }[]> {
@@ -217,10 +217,12 @@ export async function setItemPrices(tx: Db, rid: string, itemId: string, prices:
       continue;
     }
     const price = parseDecimal(raw, { dp: 4, label: `${p.unit} price` }).toFixed();
+    const marketRaw = typeof p.marketPriceIqd === 'string' ? p.marketPriceIqd.trim() : '';
+    const market = marketRaw === '' ? null : parseDecimal(marketRaw, { dp: 4, label: `${p.unit} market price` }).toFixed();
     await tx.whPriceListEntry.upsert({
       where: { restaurantId_itemId_unit: { restaurantId: rid, itemId, unit: p.unit } },
-      update: { priceIqd: price },
-      create: { restaurantId: rid, itemId, unit: p.unit, priceIqd: price },
+      update: { priceIqd: price, marketPriceIqd: market },
+      create: { restaurantId: rid, itemId, unit: p.unit, priceIqd: price, marketPriceIqd: market },
     });
     done.push({ unit: p.unit, priceIqd: price });
   }
@@ -251,6 +253,7 @@ export type CustomerInput = {
   /** The user id of the rep this customer belongs to (a `WhStaff` row with the REP role). */
   repId?: string | null;
   creditLimitIqd?: string | null;
+  type?: 'WHOLESALE' | 'MARKET';
   active?: boolean;
 };
 
@@ -269,6 +272,7 @@ async function cleanCustomer(tx: Db, rid: string, input: CustomerInput) {
     phone: optionalText(input.phone),
     cityId: city.id,
     repId,
+    type: (input.type === 'MARKET' ? 'MARKET' : 'WHOLESALE') as 'WHOLESALE' | 'MARKET',
     creditLimitIqd: limit === null ? null : parseDecimal(limit, { dp: 4, label: 'credit limit' }).toFixed(),
   };
 }

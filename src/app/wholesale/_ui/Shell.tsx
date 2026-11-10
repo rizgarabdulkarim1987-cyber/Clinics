@@ -14,6 +14,32 @@ import { whGroups } from './nav';
  * places the role may use, and the page. A state notice (read-only) sits above the page.
  */
 export function Shell({ actor, notice, t, children, info }: { actor: WhActor; notice?: ReactNode; t: Translate; children: ReactNode; info?: NavInfo | null }) {
+  if (actor.role === 'REP') {
+    return (
+      <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col">
+        <header className="flex items-center gap-2.5 bg-wh-rail px-3 py-2 text-white print:hidden">
+          <Link href="/wholesale/sales" className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span className="grid size-9 shrink-0 place-items-center rounded-md bg-wh-blue text-white">
+              <Warehouse aria-hidden className="size-5" />
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-base font-semibold" dir="auto">
+                {actor.restaurantName}
+              </span>
+              <span className="truncate text-sm text-wh-rail-muted" dir="auto">
+                {actor.name}
+              </span>
+            </span>
+          </Link>
+          <SignOutButton className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-base font-medium text-white hover:bg-wh-rail-hover disabled:opacity-60" />
+        </header>
+        <main id="main" className="flex min-w-0 flex-1 flex-col">
+          {notice}
+          <ContentFrame>{children}</ContentFrame>
+        </main>
+      </div>
+    );
+  }
   const groups = whGroups(actor.role).map((g) => ({ key: g.key, href: g.href, label: t(g.labelKey), match: g.match }));
   return (
     <div className="flex min-h-dvh flex-col md:h-dvh md:flex-row md:overflow-hidden">

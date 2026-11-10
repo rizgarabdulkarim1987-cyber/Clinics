@@ -55,7 +55,7 @@ export const itemsQuery = defineQuery({
       active: i.active,
       reorderPoint: showCost ? (i.reorderPoint?.toFixed() ?? null) : null,
       units: i.units.map((u) => ({ unit: u.unit, factorToBase: u.factorToBase.toFixed(), barcode: u.barcode })),
-      prices: i.prices.map((p) => ({ unit: p.unit, priceIqd: p.priceIqd.toFixed() })),
+      prices: i.prices.map((p) => ({ unit: p.unit, priceIqd: p.priceIqd.toFixed(), marketPriceIqd: p.marketPriceIqd?.toFixed() ?? null })),
     }));
   },
 });
@@ -77,6 +77,7 @@ export const customersQuery = defineQuery({
       city: c.city.name as { ckb: string; ar: string; en: string },
       repId: c.repId,
       creditLimitIqd: c.creditLimitIqd?.toFixed() ?? null,
+      type: c.type as 'WHOLESALE' | 'MARKET',
       active: c.active,
     }));
   },

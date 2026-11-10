@@ -3,13 +3,15 @@ import Link from 'next/link';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
-import { customersQuery, itemsQuery } from '@/server/wholesale/queries/catalog';
+import { customersQuery, itemsQuery, stockQuery } from '@/server/wholesale/queries/catalog';
 import { sellInfoQuery } from '@/server/wholesale/queries/reports';
+import { repTargetsQuery } from '@/server/wholesale/queries/targets';
 import { customerStatementQuery, debtsListQuery, pendingSalesQuery, saleQuery, saleWarehousesQuery, salesQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
 import { cx } from '@/studio/ui';
 import { ApproveButtons, CancelSaleForm, CollectForm, ReturnSaleForm } from '../../_ui/SaleForms';
 import { SalesWorkspace } from '../../_ui/SalesWorkspace';
+import { TargetBars } from '../../_ui/TargetBars';
 
 export const metadata: Metadata = { title: 'Sales' };
 
@@ -44,6 +46,16 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       return null;
     }),
   ]);
+  const goal = isRep ? await queryWh(repTargetsQuery).catch(() => null) : null;
+  const mine = goal?.reps[0] ?? null;
+  const stock = isRep ? await queryWh(stockQuery).catch(() => null) : null;
+  const stockRows = new Map<string, { name: string; unit: string; main: number; mine: number }>();
+  for (const r of stock ?? []) {
+    const row = stockRows.get(r.itemId) ?? { name: nameOf(r.itemNames as Names, locale), unit: r.baseUnit, main: 0, mine: 0 };
+    if (r.warehouseKind === 'MAIN') row.main += Number(r.qtyBase);
+    else row.mine += Number(r.qtyBase);
+    stockRows.set(r.itemId, row);
+  }
   const activeCustomers = customers.filter((x) => x.active);
   const customerId = c && activeCustomers.some((x) => x.id === c) ? c : null;
   const [statement, sale] = await Promise.all([
@@ -75,7 +87,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
         soon: info?.soon ?? 0,
         next: info?.next ? { name: nameOf(info.next.names, locale), days: info.next.days } : null,
       }}
-      customers={activeCustomers.map((x) => ({ id: x.id, name: x.name, phone: x.phone }))}
+      customers={activeCustomers.map((x) => ({ id: x.id, name: x.name, phone: x.phone, type: x.type }))}
       warehouses={warehouses.map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))}
       items={usable.map((i) => ({
         id: i.id,
@@ -84,8 +96,46 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
         baseUnit: i.baseUnit,
         units: i.units.map((u) => ({ unit: u.unit, barcode: u.barcode })),
         prices: Object.fromEntries(i.prices.map((p) => [p.unit, p.priceIqd])),
+        marketPrices: Object.fromEntries(i.prices.flatMap((p) => (p.marketPriceIqd ? [[p.unit, p.marketPriceIqd]] : []))),
       }))}
     >
+      {mine?.target && goal && (
+        <details className="rounded-md border border-line bg-raised">
+          <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base font-semibold">{t('wh.target.mine')}</summary>
+          <div className="border-t border-line p-3">
+            <TargetBars row={mine} pace={goal.progress} t={t} locale={locale} />
+          </div>
+        </details>
+      )}
+      {isRep && stockRows.size > 0 && (
+        <details className="rounded-md border border-line bg-raised">
+          <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base font-semibold">{t('wh.sw.stock')}</summary>
+          <table className="w-full border-t border-line text-sm">
+            <thead>
+              <tr className="text-muted">
+                <th className="px-3 py-1.5 text-start font-medium">{t('wh.target.item')}</th>
+                <th className="px-3 py-1.5 text-end font-medium">{t('wh.sw.stockMine')}</th>
+                <th className="px-3 py-1.5 text-end font-medium">{t('wh.sw.stockMain')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...stockRows.values()].map((r) => (
+                <tr key={r.name} className="border-t border-line">
+                  <td className="px-3 py-1.5" dir="auto">
+                    {r.name}
+                  </td>
+                  <td className="px-3 py-1.5 text-end font-semibold tabular-nums" dir="ltr">
+                    {money(String(r.mine))} <span className="font-normal text-muted">{t(`wh.unit.${r.unit}`)}</span>
+                  </td>
+                  <td className="px-3 py-1.5 text-end tabular-nums" dir="ltr">
+                    {money(String(r.main))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
       {pending.length > 0 && (
         <section className="flex flex-col gap-3 rounded-md border border-line bg-raised p-3">
           <h2 className="text-md font-semibold">{t('wh.sales.pending')}</h2>

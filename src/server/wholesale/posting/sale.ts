@@ -132,7 +132,7 @@ const seesAllCustomers = (user: WhUser) => canWh(user.role, 'catalog.manage')
 
 /** The customer, if this user may deal with them: unknown -> InvalidSaleError, another rep's -> ForbiddenError. */
 async function customerFor(db: Db, user: WhUser, id: string) {
-  const c = await db.whCustomer.findUnique({ where: { id }, select: { id: true, name: true, active: true, repId: true, creditLimitIqd: true } })
+  const c = await db.whCustomer.findUnique({ where: { id }, select: { id: true, name: true, active: true, repId: true, creditLimitIqd: true, type: true } })
   if (!c) throw new InvalidSaleError('unknown customer')
   if (!seesAllCustomers(user) && c.repId !== user.id) throw new ForbiddenError('customer:view-own')
   return c
@@ -183,13 +183,13 @@ function cleanLines(input: SaleLineInput[]): CleanLine[] {
   })
 }
 
-type ItemInfo = { id: string; baseUnit: Unit; units: { unit: Unit; factorToBase: Prisma.Decimal }[]; prices: { unit: Unit; priceIqd: Prisma.Decimal }[] }
+type ItemInfo = { id: string; baseUnit: Unit; units: { unit: Unit; factorToBase: Prisma.Decimal }[]; prices: { unit: Unit; priceIqd: Prisma.Decimal; marketPriceIqd: Prisma.Decimal | null }[] }
 
 /** Items with units and prices; refuses unknown/archived items. Call after the stock rows are locked to read frozen units. */
 async function loadItems(db: Db, itemIds: string[]): Promise<Map<string, ItemInfo & { active: boolean }>> {
   const items = await db.whItem.findMany({
     where: { id: { in: itemIds } },
-    select: { id: true, active: true, baseUnit: true, units: { select: { unit: true, factorToBase: true } }, prices: { select: { unit: true, priceIqd: true } } },
+    select: { id: true, active: true, baseUnit: true, units: { select: { unit: true, factorToBase: true } }, prices: { select: { unit: true, priceIqd: true, marketPriceIqd: true } } },
   })
   const byId = new Map(items.map((i) => [i.id, i]))
   for (const id of itemIds) {
@@ -412,7 +412,7 @@ export async function postSaleTx(tx: Db, rid: string, user: WhUser, input: SaleI
     const qtyBase = qtyBaseOf(l, item, at)
     const price = item.prices.find((p) => p.unit === l.unit)
     if (!price) throw new InvalidSaleError(`${at}: the item has no list price for ${l.unit}`)
-    const officialPriceIqd = dec(price.priceIqd)
+    const officialPriceIqd = dec(customer.type === 'MARKET' && price.marketPriceIqd ? price.marketPriceIqd : price.priceIqd)
     return { ...l, qtyBase, officialPriceIqd, priced: priceSaleLine({ officialPriceIqd, qty: l.qty, mode: l.mode, percent: l.percent, manual: l.manual }, currency, rates, at) }
   })
   const t = saleTotals(lines.map((l) => l.priced))

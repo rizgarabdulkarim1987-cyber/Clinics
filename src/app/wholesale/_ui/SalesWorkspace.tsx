@@ -18,8 +18,8 @@ import { Button, cx } from '@/studio/ui';
  * screen (`children`, rendered by the page), so nothing sends the seller to another page. The cart survives it all.
  */
 
-export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string> };
-export type SaleCustomer = { id: string; name: string; phone: string | null };
+export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string>; marketPrices: Record<string, string> };
+export type SaleCustomer = { id: string; name: string; phone: string | null; type: 'WHOLESALE' | 'MARKET' };
 export type DebtRow = { id: string; name: string; phone: string | null; totals: Record<string, string>; due: string | null; overdue: boolean };
 /** The numbers kept in view on the sell screen. */
 export type SellInfo = {
@@ -175,6 +175,9 @@ export function SalesWorkspace({
   const seq = useRef(0);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const current = customers.find((c) => c.id === customer) ?? null;
+  const isMarket = current?.type === 'MARKET';
+  /** The list price, or the market price when the customer is a market customer and the item has one. */
+  const listPrice = (i: SaleItem | undefined, unit: string): number => Number((isMarket ? (i?.marketPrices[unit] ?? i?.prices[unit]) : i?.prices[unit]) ?? NaN);
 
   useEffect(() => {
     if (!listOpen) return;
@@ -242,7 +245,7 @@ export function SalesWorkspace({
   };
 
   const priceOf = (l: Line): number | null => {
-    const official = Number(itemById.get(l.itemId)?.prices[l.unit] ?? NaN);
+    const official = listPrice(itemById.get(l.itemId), l.unit);
     if (l.mode === 'OFFICIAL') return Number.isFinite(official) ? official : null;
     if (l.mode === 'PERCENT') return Number.isFinite(official) ? official * (1 - Math.min(Math.max(num(l.value), 0), 100) / 100) : null;
     return num(l.value);
@@ -416,7 +419,7 @@ export function SalesWorkspace({
             <ul className="grid min-h-0 flex-1 content-start grid-cols-2 gap-2 overflow-y-auto pe-1 sm:grid-cols-3 xl:grid-cols-4">
               {shown.map((i) => {
                 const u = unitsOf(i)[0] ?? i.baseUnit;
-                const p = Number(i.prices[u] ?? NaN);
+                const p = listPrice(i, u);
                 const h = hueOf(i.id);
                 const n = inCart(i.id);
                 return (

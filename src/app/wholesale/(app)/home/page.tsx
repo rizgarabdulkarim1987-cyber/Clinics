@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { AlertTriangle, Banknote, Target, BarChart3, Boxes, CalendarClock, CalendarDays, HandCoins, Receipt, TrendingUp, Truck, Wallet, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -95,6 +96,7 @@ export default async function HomePage() {
   const t = getStudioTranslator(actor!.locale);
   const locale = actor!.locale;
   const isRep = actor!.role === 'REP';
+  if (isRep) redirect('/wholesale/sales');
   const [items, warehouses, customers] = await Promise.all([queryWh(itemsQuery), queryWh(warehousesQuery), queryWh(customersQuery)]);
   const needsSetup = !isRep && !warehouses.some((w) => w.kind === 'MAIN') && canWh(actor!.role, 'settings.manage');
   const board = canWh(actor!.role, 'report.view') && !needsSetup ? await queryWh(dashboardQuery) : null;
