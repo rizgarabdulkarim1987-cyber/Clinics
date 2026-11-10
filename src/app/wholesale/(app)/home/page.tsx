@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: 'Home' };
 const money = (v: string) => Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
 type Names = { ckb: string; ar: string; en: string };
 const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : locale === 'ckb' ? names.ckb : names.en) || names.ckb || names.ar || names.en;
-const card = 'flex min-w-0 flex-col justify-center gap-1 rounded-md border border-line border-s-4 bg-raised px-3 py-2 hover:bg-hover';
+const card = 'flex min-w-0 flex-col justify-center gap-1 rounded-md border border-line bg-raised px-3 py-2 hover:bg-hover';
 
 /**
  * The first screen, built to fit one screen with no scrolling: the money in four tiles, what is owed in four more, the week
@@ -102,7 +102,7 @@ export default async function HomePage() {
         {board && (
           <>
             <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-              <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-line border-s-4 border-s-wh-green bg-raised px-3 py-2">
+              <div className="col-span-2 flex flex-col justify-center gap-1 rounded-md border border-line bg-raised px-3 py-2">
                 <p className="text-sm text-muted">{t('wh.home.cash')}</p>
                 <div className="flex flex-wrap gap-x-8 gap-y-1">
                   {(['IQD', 'USD', 'IRT'] as const).map((c) => (
@@ -115,7 +115,7 @@ export default async function HomePage() {
                   ))}
                 </div>
               </div>
-              <Link href="/wholesale/reports?tab=profit" className={`${card} border-s-wh-blue`}>
+              <Link href="/wholesale/reports?tab=profit" className={`${card}`}>
                 <span className="text-sm text-muted">{t('wh.home.todaySales')}</span>
                 <span className="text-xl font-semibold tabular-nums" dir="ltr">
                   {money(board.todaySales.iqd)}
@@ -124,7 +124,7 @@ export default async function HomePage() {
                   {board.todaySales.count} {t('wh.home.invoices')}
                 </span>
               </Link>
-              <Link href="/wholesale/reports?tab=profit" className={`${card} border-s-wh-violet`}>
+              <Link href="/wholesale/reports?tab=profit" className={`${card}`}>
                 <span className="text-sm text-muted">{t('wh.home.monthProfit')}</span>
                 <span className="text-xl font-semibold tabular-nums" dir="ltr">
                   {money(board.monthProfit.netIqd)}
@@ -133,15 +133,15 @@ export default async function HomePage() {
               </Link>
             </section>
             <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-              <Link href="/wholesale/reports?tab=debts" className={`${card} border-s-wh-amber`}>
+              <Link href="/wholesale/reports?tab=debts" className={`${card}`}>
                 <p className="text-sm text-muted">{t('wh.home.receivable')}</p>
                 {owed(board.receivable)}
               </Link>
-              <Link href="/wholesale/reports?tab=debts" className={`${card} border-s-wh-rose`}>
+              <Link href="/wholesale/reports?tab=debts" className={`${card}`}>
                 <p className="text-sm text-muted">{t('wh.home.payable')}</p>
                 {owed(board.payable)}
               </Link>
-              <Link href="/wholesale/reports?tab=stock" className={`${card} border-s-wh-teal`}>
+              <Link href="/wholesale/reports?tab=stock" className={`${card}`}>
                 <p className="text-sm text-muted">{t('wh.home.stockValue')}</p>
                 <p className="truncate text-md font-semibold tabular-nums" dir="ltr">
                   {money(board.stockValueIqd)} IQD
@@ -155,7 +155,7 @@ export default async function HomePage() {
                   </p>
                 ))}
               </Link>
-              <div className="flex min-w-0 items-center justify-around gap-2 rounded-md border border-line border-s-4 border-s-wh-blue bg-raised px-3 py-3">
+              <div className="flex min-w-0 items-center justify-around gap-2 rounded-md border border-line bg-raised px-3 py-3">
                 {counts.map((c) => (
                   <Link key={c.href} href={c.href} className="flex min-w-0 flex-col items-center rounded-md px-2 py-1 hover:bg-hover">
                     <span className="text-xl font-semibold tabular-nums" dir="ltr">
@@ -179,7 +179,7 @@ export default async function HomePage() {
                 </ul>
               </div>
               <div className="grid min-h-0 gap-2 md:grid-rows-2">
-              <div className="flex min-h-0 flex-col rounded-md border border-line border-s-4 border-s-wh-rose bg-raised px-3 py-2">
+              <div className="flex min-h-0 flex-col rounded-md border border-line bg-raised px-3 py-2">
                 <h2 className="text-sm font-semibold">{t('wh.expiry.title')}</h2>
                 {expiring.length === 0 ? (
                   <p className="mt-2 text-sm text-muted">{expiry && expiry.rows.length > 0 ? t('wh.home.allClear') : t('wh.expiry.none')}</p>

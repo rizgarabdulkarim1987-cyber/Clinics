@@ -187,7 +187,7 @@ export function SalesWorkspace({
   return (
     <div className="flex flex-col gap-3 p-3 md:p-4 lg:min-h-0 lg:flex-1">
       {/* customer bar */}
-      <div className={cx(card, 'shrink-0 border-s-4 border-s-wh-blue p-2.5')}>
+      <div className={cx(card, 'shrink-0 p-2.5')}>
         {current && !changing ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-full bg-wh-blue-wash text-wh-blue">
@@ -291,8 +291,9 @@ export function SalesWorkspace({
                     <button
                       type="button"
                       onClick={() => addItem(i)}
-                      className={cx('relative flex min-h-20 w-full flex-col items-start justify-between gap-1 rounded-md border border-s-4 border-line px-3 py-2 text-start transition-colors active:brightness-95', h.bar, n > 0 ? h.wash : cx('bg-raised', h.hover))}
+                      className={cx('relative flex min-h-20 w-full flex-col items-start justify-between gap-1 rounded-md border border-line px-3 py-2 text-start transition-colors active:brightness-95', n > 0 ? h.wash : cx('bg-raised', h.hover))}
                     >
+                      <span aria-hidden className={cx("absolute end-2 top-2 size-2 rounded-full", h.chip)} />
                       <span className="line-clamp-2 text-base font-semibold leading-snug" dir="auto">
                         {i.label}
                       </span>
@@ -325,7 +326,7 @@ export function SalesWorkspace({
                   const open = editing === l.key;
                   const h = hueOf(item.id);
                   return (
-                    <li key={l.key} className={cx('flex flex-col gap-2 border-b border-s-4 border-line px-3 py-2.5 last:border-b-0', h.bar)}>
+                    <li key={l.key} className={cx('flex flex-col gap-2 border-b border-line px-3 py-2.5 last:border-b-0')}>
                       <div className="flex items-start gap-2">
                         <p className="min-w-0 flex-1 text-base font-semibold leading-snug" dir="auto">
                           {item.label}
