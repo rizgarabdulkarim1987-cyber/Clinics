@@ -10,7 +10,7 @@ import CustomersPage from '../customers/page';
 import ExpensesPage from '../expenses/page';
 import PurchasesPage from '../purchases/page';
 import RatesPage from '../rates/page';
-import SalesPage from '../sales/page';
+import AssistantPage from '../assistant/page';
 import StockPage from '../stock/page';
 import SuppliersPage from '../suppliers/page';
 import TreasuryPage from '../treasury/page';
@@ -23,7 +23,7 @@ const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : l
 const tile = 'flex min-w-0 flex-col justify-center rounded-lg border border-line border-s-4 bg-raised px-3 py-1.5 shadow-[0_1px_2px_rgb(15_23_42/0.05)]';
 
 /**
- * The whole company on one screen, nothing to switch to: one slim strip of numbers, then selling, customers and stock, then
+ * The whole company on one screen, nothing to switch to: one slim strip of numbers, then the AI assistant, customers and stock, then
  * suppliers, purchases, the till, expenses, exchange rates and what needs a look. Each part scrolls inside its own frame.
  */
 export default async function DeskPage() {
@@ -62,7 +62,7 @@ export default async function DeskPage() {
     ...(board?.lowStock ?? []).map((x) => ({ key: `l-${x.itemId}`, text: `${nameOf(x.names as Names, locale)} · ${money(x.qtyBase)} / ${money(x.reorderPoint)}`, high: false })),
   ];
   const top: { node: ReactNode; span?: string }[] = [];
-  if (can('sale.create')) top.push({ node: <SalesPage searchParams={Promise.resolve({})} />, span: 'xl:col-span-2' });
+  if (can('ai.use')) top.push({ node: <AssistantPage />, span: 'xl:col-span-2' });
   if (can('catalog.view')) top.push({ node: <CustomersPage /> });
   if (can('stock.view')) top.push({ node: <StockPage /> });
   const bottom: ReactNode[] = [];

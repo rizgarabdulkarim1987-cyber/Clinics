@@ -49,7 +49,8 @@ const HUBS: Partial<Record<WhGroup['key'], string>> = { money: '/wholesale/money
 
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
-  { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'sales', 'customers', 'stock', 'catalog', 'purchases', 'suppliers', 'treasury', 'expenses', 'rates', 'assistant'] },
+  { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'customers', 'stock', 'catalog', 'purchases', 'suppliers', 'treasury', 'expenses', 'rates', 'assistant'] },
+  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales'] },
   { key: 'reports', labelKey: 'wh.nav.reports', keys: ['reports'] },
   { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },
 ];
