@@ -73,7 +73,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const owed = statement ? Object.entries(statement.balances).filter(([, v]) => Number(v) !== 0) : [];
   const shownSales = (customerId ? sales.filter((x) => x.customer.id === customerId) : sales).slice(0, 12);
   const sellerOf = (x: { seller: { name: string; role: string } | null }) => (x.seller ? `${x.seller.name} (${t(`wh.role.${x.seller.role}`)})` : '');
+  const canOverride = canWh(actor!.role, 'sale.override');
   const usable = items.filter((i) => i.active);
+  const todayPosted = canOverride ? sales.filter((x) => x.date === today && x.status === 'POSTED') : [];
+  const detailRows = await Promise.all(todayPosted.map((x) => queryWh(saleQuery, { id: x.id }).catch(() => null)));
+  const editable = new Map(detailRows.flatMap((d) => (d && d.payments.length === 0 ? [[d.id, d] as const] : [])));
   const soldToday = sales.filter((x) => x.status === 'POSTED' && x.date === today);
   const todayTotals: Record<string, number> = {};
   for (const x of soldToday) todayTotals[x.currency] = (todayTotals[x.currency] ?? 0) + Number(x.totalFinal);
@@ -87,7 +91,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       debt={owed.map(([cur, v]) => `${money(v!)} ${cur}`).join(' · ')}
       attention={pending.length}
       debts={debtList?.rows ?? []}
-      todaySales={sales.filter((x) => x.date === today).map((x) => ({ id: x.id, number: x.number === null ? null : Number(x.number), customer: x.customer.name, total: x.totalFinal, currency: x.currency, mode: x.paymentMode, status: x.status, seller: sellerOf(x) }))}
+      todaySales={sales.filter((x) => x.date === today).map((x) => ({ id: x.id, number: x.number === null ? null : Number(x.number), customer: x.customer.name, total: x.totalFinal, currency: x.currency, mode: x.paymentMode, status: x.status, seller: sellerOf(x), edit: editable.has(x.id) ? { customerId: x.customer.id, currency: x.currency, payment: x.paymentMode, warehouseId: editable.get(x.id)!.warehouse.id, lines: editable.get(x.id)!.lines.map((l) => ({ itemId: l.itemId, unit: l.unit, qty: String(l.qty), mode: l.priceMode, value: l.priceMode === 'PERCENT' ? String(l.percent ?? '') : l.priceMode === 'MANUAL' ? String(l.manualPrice ?? '') : '' })) } : null }))}
       info={{
         todayCount: soldToday.length,
         todayTotals: Object.entries(todayTotals).map(([currency, amount]) => ({ currency, amount })),

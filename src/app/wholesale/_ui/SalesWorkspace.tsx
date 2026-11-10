@@ -1,11 +1,11 @@
 'use client';
 
-import { Banknote, CalendarClock, HandCoins, ChevronDown, Minus, Plus, Printer, Receipt, Search, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, CalendarClock, HandCoins, ChevronDown, Minus, Plus, Printer, Pencil, Receipt, Search, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { collectPayment, postSale } from '@/app/wholesale/_actions/company';
+import { cancelSale, collectPayment, postSale } from '@/app/wholesale/_actions/company';
 import { describeFailure } from '@/studio/errors';
 import { useLocale, useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
@@ -19,7 +19,7 @@ import { Button, cx } from '@/studio/ui';
  */
 
 export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string>; marketPrices: Record<string, string>; stock: Record<string, string>; expiry: { date: string; status: string } | null };
-export type TodaySale = { id: string; number: number | null; customer: string; total: string; currency: string; mode: string; status: string; seller: string };
+export type TodaySale = { id: string; number: number | null; customer: string; total: string; currency: string; mode: string; status: string; seller: string; edit: { customerId: string; currency: string; payment: string; warehouseId: string; lines: { itemId: string; unit: string; qty: string; mode: string; value: string }[] } | null };
 export type SaleCustomer = { id: string; name: string; phone: string | null; type: 'WHOLESALE' | 'MARKET' };
 export type DebtRow = { id: string; name: string; phone: string | null; totals: Record<string, string>; due: string | null; overdue: boolean; invoices: { id: string; number: number | null; date: string; due: string | null; currency: string; amount: string; open: string }[] };
 /** The numbers kept in view on the sell screen. */
@@ -171,6 +171,7 @@ export function SalesWorkspace({
   const [query, setQuery] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState<{ id: string; number: number | null } | null>(null);
   const [lastSale, setLastSale] = useState<{ id: string; held: boolean } | null>(null);
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('IQD');
   const [payment, setPayment] = useState<'CASH' | 'CREDIT'>('CASH');
@@ -259,8 +260,44 @@ export function SalesWorkspace({
   const overPaid = paid > 0 && estimate > 0 && paid >= estimate && currency === 'IQD';
   const valid = !overPaid && Boolean(customer) && lines.length > 0 && lines.every((l) => num(l.qty) > 0 && (l.mode === 'OFFICIAL' || num(l.value) > 0)) && Boolean(warehouseId);
 
+  const startEdit = (x: TodaySale) => {
+    if (!x.edit) return;
+    seq.current += 1000;
+    setCustomer(x.edit.customerId);
+    setChanging(false);
+    setCurrency(x.edit.currency as (typeof CURRENCIES)[number]);
+    setPayment(x.edit.payment === 'CREDIT' ? 'CREDIT' : 'CASH');
+    if (warehouses.some((w) => w.id === x.edit!.warehouseId)) setWarehouseId(x.edit.warehouseId);
+    setLines(x.edit.lines.map((l, i) => ({ key: `e${seq.current + i}`, itemId: l.itemId, unit: l.unit, qty: l.qty, mode: l.mode as Line['mode'], value: l.value })));
+    setReplacing({ id: x.id, number: x.number });
+    setEditing(null);
+    setLastSale(null);
+  };
+  const removeSale = (x: TodaySale) => {
+    if (!window.confirm(t('wh.sw.deleteConfirm'))) return;
+    start(async () => {
+      const done = await settle(() => cancelSale({ saleId: x.id, reason: t('wh.sw.deletedReason') }));
+      if (!done.ok) {
+        toast.error(describeFailure(t, locale, done.error).message);
+        return;
+      }
+      toast.success(t('wh.sw.deleted'));
+      router.refresh();
+    });
+  };
+
   const post = () =>
     start(async () => {
+      let cancelledOld = false;
+      if (replacing) {
+        const gone = await settle(() => cancelSale({ saleId: replacing.id, reason: t('wh.sw.deletedReason') }));
+        if (!gone.ok) {
+          toast.error(describeFailure(t, locale, gone.error).message);
+          return;
+        }
+        cancelledOld = true;
+        setReplacing(null);
+      }
       const result = await settle(() =>
         postSale({
           customerId: customer ?? '',
@@ -273,7 +310,7 @@ export function SalesWorkspace({
         }),
       );
       if (!result.ok) {
-        toast.error(describeFailure(t, locale, result.error).message);
+        toast.error(cancelledOld ? `${t('wh.sw.editPostFail')} ${describeFailure(t, locale, result.error).message}` : describeFailure(t, locale, result.error).message);
         return;
       }
       const held = result.data.status === 'PENDING_APPROVAL';
@@ -493,6 +530,16 @@ export function SalesWorkspace({
                     <span className="shrink-0 text-base font-semibold tabular-nums" dir="ltr">
                       {money(Number(x.total))} {x.currency}
                     </span>
+                    {x.edit && (
+                      <>
+                        <button type="button" onClick={() => startEdit(x)} aria-label={t('wh.sw.edit')} title={t('wh.sw.edit')} className="grid size-9 shrink-0 place-items-center rounded-md border border-line-strong text-wh-blue hover:bg-hover">
+                          <Pencil aria-hidden className="size-4" />
+                        </button>
+                        <button type="button" onClick={() => removeSale(x)} aria-label={t('wh.sw.delete')} title={t('wh.sw.delete')} className="grid size-9 shrink-0 place-items-center rounded-md border border-line-strong text-wh-rose hover:bg-hover">
+                          <Trash2 aria-hidden className="size-4" />
+                        </button>
+                      </>
+                    )}
                     <Link href={`/wholesale/sales/${x.id}/print`} target="_blank" aria-label={t('wh.print.open')} className="grid size-9 shrink-0 place-items-center rounded-md border border-line-strong text-muted hover:bg-hover hover:text-ink">
                       <Printer aria-hidden className="size-4" />
                     </Link>
@@ -509,6 +556,24 @@ export function SalesWorkspace({
             <span>{t('wh.sw.invoice')}</span>
             {lines.length > 0 && <span className="rounded-full bg-white/15 px-2.5 text-base tabular-nums">{lines.length}</span>}
           </h2>
+          {replacing && (
+            <div className="flex items-center gap-2 border-b border-line bg-wh-amber-wash px-3 py-2 text-sm font-semibold text-wh-amber">
+              <Pencil aria-hidden className="size-4 shrink-0" />
+              <span className="min-w-0 flex-1">
+                {t('wh.sw.editing')} #{replacing.number ?? ''} · {t('wh.sw.editNote')}
+              </span>
+              <button
+                type="button"
+                className="shrink-0 underline"
+                onClick={() => {
+                  setReplacing(null);
+                  setLines([]);
+                }}
+              >
+                {t('wh.sw.editStop')}
+              </button>
+            </div>
+          )}
           <div className="min-h-[14rem] flex-1 overflow-y-auto">
             {lines.length === 0 ? (
               <div className="flex flex-col items-center gap-3 px-3 py-10 text-center">
