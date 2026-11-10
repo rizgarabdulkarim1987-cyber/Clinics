@@ -1033,6 +1033,7 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
   // The agency's books (`platform.settings`): the platform's own, naming no restaurant.
   'accounts.book': [c('the books', () => ({}), ONLY_FORBIDDEN)],
   'accounts.invoice': [c('an invoice', () => ({ entryId: 'nope' }), ONLY_FORBIDDEN)],
+  'accounts.clientInvoice': [c('a client invoice', () => ({ clientId: 'nope', period: 'all' }), ONLY_FORBIDDEN)],
   'accounts.attachment': [c('an attachment', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
   'account.client.create': [c('a client', () => ({ name: 'Acme' }), ONLY_FORBIDDEN)],
   'account.client.archive': [c('a client', () => ({ id: 'nope' }), ONLY_FORBIDDEN)],
