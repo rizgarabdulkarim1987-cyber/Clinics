@@ -433,7 +433,7 @@ const wholesale: Messages = {
   'wh.sw.searchCustomer': 'Search customers',
   'wh.sw.noCustomers': 'No customers yet. Add one under Sell.',
   'wh.sw.change': 'Change',
-  'wh.sw.searchItem': 'Search an item or scan a barcode',
+  'wh.sw.searchItem': 'Search an item',
   'wh.sw.noItems': 'No matching items.',
   'wh.sw.invoice': 'Invoice',
   'wh.sw.cartEmpty': 'Tap an item to add it.',

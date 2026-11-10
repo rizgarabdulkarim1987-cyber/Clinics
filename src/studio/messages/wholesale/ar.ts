@@ -433,7 +433,7 @@ const wholesale: Messages = {
   'wh.sw.searchCustomer': 'ابحث عن زبون',
   'wh.sw.noCustomers': 'لا زبائن بعد. أضف زبوناً من صفحة الزبائن.',
   'wh.sw.change': 'تغيير',
-  'wh.sw.searchItem': 'ابحث عن صنف أو امسح الباركود',
+  'wh.sw.searchItem': 'ابحث عن صنف',
   'wh.sw.noItems': 'لا أصناف مطابقة.',
   'wh.sw.invoice': 'الفاتورة',
   'wh.sw.cartEmpty': 'اضغط على صنف لإضافته.',

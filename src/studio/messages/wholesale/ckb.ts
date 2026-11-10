@@ -433,7 +433,7 @@ const wholesale: Messages = {
   'wh.sw.searchCustomer': 'گەڕان بۆ کڕیار',
   'wh.sw.noCustomers': 'هێشتا کڕیار نییە. لە لاپەڕەی کڕیاران زیادی بکە.',
   'wh.sw.change': 'گۆڕین',
-  'wh.sw.searchItem': 'گەڕان بۆ کاڵا یان بارکۆد',
+  'wh.sw.searchItem': 'گەڕان بۆ کاڵا',
   'wh.sw.noItems': 'هیچ کاڵایەک نەدۆزرایەوە.',
   'wh.sw.invoice': 'پسوولە',
   'wh.sw.cartEmpty': 'کلیک لە کاڵایەک بکە بۆ زیادکردن.',
