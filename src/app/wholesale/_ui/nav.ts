@@ -45,7 +45,7 @@ export interface WhGroup {
 }
 
 /** A section's own screen when it has several parts: they sit side by side on it instead of in tabs. */
-const HUBS: Partial<Record<WhGroup['key'], string>> = { sales: '/wholesale/sell', money: '/wholesale/money', stock: '/wholesale/inventory', admin: '/wholesale/admin' };
+const HUBS: Partial<Record<WhGroup['key'], string>> = { money: '/wholesale/money', stock: '/wholesale/inventory', admin: '/wholesale/admin' };
 
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [

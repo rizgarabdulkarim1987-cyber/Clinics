@@ -4,6 +4,7 @@ import { canWh } from '@/server/domain/wholesale/permissions';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery } from '@/server/wholesale/queries/catalog';
+import { sellInfoQuery } from '@/server/wholesale/queries/reports';
 import { customerStatementQuery, pendingSalesQuery, saleQuery, saleWarehousesQuery, salesQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
 import { cx } from '@/studio/ui';
@@ -28,12 +29,16 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const t = getStudioTranslator(actor!.locale);
   const locale = actor!.locale;
   const isRep = actor!.role === 'REP';
-  const [sales, customers, warehouses, items, pending] = await Promise.all([
+  const [sales, customers, warehouses, items, pending, info] = await Promise.all([
     queryWh(salesQuery),
     queryWh(customersQuery),
     queryWh(saleWarehousesQuery),
     queryWh(itemsQuery),
     canWh(actor!.role, 'sale.override') ? queryWh(pendingSalesQuery) : Promise.resolve([]),
+    queryWh(sellInfoQuery).catch((error) => {
+      console.error('wholesale sell info failed', error);
+      return null;
+    }),
   ]);
   const activeCustomers = customers.filter((x) => x.active);
   const customerId = c && activeCustomers.some((x) => x.id === c) ? c : null;
@@ -45,6 +50,9 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
   const owed = statement ? Object.entries(statement.balances).filter(([, v]) => Number(v) !== 0) : [];
   const shownSales = (customerId ? sales.filter((x) => x.customer.id === customerId) : sales).slice(0, 12);
   const usable = items.filter((i) => i.active);
+  const soldToday = sales.filter((x) => x.status === 'POSTED' && x.date === today);
+  const todayTotals: Record<string, number> = {};
+  for (const x of soldToday) todayTotals[x.currency] = (todayTotals[x.currency] ?? 0) + Number(x.totalFinal);
   const itemOptions = usable.map((i) => ({ id: i.id, label: `${nameOf(i.names, locale)}`, units: [...new Set([i.baseUnit, ...i.units.map((u) => u.unit)])] }));
 
   return (
@@ -54,6 +62,14 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       customerId={customerId}
       debt={owed.map(([cur, v]) => `${money(v!)} ${cur}`).join(' · ')}
       attention={pending.length}
+      info={{
+        todayCount: soldToday.length,
+        todayTotals: Object.entries(todayTotals).map(([currency, amount]) => ({ currency, amount })),
+        cash: info?.cash ?? null,
+        expired: info?.expired ?? 0,
+        soon: info?.soon ?? 0,
+        next: info?.next ? { name: nameOf(info.next.names, locale), days: info.next.days } : null,
+      }}
       customers={activeCustomers.map((x) => ({ id: x.id, name: x.name, phone: x.phone }))}
       warehouses={warehouses.map((w) => ({ id: w.id, label: w.kind === 'MAIN' ? t('wh.stock.kind.MAIN') : w.name }))}
       items={usable.map((i) => ({

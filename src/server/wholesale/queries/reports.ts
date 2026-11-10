@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { addDays } from '@/server/domain/wholesale/forecast';
 import { whPlaceInput, whTargetOf } from '@/server/wholesale/actions/catalog';
-import { listPendingHandovers } from '@/server/wholesale/posting/custody';
+import { getCustody, listPendingHandovers } from '@/server/wholesale/posting/custody';
 import { listExpenses } from '@/server/wholesale/posting/expense';
 import { cashPosition, debts, lowStock, partyBalances, profit, salesByDay, stockValue } from '@/server/wholesale/posting/reports';
 import { listPendingSales, receivables } from '@/server/wholesale/posting/sale';
@@ -350,5 +350,47 @@ export const navInfoQuery = defineQuery({
       pending = { sales: ps.length, handovers: ph.length, expenses: pe.length };
     }
     return plain({ items, customers, staff, salesToday: sold[0]?.count ?? 0, expiring, pending });
+  },
+});
+
+/**
+ * The few numbers the sell screen keeps in view: the cash in the till (a partner: the company's cash; a rep: the money he
+ * holds), and what is expired or about to expire (a rep: his own warehouse only). Today's sales come from the sales list.
+ */
+export const sellInfoQuery = defineQuery({
+  name: 'wh.sellInfo',
+  permission: null,
+  wh: 'sale.create',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    const { db, user } = scoped(ctx);
+    const today = baghdadDate();
+    const settings = await getSettings(db);
+    const rep = user.role === 'REP';
+    const [cash, batches] = await Promise.all([
+      rep
+        ? getCustody(db, ctx.wh!.restaurantId, user, user.id).then((rows) => Object.fromEntries(rows.map((r) => [r.currency, r.balance.toFixed()])))
+        : cashPosition(db).then((p) => Object.fromEntries(Object.entries(p.cash).map(([k, v]) => [k, (v as { toFixed(): string }).toFixed()]))),
+      db.whBatch.findMany({
+        where: { qtyBase: { gt: 0 }, expiry: { not: null }, item: { active: true }, ...(rep ? { warehouse: { kind: 'REP' as const, repUserId: user.id } } : {}) },
+        orderBy: { expiry: 'asc' },
+        take: 300,
+        select: { expiry: true, item: { select: { names: true } } },
+      }),
+    ]);
+    let expired = 0;
+    let soon = 0;
+    let next: { names: { ckb: string; ar: string; en: string }; days: number } | null = null;
+    for (const b of batches) {
+      const days = daysUntil(b.expiry!.toISOString().slice(0, 10), today);
+      const status = expiryStatus(days, settings.expiryAlertDays);
+      if (status === 'expired') expired += 1;
+      else if (status === 'soon') {
+        soon += 1;
+        next ??= { names: b.item.names as { ckb: string; ar: string; en: string }, days };
+      }
+    }
+    return plain({ cash, expired, soon, next });
   },
 });

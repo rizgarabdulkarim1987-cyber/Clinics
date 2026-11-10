@@ -1,10 +1,11 @@
 'use client';
 
-import { Minus, Plus, Search, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, CalendarClock, ChevronDown, Minus, Plus, Receipt, Search, UserRound, Wallet, X } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
-import { postSale } from '@/app/wholesale/_actions/company';
+import { collectPayment, postSale } from '@/app/wholesale/_actions/company';
 import { describeFailure } from '@/studio/errors';
 import { useLocale, useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
@@ -19,6 +20,15 @@ import { Button, cx } from '@/studio/ui';
 
 export type SaleItem = { id: string; label: string; code: string; baseUnit: string; units: { unit: string; barcode: string | null }[]; prices: Record<string, string> };
 export type SaleCustomer = { id: string; name: string; phone: string | null };
+/** The numbers kept in view on the sell screen. */
+export type SellInfo = {
+  todayCount: number;
+  todayTotals: { currency: string; amount: number }[];
+  cash: Record<string, string> | null;
+  expired: number;
+  soon: number;
+  next: { name: string; days: number } | null;
+};
 type Line = { key: string; itemId: string; unit: string; qty: string; mode: 'OFFICIAL' | 'PERCENT' | 'MANUAL'; value: string };
 
 const CURRENCIES = ['IQD', 'USD', 'IRT'] as const;
@@ -67,6 +77,57 @@ function Segmented<T extends string>({ value, onChange, options, label, tone = (
   );
 }
 
+function InfoStrip({ info, t }: { info: SellInfo; t: (k: string, p?: Record<string, string | number>) => string }) {
+  const cash = info.cash ? (['IQD', 'USD', 'IRT'] as const).filter((c) => Number(info.cash![c] ?? 0) !== 0) : [];
+  const stat = 'flex min-w-0 items-center gap-2.5 px-3.5 py-2';
+  const icon = 'grid size-8 shrink-0 place-items-center rounded-full';
+  return (
+    <div className="flex shrink-0 flex-wrap divide-x divide-line rounded-lg border border-line bg-raised shadow-[0_1px_2px_rgb(15_42_74/0.06)] rtl:divide-x-reverse xl:flex-nowrap">
+      <div className={stat}>
+        <span className={cx(icon, 'bg-wh-blue-wash text-wh-blue')}>
+          <Receipt aria-hidden className="size-4" />
+        </span>
+        <p className="min-w-0">
+          <span className="block text-xs text-muted">{t('wh.sw.salesToday')}</span>
+          <span className="block whitespace-nowrap text-base font-bold tabular-nums" dir="ltr">
+            {info.todayTotals.length === 0 ? '0' : info.todayTotals.map((x) => `${money(x.amount)} ${x.currency}`).join(' · ')}
+          </span>
+          <span className="block text-xs text-muted">{t('wh.sw.invoicesN', { n: info.todayCount })}</span>
+        </p>
+      </div>
+      {info.cash && (
+        <div className={stat}>
+          <span className={cx(icon, 'bg-wh-green-wash text-wh-green')}>
+            <Banknote aria-hidden className="size-4" />
+          </span>
+          <p className="min-w-0">
+            <span className="block text-xs text-muted">{t('wh.sw.cashTill')}</span>
+            <span className="block whitespace-nowrap text-base font-bold tabular-nums" dir="ltr">
+              {cash.length === 0 ? '0' : cash.map((c) => `${money(Number(info.cash![c]))} ${c}`).join(' · ')}
+            </span>
+          </p>
+        </div>
+      )}
+      <div className={stat}>
+        <span className={cx(icon, info.expired > 0 ? 'bg-wh-rose-wash text-wh-rose' : info.soon > 0 ? 'bg-wh-amber-wash text-wh-amber' : 'bg-wh-teal-wash text-wh-teal')}>
+          <CalendarClock aria-hidden className="size-4" />
+        </span>
+        <p className="min-w-0">
+          <span className="block text-xs text-muted">{t('wh.sw.expiry')}</span>
+          <span className="block whitespace-nowrap text-base font-bold">
+            {info.expired === 0 && info.soon === 0 ? t('wh.sw.expiryNone') : [info.expired > 0 ? t('wh.sw.expiredN', { n: info.expired }) : '', info.soon > 0 ? t('wh.sw.soonN', { n: info.soon }) : ''].filter(Boolean).join(' · ')}
+          </span>
+          {info.next && (
+            <span className="block max-w-56 truncate text-xs text-muted" dir="auto">
+              {t('wh.sw.nextExpiry', { name: info.next.name, d: info.next.days })}
+            </span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function SalesWorkspace({
   customers,
   items,
@@ -76,6 +137,7 @@ export function SalesWorkspace({
   today,
   debt,
   attention,
+  info,
   children,
 }: {
   customers: SaleCustomer[];
@@ -88,6 +150,7 @@ export function SalesWorkspace({
   debt: string;
   /** Sales waiting for approval (a dot on the account button). */
   attention: number;
+  info: SellInfo;
   children: ReactNode;
 }) {
   const t = useT();
@@ -98,6 +161,10 @@ export function SalesWorkspace({
   const [changing, setChanging] = useState(customerId === null);
   const [panel, setPanel] = useState(false);
   const [custQuery, setCustQuery] = useState('');
+  const [listOpen, setListOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const [paidNow, setPaidNow] = useState('');
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
@@ -109,9 +176,19 @@ export function SalesWorkspace({
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const current = customers.find((c) => c.id === customer) ?? null;
 
+  useEffect(() => {
+    if (!listOpen) return;
+    const away = (e: MouseEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setListOpen(false);
+    };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [listOpen]);
+
   const pickCustomer = (id: string) => {
     setCustomer(id);
     setChanging(false);
+    setListOpen(false);
     setCustQuery('');
     router.replace(`?c=${id}`, { scroll: false });
   };
@@ -136,8 +213,23 @@ export function SalesWorkspace({
   const matches = useMemo(() => {
     if (customers.length === 0) return [];
     const c = custQuery.trim().toLowerCase();
-    return customers.filter((x) => !c || x.name.toLowerCase().includes(c) || (x.phone ?? '').includes(c)).slice(0, 8);
+    return customers.filter((x) => !c || x.name.toLowerCase().includes(c) || (x.phone ?? '').includes(c)).slice(0, 50);
   }, [customers, custQuery]);
+
+  const onCustomerKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setListOpen(true);
+      setActive((i) => Math.min(i + 1, matches.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const c = matches[active] ?? matches[0];
+      if (c) pickCustomer(c.id);
+    } else if (e.key === 'Escape') setListOpen(false);
+  };
 
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
@@ -156,7 +248,9 @@ export function SalesWorkspace({
     return num(l.value);
   };
   const estimate = lines.reduce((sum, l) => sum + (priceOf(l) ?? 0) * num(l.qty), 0);
-  const valid = Boolean(customer) && lines.length > 0 && lines.every((l) => num(l.qty) > 0 && (l.mode === 'OFFICIAL' || num(l.value) > 0)) && Boolean(warehouseId);
+  const paid = payment === 'CREDIT' ? num(paidNow) : 0;
+  const overPaid = paid > 0 && estimate > 0 && paid >= estimate && currency === 'IQD';
+  const valid = !overPaid && Boolean(customer) && lines.length > 0 && lines.every((l) => num(l.qty) > 0 && (l.mode === 'OFFICIAL' || num(l.value) > 0)) && Boolean(warehouseId);
 
   const post = () =>
     start(async () => {
@@ -175,7 +269,16 @@ export function SalesWorkspace({
         toast.error(describeFailure(t, locale, result.error).message);
         return;
       }
-      toast.success(result.data.status === 'PENDING_APPROVAL' ? t('wh.sales.held') : t('wh.sales.posted'));
+      const held = result.data.status === 'PENDING_APPROVAL';
+      if (payment === 'CREDIT' && paid > 0) {
+        if (held) toast.message(t('wh.sw.paidAfterApproval'));
+        else {
+          const got = await settle(() => collectPayment({ customerId: customer ?? '', saleId: result.data.saleId, amount: String(paid), currency, ...(isRep ? {} : { date: today }) }));
+          if (!got.ok) toast.error(`${t('wh.sw.paidFailed')} ${describeFailure(t, locale, got.error).message}`);
+        }
+      }
+      toast.success(held ? t('wh.sales.held') : t('wh.sales.posted'));
+      setPaidNow('');
       setLines([]);
       setEditing(null);
       router.refresh();
@@ -186,8 +289,9 @@ export function SalesWorkspace({
 
   return (
     <div className="flex flex-col gap-3 p-3 md:p-4 lg:min-h-0 lg:flex-1">
+      <div className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-stretch">
       {/* customer bar */}
-      <div className={cx(card, 'shrink-0 p-2.5')}>
+      <div className={cx(card, 'p-2.5 xl:flex-1 xl:justify-center')}>
         {current && !changing ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-full bg-wh-blue-wash text-wh-blue">
@@ -218,49 +322,78 @@ export function SalesWorkspace({
             </Button>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <label className="relative block flex-1">
-                <span className="sr-only">{t('wh.sw.searchCustomer')}</span>
-                <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-                <input value={custQuery} onChange={(e) => setCustQuery(e.target.value)} placeholder={t('wh.sw.pickCustomer')} className={cx(field, 'ps-9')} dir="auto" autoFocus={!current} />
-              </label>
-              {current && (
-                <Button type="button" variant="secondary" onClick={() => setChanging(false)}>
-                  {t('wh.sw.close')}
-                </Button>
-              )}
-              {!current && attention > 0 && (
-                <button type="button" onClick={() => setPanel(true)} className="min-h-11 rounded-md bg-wh-rose-wash px-4 text-base font-semibold text-wh-rose">
-                  {attention}
-                </button>
+          <div ref={pickerRef} className="relative flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="sr-only">{t('wh.sw.searchCustomer')}</span>
+              <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+              <input
+                role="combobox"
+                aria-expanded={listOpen}
+                aria-controls="wh-customer-list"
+                aria-autocomplete="list"
+                value={custQuery}
+                onChange={(e) => {
+                  setCustQuery(e.target.value);
+                  setActive(0);
+                  setListOpen(true);
+                }}
+                onFocus={() => setListOpen(true)}
+                onClick={() => setListOpen(true)}
+                onKeyDown={onCustomerKey}
+                placeholder={t('wh.sw.pickCustomer')}
+                className={cx(field, 'ps-9 pe-9')}
+                dir="auto"
+                autoFocus={!current}
+              />
+              <ChevronDown aria-hidden className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+              {listOpen && (
+                <div className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-line-strong bg-raised shadow-dialog">
+                  {customers.length === 0 ? (
+                    <p className="px-3 py-3 text-base text-muted">{t('wh.sw.noCustomers')}</p>
+                  ) : matches.length === 0 ? (
+                    <p className="px-3 py-3 text-base text-muted">{t('wh.sw.noItems')}</p>
+                  ) : (
+                    <ul id="wh-customer-list" role="listbox" className="max-h-64 overflow-y-auto py-1">
+                      {matches.map((c, i) => (
+                        <li key={c.id} role="option" aria-selected={i === active}>
+                          <button type="button" onClick={() => pickCustomer(c.id)} onMouseEnter={() => setActive(i)} className={cx('flex min-h-10 w-full items-center justify-between gap-3 px-3 text-start text-base', i === active ? 'bg-wh-blue-wash' : 'hover:bg-hover')}>
+                            <span className="truncate font-medium" dir="auto">
+                              {c.name}
+                            </span>
+                            {c.phone && (
+                              <span className="shrink-0 text-sm text-muted" dir="ltr">
+                                {c.phone}
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <Link href="/wholesale/customers" className="flex min-h-10 items-center gap-2 border-t border-line bg-wh-blue-wash/40 px-3 text-base font-semibold text-wh-blue hover:bg-wh-blue-wash">
+                    <Plus aria-hidden className="size-4" />
+                    {t('wh.sw.newCustomer')}
+                  </Link>
+                </div>
               )}
             </div>
-            {customers.length === 0 ? (
-              <p className="text-base text-muted">{t('wh.sw.noCustomers')}</p>
-            ) : (
-              <ul className="grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
-                {matches.map((c) => (
-                  <li key={c.id}>
-                    <button type="button" onClick={() => pickCustomer(c.id)} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md bg-wh-blue-wash/50 px-3 text-start text-base hover:bg-wh-blue-wash">
-                      <span className="truncate font-medium" dir="auto">
-                        {c.name}
-                      </span>
-                      {c.phone && (
-                        <span className="shrink-0 text-sm text-muted" dir="ltr">
-                          {c.phone}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            {current && (
+              <Button type="button" variant="secondary" onClick={() => { setChanging(false); setListOpen(false); }}>
+                {t('wh.sw.close')}
+              </Button>
+            )}
+            {!current && attention > 0 && (
+              <button type="button" onClick={() => setPanel(true)} className="min-h-11 rounded-md bg-wh-rose-wash px-4 text-base font-semibold text-wh-rose">
+                {attention}
+              </button>
             )}
           </div>
         )}
       </div>
+      <InfoStrip info={info} t={t} />
+      </div>
 
-      <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_27rem]">
+      <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_30rem]">
         {/* items */}
         <section aria-label={t('wh.sw.searchItem')} className={cx(card, 'max-h-[60vh] p-3 lg:max-h-none')}>
           <label className="relative mb-3 block shrink-0">
@@ -315,7 +448,7 @@ export function SalesWorkspace({
             <span>{t('wh.sw.invoice')}</span>
             {lines.length > 0 && <span className="rounded-full bg-white/15 px-2.5 text-base tabular-nums">{lines.length}</span>}
           </h2>
-          <div className="min-h-[9rem] flex-1 overflow-y-auto">
+          <div className="min-h-[14rem] flex-1 overflow-y-auto">
             {lines.length === 0 ? (
               <p className="px-3 py-10 text-center text-base text-muted">{t('wh.sw.cartEmpty')}</p>
             ) : (
@@ -398,6 +531,12 @@ export function SalesWorkspace({
                 ]}
               />
               {payment === 'CREDIT' && <input type="date" aria-label={t('wh.purchases.dueDate')} value={dueDate} onChange={(e) => setDueDate(e.target.value)} dir="ltr" className="min-h-9 rounded-md border border-line-strong bg-raised px-2 text-base" />}
+              {payment === 'CREDIT' && (
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  {t('wh.sw.paidNow')}
+                  <input value={paidNow} onChange={(e) => setPaidNow(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0" className={cx('min-h-9 w-28 rounded-md border bg-raised px-2 text-base text-text', overPaid ? 'border-wh-rose' : 'border-line-strong')} />
+                </label>
+              )}
               {warehouses.length > 1 && (
                 <select aria-label={t('wh.sales.warehouse')} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="min-h-9 rounded-md border border-line-strong bg-raised px-2 text-base">
                   {warehouses.map((w) => (
@@ -414,6 +553,12 @@ export function SalesWorkspace({
                 <span className="block text-2xl font-bold leading-tight tabular-nums text-wh-rail" dir="ltr">
                   {currency === 'IQD' || estimate === 0 ? money(estimate) : `≈ ${money(estimate)} IQD`}
                 </span>
+                {payment === 'CREDIT' && paid > 0 && !overPaid && estimate > 0 && currency === 'IQD' && (
+                  <span className="block text-sm font-medium text-wh-amber" dir="auto">
+                    {t('wh.sw.rest')}: <span dir="ltr">{money(estimate - paid)}</span>
+                  </span>
+                )}
+                {overPaid && <span className="block text-sm font-medium text-wh-rose">{t('wh.sw.paidTooMuch')}</span>}
                 {currency !== 'IQD' && lines.length > 0 && <span className="block text-xs text-muted">{t('wh.sw.estimateNote')}</span>}
               </p>
               <button
