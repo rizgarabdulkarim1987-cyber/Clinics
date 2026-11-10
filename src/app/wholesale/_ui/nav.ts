@@ -1,7 +1,7 @@
-import { Boxes, Coins, Contact, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Sparkles, Target, Truck, Users, type LucideIcon } from 'lucide-react';
+import { Boxes, Coins, Contact, Handshake, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Sparkles, Target, Truck, Users, type LucideIcon } from 'lucide-react';
 import { canWh, type WhPermission, type WhRole } from '@/server/domain/wholesale/permissions';
 
-export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'targets' | 'settings' | 'reports' | 'assistant' | 'staff' | 'opening';
+export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'targets' | 'settings' | 'reports' | 'assistant' | 'staff' | 'opening' | 'agency';
 
 export interface WhNavItem {
   key: WhNavKey;
@@ -17,6 +17,7 @@ const ALL: WhNavItem[] = [
   { key: 'catalog', href: '/wholesale/catalog', labelKey: 'wh.nav.catalog', icon: PackageSearch, needs: 'catalog.view' },
   { key: 'stock', href: '/wholesale/stock', labelKey: 'wh.nav.stock', icon: Boxes, needs: 'stock.view' },
   { key: 'customers', href: '/wholesale/customers', labelKey: 'wh.nav.customers', icon: Contact, needs: 'catalog.view' },
+  { key: 'agency', href: '/wholesale/agency', labelKey: 'wh.nav.agency', icon: Handshake, needs: 'catalog.manage' },
   { key: 'suppliers', href: '/wholesale/suppliers', labelKey: 'wh.nav.suppliers', icon: Truck, needs: 'catalog.manage' },
   { key: 'purchases', href: '/wholesale/purchases', labelKey: 'wh.nav.purchases', icon: ShoppingCart, needs: 'purchase.manage' },
   { key: 'sales', href: '/wholesale/sales', labelKey: 'wh.nav.sales', icon: Receipt, needs: 'sale.create' },
@@ -51,7 +52,7 @@ const HUBS: Partial<Record<WhGroup['key'], string>> = { money: '/wholesale/money
 
 const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
-  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers', 'targets'] },
+  { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers', 'agency', 'targets'] },
   { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
   { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
   { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },

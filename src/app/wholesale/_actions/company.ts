@@ -1,5 +1,6 @@
 'use server';
 
+import * as agency from '@/server/wholesale/actions/agency';
 import * as assistant from '@/server/wholesale/actions/assistant';
 import * as books from '@/server/wholesale/actions/books';
 import * as catalog from '@/server/wholesale/actions/catalog';
@@ -165,4 +166,28 @@ export async function removeDemo(input: unknown) {
 
 export async function setRepTarget(input: unknown) {
   return invokeWh(targets.setRepTargetAction, input);
+}
+
+export async function createAgencyOrder(input: unknown) {
+  return invokeWh(agency.createAgencyOrderAction, input);
+}
+
+export async function receiveAgencyAdvance(input: unknown) {
+  return invokeWh(agency.receiveAdvanceAction, input);
+}
+
+export async function payAgencyCost(input: unknown) {
+  return invokeWh(agency.payAgencyCostAction, input);
+}
+
+export async function settleAgencyOrder(input: unknown) {
+  return invokeWh(agency.settleAgencyAction, input);
+}
+
+export async function collectAgencyOrder(input: unknown) {
+  return invokeWh(agency.collectAgencyAction, input);
+}
+
+export async function cancelAgencyOrder(input: unknown) {
+  return invokeWh(agency.cancelAgencyAction, input);
 }

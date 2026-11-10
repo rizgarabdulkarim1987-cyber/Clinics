@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
+import { agencyExportQuery } from '@/server/wholesale/queries/agency';
 import { debtorsReportQuery, expensesReportQuery, movementsExportQuery, salesBreakdownQuery, stockReportQuery } from '@/server/wholesale/queries/reports';
 
 /**
@@ -10,7 +11,7 @@ import { debtorsReportQuery, expensesReportQuery, movementsExportQuery, salesBre
  * sheet per table; `format=csv` is the same table as text (a BOM first, so Excel reads Arabic and Kurdish right). Partners only.
  */
 
-const KINDS = ['all', 'sales-all', 'purchases-all', 'sales-customers', 'sales-items', 'expenses', 'stock', 'debts'] as const;
+const KINDS = ['all', 'sales-all', 'purchases-all', 'sales-customers', 'sales-items', 'expenses', 'stock', 'debts', 'agency'] as const;
 type Kind = (typeof KINDS)[number];
 type Table = { name: string; head: string[]; rows: unknown[][] };
 
@@ -64,6 +65,21 @@ async function build(kind: Exclude<Kind, 'all'>, from: string, to: string): Prom
     const r = await queryWh(stockReportQuery);
     return [{ name: 'Stock', head: ['Code', 'Item', 'Warehouse', 'Quantity (base unit)', 'Value IQD'], rows: r.rows.map((x) => [x.code, names(x.names), x.warehouse, num(x.qtyBase), Math.round(Number(x.valueIqd) * 10000) / 10000]) }];
   }
+  if (kind === 'agency') {
+    const orders = await queryWh(agencyExportQuery, { from, to });
+    return [
+      {
+        name: 'Agency orders',
+        head: ['Order', 'Date', 'Company', 'Title', 'Status', 'Currency', 'Agreed total', 'Advances received', 'Paid for them', 'Commission', 'Advances held', 'Owed by them'],
+        rows: orders.map((o) => [Number(o.number), String(o.date).slice(0, 10), o.principal.name, o.title, o.status, o.currency, num(o.agreedTotal), num(o.balance.advanceReceived), num(o.balance.costs), num(o.balance.commission), num(o.balance.advanceHeld), num(o.balance.receivable)]),
+      },
+      {
+        name: 'Agency advances',
+        head: ['Order', 'Date', 'Company', 'Step', 'Currency', 'Amount', 'Note'],
+        rows: orders.flatMap((o) => o.movements.map((m) => [Number(o.number), String(m.date).slice(0, 10), o.principal.name, m.kind, o.currency, num(m.amount), m.note ?? ''])),
+      },
+    ];
+  }
   const r = await queryWh(debtorsReportQuery);
   return [
     {
@@ -89,7 +105,7 @@ export async function GET(request: Request) {
   const csv = sp.get('format') === 'csv';
   const tables =
     kind === 'all'
-      ? (await Promise.all((['sales-all', 'purchases-all', 'sales-customers', 'sales-items', 'expenses', 'stock', 'debts'] as const).map((k) => build(k, from, to)))).flat()
+      ? (await Promise.all((['sales-all', 'purchases-all', 'sales-customers', 'sales-items', 'expenses', 'stock', 'debts', 'agency'] as const).map((k) => build(k, from, to)))).flat()
       : await build(kind, from, to);
   const file = `wholesale-${kind}-${from}_${to}`;
   if (csv) {
