@@ -528,10 +528,14 @@ const wholesale: Messages = {
   'wh.photo.degraded.PROVIDER_ERROR': "The assistant could not read it now. Try again in a minute.",
   'wh.photo.degraded.UNREADABLE': "No invoice lines could be read from this photo. Try a clearer, closer photo.",
   'wh.demo.title': "Try it with sample data",
-  'wh.demo.hint': "Adds 20 sample suppliers and 10 grocery items with prices and stock, so you can try every screen. It only adds what is missing and never touches what you already have. These are not real: do not use this for the real business.",
+  'wh.demo.hint': "Adds 20 sample suppliers, 20 customers and 10 grocery items with prices and stock, so you can try every screen. It only adds what is missing and never touches what you already have. These are not real: do not use this for the real business.",
   'wh.demo.button': "Add sample data",
-  'wh.demo.confirm': "Add 20 sample suppliers and 10 sample items with stock to this company?",
+  'wh.demo.confirm': "Add 20 sample suppliers, 20 customers and 10 items with stock to this company?",
   'wh.demo.done': "Sample data added.",
+  'wh.demo.remove': "Remove sample data",
+  'wh.demo.confirmRemove': "Remove the sample suppliers, customers and items? Anything with real invoices or payments on it is kept.",
+  'wh.demo.removed': "Sample data removed.",
+  'wh.demo.removedKept': "Sample data removed. {n} were kept because they have real documents.",
 };
 
 export default wholesale;

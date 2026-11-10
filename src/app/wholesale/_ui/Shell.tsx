@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { Translate } from '@/lib/i18n';
 import type { WhActor } from '@/server/wholesale/actor';
 import { SignOutButton } from '@/app/pos/_ui/SignOutButton';
+import { ContentFrame } from './ContentFrame';
 import { NavLinks, SectionLinks } from './NavLinks';
 import { whGroups } from './nav';
 
@@ -43,8 +44,10 @@ export function Shell({ actor, notice, t, children }: { actor: WhActor; notice?:
       </header>
       <main id="main" className="flex min-w-0 flex-1 flex-col md:overflow-y-auto">
         {notice}
-        <div className="print:hidden"><SectionLinks groups={groups} /></div>
-        {children}
+        <ContentFrame>
+          <div className="print:hidden"><SectionLinks groups={groups} /></div>
+          {children}
+        </ContentFrame>
       </main>
     </div>
   );

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { CREDIT_LIMIT_MODES, InvalidSettingError, SETTING_CURRENCIES } from '@/server/domain/wholesale/settings';
 import { refusingBooks } from '@/server/wholesale/actions/purchase';
 import { whPlaceInput, whTargetOf } from '@/server/wholesale/actions/catalog';
-import { DemoNotEmptyError, fillDemoData } from '@/server/wholesale/demoFill';
+import { DemoNotEmptyError, fillDemoData, removeDemoData } from '@/server/wholesale/demoFill';
 import { closePeriod, reopenPeriod } from '@/server/wholesale/period';
 import { importOpeningTx, OpeningImportError, OPENING_KINDS } from '@/server/wholesale/import/opening';
 import { setSettingTx } from '@/server/wholesale/settings';
@@ -151,11 +151,26 @@ export const fillDemoAction = defineAction({
     ctx.transaction(async (tx) => {
       try {
         const r = await fillDemoData(tx, restaurantId, { id: ctx.wh!.userId });
-        ctx.audit({ action: 'wh.demo.fill', entityType: 'Restaurant', entityId: restaurantId, changes: { suppliers: { before: 0, after: r.suppliers }, items: { before: 0, after: r.items } } });
+        ctx.audit({ action: 'wh.demo.fill', entityType: 'Restaurant', entityId: restaurantId, changes: { suppliers: { before: 0, after: r.suppliers }, items: { before: 0, after: r.items }, customers: { before: 0, after: r.customers } } });
         return r;
       } catch (error) {
         if (error instanceof DemoNotEmptyError) throw new StudioError('CONFLICT', error.message);
         throw error;
       }
+    }),
+});
+
+/** Removes the sample data again. Whatever has real documents on it is kept. */
+export const removeDemoAction = defineAction({
+  name: 'wh.demo.remove',
+  permission: null,
+  wh: 'import.apply',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: (ctx, { restaurantId }) =>
+    ctx.transaction(async (tx) => {
+      const r = await removeDemoData(tx, restaurantId, { id: ctx.wh!.userId });
+      ctx.audit({ action: 'wh.demo.remove', entityType: 'Restaurant', entityId: restaurantId, changes: { items: { before: null, after: r.items }, customers: { before: null, after: r.customers }, suppliers: { before: null, after: r.suppliers } } });
+      return r;
     }),
 });

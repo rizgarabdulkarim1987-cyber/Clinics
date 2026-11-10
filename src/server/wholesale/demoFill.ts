@@ -1,14 +1,16 @@
 import type { ScopedTx } from '@/server/data/tenant-db';
 import { D } from '@/server/domain/wholesale/money';
-import { createItem, createSupplier, setItemPrices } from '@/server/wholesale/catalog';
-import { receiveStock } from '@/server/wholesale/stock';
+import { createCustomer, createItem, createSupplier, seedCities, setItemPrices } from '@/server/wholesale/catalog';
+import { issueStock, receiveStock } from '@/server/wholesale/stock';
 import { warehouseOfKind } from '@/server/wholesale/warehouses';
 
 /**
- * Sample data for trying the program out: 20 made-up suppliers and 10 grocery items with prices and stock in the main
+ * Sample data for trying the program out: 20 made-up suppliers, 20 customers and 10 grocery items with prices and stock in the main
  * warehouse. It only adds what is missing (matched by supplier name and item code), never changes or stocks anything that
  * exists, and refuses when there is nothing left to add.
  */
+
+export const DEMO_ITEM_CODES = ['SUGAR-1', 'FLOUR-5', 'TOMATO-400', 'PASTA-500', 'LENTIL-1', 'CHICKPEA-1', 'SALT-750', 'MILK-400', 'TUNA-160', 'DATES-1'];
 
 export class DemoNotEmptyError extends Error {
   constructor() {
@@ -41,6 +43,29 @@ export const SUPPLIERS: { name: string; country: string; foreign: boolean; phone
 ];
 
 // cost and price are IQD per piece; carton = pieces per carton; stock = cartons to receive.
+export const CUSTOMERS: { name: string; city: string; phone: string }[] = [
+  { name: 'Al-Amin Supermarket', city: 'baghdad', phone: '07701230001' },
+  { name: 'Al-Noor Grocery', city: 'baghdad', phone: '07701230002' },
+  { name: 'Dijla Mini Market', city: 'baghdad', phone: '07801230003' },
+  { name: 'Hawre Food Center', city: 'erbil', phone: '07501230004' },
+  { name: 'Shanidar Market', city: 'erbil', phone: '07501230005' },
+  { name: 'Ankawa Fresh Store', city: 'erbil', phone: '07501230006' },
+  { name: 'Salim Wholesale Shop', city: 'sulaymaniyah', phone: '07701230007' },
+  { name: 'Slemani Family Market', city: 'sulaymaniyah', phone: '07701230008' },
+  { name: 'Bazyan Grocery', city: 'sulaymaniyah', phone: '07701230009' },
+  { name: 'Zakho Border Market', city: 'dihok', phone: '07501230010' },
+  { name: 'Duhok Central Store', city: 'dihok', phone: '07501230011' },
+  { name: 'Kirkuk Citadel Market', city: 'kirkuk', phone: '07701230012' },
+  { name: 'Azadi Supermarket', city: 'kirkuk', phone: '07701230013' },
+  { name: 'Nineveh Food House', city: 'mosul', phone: '07701230014' },
+  { name: 'Old City Grocers', city: 'mosul', phone: '07701230015' },
+  { name: 'Al-Sabah Mini Market', city: 'baghdad', phone: '07801230016' },
+  { name: 'Karada Provisions', city: 'baghdad', phone: '07801230017' },
+  { name: 'Mansour Family Store', city: 'baghdad', phone: '07801230018' },
+  { name: 'Bakhtiari Market', city: 'sulaymaniyah', phone: '07701230019' },
+  { name: 'Rawanduz Grocery', city: 'erbil', phone: '07501230020' },
+];
+
 export const ITEMS: { code: string; ar: string; ckb: string; en: string; category: string; cost: number; price: number; carton: number; stock: number; kg?: true }[] = [
   { code: 'SUGAR-1', ar: 'سكر', ckb: 'شەکر', en: 'Sugar', category: 'Weight goods', cost: 900, price: 1250, carton: 1000, stock: 20, kg: true },
   { code: 'FLOUR-5', ar: 'طحين', ckb: 'ئارد', en: 'Flour', category: 'Weight goods', cost: 860, price: 1120, carton: 1000, stock: 30, kg: true },
@@ -54,13 +79,18 @@ export const ITEMS: { code: string; ar: string; ckb: string; en: string; categor
   { code: 'DATES-1', ar: 'تمر', ckb: 'خورما', en: 'Dates', category: 'Weight goods', cost: 3300, price: 4500, carton: 1000, stock: 6, kg: true },
 ];
 
-export async function fillDemoData(tx: ScopedTx, rid: string, user: { id: string }): Promise<{ suppliers: number; items: number }> {
+export async function fillDemoData(tx: ScopedTx, rid: string, user: { id: string }): Promise<{ suppliers: number; items: number; customers: number }> {
   const haveSuppliers = new Set((await tx.whSupplier.findMany({ select: { name: true } })).map((s) => s.name));
   const haveCodes = new Set((await tx.whItem.findMany({ select: { code: true } })).map((i) => i.code));
+  await seedCities(tx, rid);
+  const haveCustomers = new Set((await tx.whCustomer.findMany({ select: { name: true } })).map((c) => c.name));
+  const newCustomers = CUSTOMERS.filter((c) => !haveCustomers.has(c.name));
   const newSuppliers = SUPPLIERS.filter((s) => !haveSuppliers.has(s.name));
   const newItems = ITEMS.filter((i) => !haveCodes.has(i.code));
-  if (newSuppliers.length === 0 && newItems.length === 0) throw new DemoNotEmptyError();
+  if (newSuppliers.length === 0 && newItems.length === 0 && newCustomers.length === 0) throw new DemoNotEmptyError();
   for (const s of newSuppliers) await createSupplier(tx, rid, { name: s.name, country: s.country, isForeign: s.foreign, phone: s.phone });
+  const cities = new Map((await tx.whCity.findMany({ select: { id: true, code: true } })).map((c) => [c.code, c.id]));
+  for (const c of newCustomers) await createCustomer(tx, rid, { name: c.name, phone: c.phone, cityId: cities.get(c.city) ?? [...cities.values()][0]! });
   const main = await warehouseOfKind(tx, rid, 'MAIN');
   for (const it of newItems) {
     const made = await createItem(tx, rid, {
@@ -81,5 +111,55 @@ export async function fillDemoData(tx: ScopedTx, rid: string, user: { id: string
     await setItemPrices(tx, rid, made.id, it.kg ? [{ unit: 'KG', priceIqd: String(it.price) }, { unit: 'TON', priceIqd: String(it.price * 1000) }] : [{ unit: 'PIECE', priceIqd: String(it.price) }, { unit: 'CARTON', priceIqd: String(it.price * it.carton) }]);
     await receiveStock(tx, { restaurantId: rid, itemId: made.id, warehouseId: main.id, qtyBase: new D(it.carton * it.stock), unitCostIqd: new D(it.cost), ref: { type: 'DEMO', id: it.code }, user });
   }
-  return { suppliers: newSuppliers.length, items: newItems.length };
+  return { suppliers: newSuppliers.length, items: newItems.length, customers: newCustomers.length };
 }
+
+/**
+ * Takes the sample data out again. Stock movements are append-only, so an item that received sample stock cannot be erased:
+ * its stock is written off (a DEMO_CLEAR movement) and the item is archived, which leaves nothing in the stock value or on
+ * any list. A sample customer or supplier with no documents is deleted. Anything that has real documents on it (a sale, a
+ * purchase, a payment, a count) is kept, and counted, so real books are never touched.
+ */
+export async function removeDemoData(tx: ScopedTx, rid: string, user: { id: string }): Promise<{ items: number; customers: number; suppliers: number; kept: number }> {
+  let kept = 0;
+  const codes = DEMO_ITEM_CODES;
+  let items = 0;
+  for (const item of await tx.whItem.findMany({ where: { code: { in: codes } }, select: { id: true, active: true } })) {
+    const real = (await tx.whStockMovement.count({ where: { itemId: item.id, NOT: { refType: { in: ['DEMO', 'DEMO_CLEAR'] } } } })) + (await tx.whSaleLine.count({ where: { itemId: item.id } })) + (await tx.whPurchaseLine.count({ where: { itemId: item.id } })) + (await tx.whStockCountLine.count({ where: { itemId: item.id } }));
+    if (real > 0) {
+      kept += 1;
+      continue;
+    }
+    for (const b of await tx.whStockBalance.findMany({ where: { itemId: item.id, qtyBase: { gt: 0 } }, select: { warehouseId: true, qtyBase: true } })) {
+      await issueStock(tx, { restaurantId: rid, itemId: item.id, warehouseId: b.warehouseId, qtyBase: new D(b.qtyBase.toString()), ref: { type: 'DEMO_CLEAR', id: item.id }, user });
+    }
+    if (item.active) {
+      await tx.whItem.update({ where: { id: item.id }, data: { active: false } });
+      items += 1;
+    }
+  }
+  let customers = 0;
+  for (const c of await tx.whCustomer.findMany({ where: { name: { in: CUSTOMERS.map((x) => x.name) } }, select: { id: true } })) {
+    const used = (await tx.whSale.count({ where: { customerId: c.id } })) + (await tx.whCustomerPayment.count({ where: { customerId: c.id } })) + (await tx.whOpeningDebt.count({ where: { customerId: c.id } }));
+    if (used > 0) {
+      kept += 1;
+      continue;
+    }
+    await tx.whCustomer.delete({ where: { id: c.id } });
+    customers += 1;
+  }
+  let suppliers = 0;
+  for (const s of await tx.whSupplier.findMany({ where: { name: { in: SUPPLIERS.map((x) => x.name) } }, select: { id: true } })) {
+    const used = (await tx.whPurchase.count({ where: { supplierId: s.id } })) + (await tx.whSupplierPayment.count({ where: { supplierId: s.id } })) + (await tx.whOpeningDebt.count({ where: { supplierId: s.id } }));
+    if (used > 0) {
+      kept += 1;
+      continue;
+    }
+    await tx.whSupplier.delete({ where: { id: s.id } });
+    suppliers += 1;
+  }
+  return { items, customers, suppliers, kept };
+}
+
+export const DEMO_SUPPLIER_NAMES = SUPPLIERS.map((s) => s.name);
+export const DEMO_CUSTOMER_NAMES = CUSTOMERS.map((c) => c.name);

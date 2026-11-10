@@ -157,3 +157,7 @@ export async function readInvoicePhoto(input: unknown) {
 export async function fillDemo(input: unknown) {
   return invokeWh(books.fillDemoAction, input);
 }
+
+export async function removeDemo(input: unknown) {
+  return invokeWh(books.removeDemoAction, input);
+}
