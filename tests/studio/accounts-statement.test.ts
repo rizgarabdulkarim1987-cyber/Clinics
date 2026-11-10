@@ -9,7 +9,7 @@ const move = (over: Partial<BookMovement>): BookMovement => ({
   occurredOn: '2026-11-05', recordedAt: '2026-11-05T09:30:00.000Z', rate: null, owed: false, paidMinor: 0, payments: [], attachments: [], ...over,
 });
 
-const book: AccountsBook = {
+const book: AccountsBook = { quotes: [], recurring: [], budgets: [],
   rate: null,
   clients: [{ id: 'a', name: 'Al Nour', slug: 'al-nour', phone: '' }],
   movements: [

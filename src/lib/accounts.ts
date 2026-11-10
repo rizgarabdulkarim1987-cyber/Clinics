@@ -269,3 +269,31 @@ export function hasInvoiceActivity(movements: readonly InvoiceSource[], clientId
     return row.owed && inPeriod(row.payments.map((payment) => ({ occurredOn: payment.paidOn })), period).length > 0;
   });
 }
+
+/** The period just before this one (last month, last year), or null for "all", which has nothing before it. */
+export function previousPeriod(period: Period): Period | null {
+  if (period.kind === 'all') return null;
+  if (period.kind === 'year') return { kind: 'year', year: period.year - 1 };
+  return period.month === 1 ? { kind: 'month', year: period.year - 1, month: 12 } : { kind: 'month', year: period.year, month: period.month - 1 };
+}
+
+/** How much `now` differs from `before`, in whole percent (up is positive); null when `before` is zero, so there is nothing to compare with. */
+export function percentChange(now: number, before: number): number | null {
+  if (before === 0) return null;
+  return Math.round(((now - before) / Math.abs(before)) * 100);
+}
+
+/**
+ * What the recurring items bring in and cost in a normal month, per currency: contracts (income) against recurring
+ * expenses, so the net is what is expected to be left before anything else happens.
+ */
+export function monthlyCommitments(items: readonly { kind: AccountKind; amountMinor: number; currency: AccountCurrency }[]): CurrencyTotals {
+  const totals = emptyCurrencyTotals();
+  for (const item of items) {
+    const row = totals[item.currency];
+    if (item.kind === 'INCOME') row.income += item.amountMinor;
+    else row.expense += item.amountMinor;
+    row.net = row.income - row.expense;
+  }
+  return totals;
+}
