@@ -8,38 +8,9 @@ import type { InvoiceData } from '@/server/studio/queries/accounts';
  * numbers use Latin digits in every language so an amount reads the same on the page and in the books.
  */
 
-const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+export const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-export function formatInvoiceMoney(minor: number, currency: AccountCurrency): string {
-  if (currency === 'IQD') return `${new Intl.NumberFormat('en-US').format(minor)} IQD`;
-  return `$${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100)}`;
-}
-
-export const invoiceNumber = (n: number) => `INV-${String(n).padStart(4, '0')}`;
-
-export function renderInvoicePage(data: InvoiceData, t: Translate, locale: Locale, links: { entryId: string }): string {
-  const dir = locale === 'en' ? 'ltr' : 'rtl';
-  const left = data.amountMinor - data.paidMinor;
-  const status = left <= 0 ? 'paid' : data.paidMinor > 0 ? 'part' : 'unpaid';
-  const money = (minor: number) => formatInvoiceMoney(minor, data.currency);
-  const row = (label: string, value: string, strong = false) => `<tr${strong ? ' class="strong"' : ''}><th scope="row">${escape(label)}</th><td dir="ltr">${escape(value)}</td></tr>`;
-  const switcher = (['ar', 'ckb', 'en'] as const)
-    .map((code) => `<a href="/agency/invoice?entry=${encodeURIComponent(links.entryId)}&amp;lang=${code}"${code === locale ? ' aria-current="true"' : ''}>${code === 'en' ? 'English' : code === 'ar' ? 'العربية' : 'کوردی'}</a>`)
-    .join('');
-  const payments = data.payments.length
-    ? `<h2>${escape(t('accounts.invoice.payments'))}</h2><table class="lines">${data.payments
-        .map((payment) => `<tr><td>${escape(payment.paidOn)}${payment.note ? ` · ${escape(payment.note)}` : ''}</td><td dir="ltr" class="num">${escape(money(payment.amountMinor))}</td></tr>`)
-        .join('')}</table>`
-    : '';
-
-  return `<!doctype html>
-<html lang="${locale}" dir="${dir}">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>${escape(invoiceNumber(data.number))}</title>
-<style>
+export const INVOICE_STYLE = `
   @page { size: A4; margin: 16mm; }
   * { box-sizing: border-box; }
   body { margin: 0; background: #f2f2f0; color: #111; font: 15px/1.55 system-ui, 'Segoe UI', Tahoma, sans-serif; }
@@ -69,26 +40,57 @@ export function renderInvoicePage(data: InvoiceData, t: Translate, locale: Local
   footer { margin-top: 48px; text-align: center; color: #666; font-size: 13px; }
   @media print { body { background: #fff; } .bar { display: none; } .sheet { margin: 0; border: 0; padding: 0; max-width: none; } }
   @media (max-width: 600px) { .sheet { padding: 24px 18px 32px; } .grid { grid-template-columns: 1fr; } }
-</style>
+`;
+
+export function formatInvoiceMoney(minor: number, currency: AccountCurrency): string {
+  if (currency === 'IQD') return `${new Intl.NumberFormat('en-US').format(minor)} IQD`;
+  return `$${new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(minor / 100)}`;
+}
+
+export const invoiceNumber = (n: number) => `INV-${String(n).padStart(4, '0')}`;
+
+export function renderInvoicePage(data: InvoiceData, t: Translate, locale: Locale, links: { entryId: string }): string {
+  const dir = locale === 'en' ? 'ltr' : 'rtl';
+  const left = data.amountMinor - data.paidMinor;
+  const status = left <= 0 ? 'paid' : data.paidMinor > 0 ? 'part' : 'unpaid';
+  const money = (minor: number) => formatInvoiceMoney(minor, data.currency);
+  const row = (label: string, value: string, strong = false) => `<tr${strong ? ' class="strong"' : ''}><th scope="row">${escapeHtml(label)}</th><td dir="ltr">${escapeHtml(value)}</td></tr>`;
+  const switcher = (['ar', 'ckb', 'en'] as const)
+    .map((code) => `<a href="/agency/invoice?entry=${encodeURIComponent(links.entryId)}&amp;lang=${code}"${code === locale ? ' aria-current="true"' : ''}>${code === 'en' ? 'English' : code === 'ar' ? 'العربية' : 'کوردی'}</a>`)
+    .join('');
+  const payments = data.payments.length
+    ? `<h2>${escapeHtml(t('accounts.invoice.payments'))}</h2><table class="lines">${data.payments
+        .map((payment) => `<tr><td>${escapeHtml(payment.paidOn)}${payment.note ? ` · ${escapeHtml(payment.note)}` : ''}</td><td dir="ltr" class="num">${escapeHtml(money(payment.amountMinor))}</td></tr>`)
+        .join('')}</table>`
+    : '';
+
+  return `<!doctype html>
+<html lang="${locale}" dir="${dir}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>${escapeHtml(invoiceNumber(data.number))}</title>
+<style>${INVOICE_STYLE}</style>
 </head>
 <body>
-<div class="bar"><nav aria-label="Language">${switcher}</nav><button type="button" onclick="window.print()">${escape(t('accounts.invoice.print'))}</button></div>
+<div class="bar"><nav aria-label="Language">${switcher}</nav><button type="button" onclick="window.print()">${escapeHtml(t('accounts.invoice.print'))}</button></div>
 <main class="sheet">
   <header>
     <img src="/agency/logo.webp" alt="Buzzify" width="96" height="96">
     <div class="meta">
-      <h1>${escape(t('accounts.invoice.title'))}</h1>
-      <div class="no" dir="ltr">${escape(invoiceNumber(data.number))}</div>
-      <span class="status">${escape(t(`accounts.invoice.status.${status}`))}</span>
+      <h1>${escapeHtml(t('accounts.invoice.title'))}</h1>
+      <div class="no" dir="ltr">${escapeHtml(invoiceNumber(data.number))}</div>
+      <span class="status">${escapeHtml(t(`accounts.invoice.status.${status}`))}</span>
     </div>
   </header>
   <section class="grid">
-    <div><div class="label">${escape(t('accounts.invoice.billedTo'))}</div><p>${escape(data.clientName ?? t('accounts.noClient'))}</p>${data.clientPhone ? `<div dir="ltr" style="text-align:start">${escape(data.clientPhone)}</div>` : ''}</div>
-    <div><div class="label">${escape(t('accounts.invoice.date'))}</div><p dir="ltr" style="text-align:start">${escape(data.issuedOn)}</p></div>
+    <div><div class="label">${escapeHtml(t('accounts.invoice.billedTo'))}</div><p>${escapeHtml(data.clientName ?? t('accounts.noClient'))}</p>${data.clientPhone ? `<div dir="ltr" style="text-align:start">${escapeHtml(data.clientPhone)}</div>` : ''}</div>
+    <div><div class="label">${escapeHtml(t('accounts.invoice.date'))}</div><p dir="ltr" style="text-align:start">${escapeHtml(data.issuedOn)}</p></div>
   </section>
   <table class="lines">
-    <thead><tr><th class="label">${escape(t('accounts.invoice.description'))}</th><th class="label num" style="text-align:end">${escape(t('accounts.col.amount'))}</th></tr></thead>
-    <tbody><tr><td>${escape(data.service || t('accounts.kind.income'))}${data.note ? `<div style="color:#666;font-size:13px">${escape(data.note)}</div>` : ''}<div dir="ltr" style="color:#666;font-size:13px;text-align:start">${escape(data.occurredOn)}</div></td><td dir="ltr" class="num">${escape(money(data.amountMinor))}</td></tr></tbody>
+    <thead><tr><th class="label">${escapeHtml(t('accounts.invoice.description'))}</th><th class="label num" style="text-align:end">${escapeHtml(t('accounts.col.amount'))}</th></tr></thead>
+    <tbody><tr><td>${escapeHtml(data.service || t('accounts.kind.income'))}${data.note ? `<div style="color:#666;font-size:13px">${escapeHtml(data.note)}</div>` : ''}<div dir="ltr" style="color:#666;font-size:13px;text-align:start">${escapeHtml(data.occurredOn)}</div></td><td dir="ltr" class="num">${escapeHtml(money(data.amountMinor))}</td></tr></tbody>
   </table>
   <table class="totals">
     ${row(t('accounts.invoice.total'), money(data.amountMinor))}
@@ -96,7 +98,7 @@ export function renderInvoicePage(data: InvoiceData, t: Translate, locale: Local
     ${row(t('accounts.invoice.balance'), money(Math.max(0, left)), true)}
   </table>
   ${payments}
-  <footer>${escape(t('accounts.invoice.thanks'))}</footer>
+  <footer>${escapeHtml(t('accounts.invoice.thanks'))}</footer>
 </main>
 </body>
 </html>

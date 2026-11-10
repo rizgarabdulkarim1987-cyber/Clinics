@@ -169,6 +169,11 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                           {t('accounts.statement')}
                         </a>
                       )}
+                      {row.clientId && (
+                        <a href={`/agency/invoice?client=${row.clientId}&period=${encodeURIComponent(periodKey(period))}`} target="_blank" rel="noreferrer" className="ms-3 text-sm font-normal text-muted underline-offset-2 hover:text-text hover:underline">
+                          {t('accounts.invoice')}
+                        </a>
+                      )}
                     </th>
                     <td className="px-3 py-3 text-end">
                       <MoneyStack totals={row.totals} pick="income" locale={locale} />

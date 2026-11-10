@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderInvoicePage, formatInvoiceMoney } from '@/server/accounts/invoice';
 import { addAccountEntry, addAccountPayment, createAccountClient, issueAccountInvoice } from '@/server/studio/actions/accounts';
-import { accountInvoice } from '@/server/studio/queries/accounts';
+import { renderClientInvoicePage } from '@/server/accounts/client-invoice';
+import { accountClientInvoice, accountInvoice } from '@/server/studio/queries/accounts';
 import { getStudioTranslator } from '@/studio/messages';
 import { ask, codeOf, dataOf, person, prisma, resetWorld, restaurant, run, useTestDatabase, type Person } from '../pos/fixture';
 
@@ -94,5 +95,54 @@ describe('the invoice page', () => {
   it('reads right to left in Arabic and Sorani', () => {
     expect(renderInvoicePage(data, getStudioTranslator('ar'), 'ar', { entryId: 'e1' })).toContain('dir="rtl"');
     expect(renderInvoicePage(data, getStudioTranslator('en'), 'en', { entryId: 'e1' })).toContain('dir="ltr"');
+  });
+});
+
+describe('one invoice for a whole client', () => {
+  const setup = async () => {
+    const client = dataOf(await run(admin, createAccountClient, { name: 'Al Nour', phone: '0770' }));
+    const entry = async (over: Record<string, unknown>) => dataOf(await run(admin, addAccountEntry, { kind: 'INCOME', currency: 'USD', clientId: client.id, ...over })).id as string;
+    const website = await entry({ amount: '1,000', service: 'Website', occurredOn: '2026-10-20', owed: true });
+    for (const [amount, paidOn] of [['100', '2026-11-03'], ['150', '2026-11-10'], ['200', '2026-11-20'], ['50', '2026-12-02']]) {
+      dataOf(await run(admin, addAccountPayment, { entryId: website, amount, paidOn, note: 'cash ' + paidOn }));
+    }
+    await entry({ amount: '500,000', currency: 'IQD', service: 'Social media', occurredOn: '2026-10-15' });
+    await entry({ amount: '80', service: 'Other', occurredOn: '2026-11-25', owed: true });
+    return client.id as string;
+  };
+
+  it('lists, for a month, the payments received in that month and the services they belong to', async () => {
+    const clientId = await setup();
+    const data = dataOf(await ask(admin, accountClientInvoice, { clientId, period: 'month:2026-11' }));
+    // The website had three payments in November; the social media income was paid in October; "Other" was typed in during November.
+    expect(data.lines.map((line) => line.service)).toEqual(['Website', 'Other']);
+    const website = data.lines[0]!;
+    expect(website.payments.map((p) => [p.amountMinor, p.paidOn])).toEqual([[10_000, '2026-11-03'], [15_000, '2026-11-10'], [20_000, '2026-11-20']]);
+    // Everything received so far counts toward what is left, December's payment included.
+    expect(website.paidMinor).toBe(50_000);
+    expect(data.lines[1]!.payments).toEqual([]);
+  });
+
+  it('takes the whole year or everything, and refuses a bad period, an empty one and an unknown client', async () => {
+    const clientId = await setup();
+    expect(dataOf(await ask(admin, accountClientInvoice, { clientId, period: 'all' })).lines).toHaveLength(3);
+    expect(codeOf(await ask(admin, accountClientInvoice, { clientId, period: 'nope' }))).toBe('INVALID');
+    expect(codeOf(await ask(admin, accountClientInvoice, { clientId, period: 'month:2025-01' }))).toBe('NOT_FOUND');
+    expect(codeOf(await ask(admin, accountClientInvoice, { clientId: 'zzz', period: 'all' }))).toBe('NOT_FOUND');
+    expect(codeOf(await ask(cashier, accountClientInvoice, { clientId, period: 'all' }))).toBe('FORBIDDEN');
+  });
+
+  it('prints each currency on its own, with what was received in the period and what is still owed', async () => {
+    const clientId = await setup();
+    const data = dataOf(await ask(admin, accountClientInvoice, { clientId, period: 'month:2026-11' }));
+    const html = renderClientInvoicePage(data, getStudioTranslator('en'), 'en', { clientId, period: 'month:2026-11' });
+    expect(html).toContain('November 2026');
+    expect(html).toContain('Website');
+    expect(html).toContain('2026-11-10');
+    expect(html).toContain('$450.00');
+    // Billed 1,080 dollars, 450 received in November, so 1,080 - 500 received so far = 580 still owed.
+    expect(html).toContain('$1,080.00');
+    expect(html).toContain('$580.00');
+    expect(html).not.toContain('IQD');
   });
 });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { RATE_MAX, RATE_SETTING_KEY, type AccountCurrency, type AccountKind } from '@/lib/accounts';
+import { inPeriod, parsePeriod, RATE_MAX, RATE_SETTING_KEY, type AccountCurrency, type AccountKind } from '@/lib/accounts';
 import { defineQuery } from '@/server/studio/framework/query';
 import { StudioError } from '@/server/studio/framework/result';
 
@@ -169,5 +169,73 @@ export const accountInvoice = defineQuery({
         ? row.payments.map((payment) => ({ id: payment.id, amountMinor: payment.amountMinor, paidOn: payment.paidOn.toISOString().slice(0, 10), note: payment.note }))
         : [{ id: row.id, amountMinor: row.amountMinor, paidOn: row.occurredOn.toISOString().slice(0, 10), note: row.note }],
     };
+  },
+});
+
+export interface ClientInvoiceLine {
+  id: string;
+  occurredOn: string;
+  currency: AccountCurrency;
+  amountMinor: number;
+  /** Everything received for it so far, whenever it was received. */
+  paidMinor: number;
+  service: string;
+  note: string;
+  /** The payments received in the period asked for. */
+  payments: BookPayment[];
+}
+
+export interface ClientInvoiceData {
+  clientName: string;
+  clientPhone: string;
+  /** Today in Baghdad, as `YYYY-MM-DD`. */
+  issuedOn: string;
+  /** The client's incomes that had money received in the period, or were typed in during it, oldest first. */
+  lines: ClientInvoiceLine[];
+}
+
+/**
+ * One invoice for a whole client over a period (`month:2026-11`, `year:2026` or `all`). The period is the day the money
+ * was received: a service is on it when a payment for it fell in the period, or when it was typed in during the period.
+ */
+export const accountClientInvoice = defineQuery({
+  name: 'accounts.clientInvoice',
+  permission: 'platform.settings',
+  input: z.object({ clientId: z.string().min(1).max(100), period: z.string().max(20) }),
+  target: () => ({ kind: 'platform' }),
+  run: async ({ db }, { clientId, period: key }): Promise<ClientInvoiceData> => {
+    const period = parsePeriod(key);
+    if (!period) throw new StudioError('INVALID');
+    const client = await db.accountClient.findFirst({ where: { id: clientId, archivedAt: null }, select: { name: true, phone: true } });
+    if (!client) throw new StudioError('NOT_FOUND');
+    const rows = await db.accountEntry.findMany({
+      where: { clientId, archivedAt: null, kind: 'INCOME' },
+      orderBy: [{ occurredOn: 'asc' }, { createdAt: 'asc' }],
+      include: { payments: { where: { archivedAt: null }, orderBy: [{ paidOn: 'asc' }, { createdAt: 'asc' }], select: { id: true, amountMinor: true, paidOn: true, note: true } } },
+    });
+    const day = (date: Date) => date.toISOString().slice(0, 10);
+    const lines: ClientInvoiceLine[] = [];
+    for (const row of rows) {
+      const occurredOn = day(row.occurredOn);
+      // An income that is not marked as owed was received in full on the day it was typed in.
+      const all: BookPayment[] = row.owed
+        ? row.payments.map((payment) => ({ id: payment.id, amountMinor: payment.amountMinor, paidOn: day(payment.paidOn), note: payment.note }))
+        : [{ id: row.id, amountMinor: row.amountMinor, paidOn: occurredOn, note: row.note }];
+      const inside = inPeriod(all.map((payment) => ({ payment, occurredOn: payment.paidOn })), period).map((item) => item.payment);
+      const typedInside = inPeriod([{ occurredOn }], period).length > 0;
+      if (inside.length === 0 && !typedInside) continue;
+      lines.push({
+        id: row.id,
+        occurredOn,
+        currency: row.currency,
+        amountMinor: row.amountMinor,
+        paidMinor: all.reduce((sum, payment) => sum + payment.amountMinor, 0),
+        service: row.service,
+        note: row.note,
+        payments: inside,
+      });
+    }
+    if (lines.length === 0) throw new StudioError('NOT_FOUND');
+    return { clientName: client.name, clientPhone: client.phone, issuedOn: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Baghdad' }).format(new Date()), lines };
   },
 });
