@@ -503,7 +503,7 @@ export function SalesWorkspace({
                     <button
                       type="button"
                       onClick={() => addItem(i)}
-                      className={cx('relative flex w-full flex-col items-start gap-0.5 rounded-md border border-line px-2 py-1.5 text-start transition-colors active:brightness-95', n > 0 ? h.wash : cx('bg-raised', h.hover))}
+                      className={cx('relative flex w-full flex-col items-start gap-0.5 rounded-md border border-line px-2 py-1.5 text-start transition-colors active:brightness-95', cx('border-s-4', h.bar, h.wash, n > 0 ? 'ring-2 ring-inset ring-line-strong' : 'hover:brightness-95'))}
                     >
                       <span aria-hidden className={cx("absolute end-1.5 top-2 size-1.5 rounded-full", h.chip)} />
                       <span className="line-clamp-1 pe-4 text-sm font-semibold leading-snug" dir="auto">
