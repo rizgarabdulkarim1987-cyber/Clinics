@@ -73,6 +73,7 @@ const wholesale: Messages = {
   'wh.catalog.editTitle': 'تعديل الصنف',
   'wh.catalog.pricesTitle': 'أسعار {name}',
   'wh.catalog.pricesHint': 'اترك السعر فارغاً لحذفه.',
+  'wh.catalog.pricesNewHint': "اكتب سعر الجملة للوحدات اللي عند الصنف. الوحدة اللي ما عند الصنف يُتجاهل سعرها.",
   'wh.unit.PIECE': 'مفرد',
   'wh.unit.CARTON': 'كرتون',
   'wh.unit.TON': 'طن',

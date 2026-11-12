@@ -73,6 +73,7 @@ const wholesale: Messages = {
   'wh.catalog.editTitle': 'Edit item',
   'wh.catalog.pricesTitle': 'Prices of {name}',
   'wh.catalog.pricesHint': 'Leave a price empty to remove it.',
+  'wh.catalog.pricesNewHint': "Enter the wholesale price for the units the item has. A price for a unit it lacks is ignored.",
   'wh.unit.PIECE': 'Piece',
   'wh.unit.CARTON': 'Carton',
   'wh.unit.TON': 'Ton',

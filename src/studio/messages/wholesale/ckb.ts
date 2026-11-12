@@ -73,6 +73,7 @@ const wholesale: Messages = {
   'wh.catalog.editTitle': 'دەستکاری کاڵا',
   'wh.catalog.pricesTitle': 'نرخەکانی {name}',
   'wh.catalog.pricesHint': 'نرخێک بەتاڵ بهێڵەرەوە بۆ سڕینەوەی.',
+  'wh.catalog.pricesNewHint': "نرخی بەکۆمەڵ بنووسە بۆ ئەو یەکانەی کاڵاکە هەیەتی. نرخی ئەو یەکەیەی نییەتی فەرامۆش دەکرێت.",
   'wh.unit.PIECE': 'دانە',
   'wh.unit.CARTON': 'کارتۆن',
   'wh.unit.TON': 'تەن',

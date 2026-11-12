@@ -44,7 +44,20 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
         units,
         reorderPoint: v.reorderPoint || null,
       };
-      return settle(() => (item ? updateItem({ itemId: item.id, item: body }) : createItem({ item: body })));
+      if (item) return settle(() => updateItem({ itemId: item.id, item: body }));
+      // A new item: save it, then its prices (only for the units it has) in the same step.
+      return settle(async () => {
+        const made = await createItem({ item: body });
+        if (!made.ok) return made;
+        const prices = units
+          .map((u) => ({ unit: u.unit, priceIqd: (v[`price_${u.unit}`] ?? '').trim(), marketPriceIqd: (v[`market_${u.unit}`] ?? '').trim() }))
+          .filter((p) => p.priceIqd !== '');
+        if (prices.length) {
+          const priced = await setPrices({ itemId: (made.data as { id: string }).id, prices });
+          if (!priced.ok) return priced as unknown as typeof made;
+        }
+        return made;
+      });
     },
     {
       validate: (v) => {
@@ -104,6 +117,19 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
           ))}
         </div>
       </fieldset>
+      {!item && (
+        <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
+          <legend className="px-1 text-sm font-semibold">{t('wh.catalog.prices')}</legend>
+          <p className="text-sm text-muted">{t('wh.catalog.pricesNewHint')}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {UNITS.map((unit) => (
+              <Field key={unit} label={`${t(`wh.unit.${unit}`)} · ${t('wh.customers.type.WHOLESALE')} (IQD)`} optional>
+                <Input name={`price_${unit}`} inputMode="decimal" defaultValue={form.value(`price_${unit}`) ?? ''} dir="ltr" />
+              </Field>
+            ))}
+          </div>
+        </fieldset>
+      )}
       {!item && (
         <div>
           <Button type="submit" variant="primary" pending={form.pending}>
