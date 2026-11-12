@@ -541,6 +541,7 @@ const wholesale: Messages = {
   'wh.sw.remove': 'حذف',
   'wh.sw.total': 'المجموع',
   'wh.sw.estimateNote': 'بالدينار تقريباً. المجموع النهائي يُحسب عند الترحيل.',
+  'wh.sw.autoPrint': "طباعة الوصل تلقائياً",
   'wh.sw.account': 'حساب الزبون',
   'wh.sw.debt': 'مدين لنا',
   'wh.sw.recent': 'آخر المبيعات',

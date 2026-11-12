@@ -541,6 +541,7 @@ const wholesale: Messages = {
   'wh.sw.remove': 'Remove',
   'wh.sw.total': 'Total',
   'wh.sw.estimateNote': 'Shown in IQD. The final total is worked out when you post.',
+  'wh.sw.autoPrint': "Print receipt automatically",
   'wh.sw.account': 'Customer account',
   'wh.sw.debt': 'Owes us',
   'wh.sw.recent': 'Recent sales',
