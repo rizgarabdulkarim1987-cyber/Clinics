@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { createItem, deleteItem, setItemActive, setPrices, updateItem } from '@/app/wholesale/_actions/company';
+import { createItem, deleteItem, openItemStock, setItemActive, setPrices, updateItem } from '@/app/wholesale/_actions/company';
 import { useActionForm, requireFields } from '@/studio/forms';
 import { useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
@@ -55,6 +55,11 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
         if (prices.length) {
           const priced = await setPrices({ itemId: (made.data as { id: string }).id, prices });
           if (!priced.ok) return priced as unknown as typeof made;
+        }
+        const qty = (v.openingQty ?? '').trim();
+        if (qty !== '') {
+          const opened = await openItemStock({ itemId: (made.data as { id: string }).id, qtyBase: qty, unitCostIqd: (v.openingCost ?? '').trim() || null });
+          if (!opened.ok) return opened as unknown as typeof made;
         }
         return made;
       });
@@ -127,6 +132,20 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
                 <Input name={`price_${unit}`} inputMode="decimal" defaultValue={form.value(`price_${unit}`) ?? ''} dir="ltr" />
               </Field>
             ))}
+          </div>
+        </fieldset>
+      )}
+      {!item && (
+        <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
+          <legend className="px-1 text-sm font-semibold">{t('wh.catalog.opening')}</legend>
+          <p className="text-sm text-muted">{t('wh.catalog.openingHint')}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={t('wh.catalog.openingQty')} optional error={form.fieldError('openingQty')}>
+              <Input name="openingQty" inputMode="decimal" defaultValue={form.value('openingQty') ?? ''} dir="ltr" />
+            </Field>
+            <Field label={t('wh.catalog.openingCost')} optional>
+              <Input name="openingCost" inputMode="decimal" defaultValue={form.value('openingCost') ?? ''} dir="ltr" />
+            </Field>
           </div>
         </fieldset>
       )}

@@ -14,6 +14,7 @@ import {
   updateItem,
   updateSupplier,
 } from '@/server/wholesale/catalog';
+import { openItemStock } from '@/server/wholesale/openingItem';
 import { seedChartOfAccounts } from '@/server/wholesale/ledger';
 import { createRepWarehouse, seedWarehouses, transferMainToRep } from '@/server/wholesale/warehouses';
 import { defineAction } from '@/server/studio/framework/action';
@@ -115,6 +116,20 @@ export const deleteItemAction = defineAction({
       const gone = await refusing(() => deleteItem(tx, restaurantId, itemId));
       ctx.audit({ action: 'wh.item.delete', entityType: 'WhItem', entityId: itemId, changes: { code: { before: gone.code, after: null } } });
       return { id: itemId };
+    }),
+});
+
+export const openItemStockAction = defineAction({
+  name: 'wh.item.openStock',
+  permission: null,
+  wh: 'import.apply',
+  input: whPlaceInput.extend({ itemId: z.string().min(1).max(64), qtyBase: decimalText, unitCostIqd: decimalText.nullish() }),
+  target: whTargetOf,
+  run: (ctx, { restaurantId, itemId, qtyBase, unitCostIqd }) =>
+    ctx.transaction(async (tx) => {
+      const done = await refusing(() => openItemStock(tx, restaurantId, { id: ctx.wh!.userId, role: ctx.wh!.role }, { itemId, qtyBase, unitCostIqd }));
+      ctx.audit({ action: 'wh.item.open_stock', entityType: 'WhItem', entityId: itemId, changes: { openingQty: { before: null, after: done.qtyBase }, unitCost: { before: null, after: done.unitCostIqd } } });
+      return done;
     }),
 });
 
