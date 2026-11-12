@@ -155,8 +155,8 @@ async function hasStock(tx: Db, rid: string, itemId: string): Promise<boolean> {
 
 /**
  * Replaces the item's fields and unit list. Removing a unit also removes its price. Archive with `active: false`.
- * Once the item has stock, the base unit, existing unit factors and the unit list (no removals) are frozen
- * (ItemLockedError); adding a unit and every other field stay editable. The item row is locked FOR UPDATE first;
+ * Once the item has stock only the base unit is frozen (ItemLockedError); unit factors, adding or dropping a unit and every
+ * other field stay editable. The item row is locked FOR UPDATE first;
  * stock writes take FOR SHARE on it, so a receipt cannot slip in between the check and the change.
  */
 export async function updateItem(tx: Db, rid: string, id: string, input: ItemInput): Promise<{ previous: Record<string, unknown>; next: Record<string, unknown> }> {
@@ -166,14 +166,9 @@ export async function updateItem(tx: Db, rid: string, id: string, input: ItemInp
   const prev = await tx.whItem.findFirstOrThrow({ where: { id, restaurantId: rid }, include: { units: { orderBy: { unit: 'asc' } } } });
   const c = cleanItem(input);
   await assertItemUnique(tx, rid, c, id);
-  if (await hasStock(tx, rid, id)) {
-    if (c.baseUnit !== prev.baseUnit) throw new ItemLockedError(id, 'the base unit cannot change');
-    for (const old of prev.units) {
-      const now = c.units.find((u) => u.unit === old.unit);
-      if (!now) throw new ItemLockedError(id, `the ${old.unit} unit cannot be removed`);
-      if (!new D(now.factorToBase).eq(old.factorToBase.toString())) throw new ItemLockedError(id, `the ${old.unit} factor cannot change`);
-    }
-  }
+  // Stock is counted in the base unit, so only the base unit is frozen once there is stock. The other units (their factors, or
+  // dropping one) only change how a quantity is typed in; every posted line keeps its own base quantity.
+  if (c.baseUnit !== prev.baseUnit && (await hasStock(tx, rid, id))) throw new ItemLockedError(id, 'the base unit cannot change');
   const previous = {
     code: prev.code,
     category: prev.category,

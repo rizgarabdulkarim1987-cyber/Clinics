@@ -71,11 +71,14 @@ describe('the catalog', () => {
     await expect(run(A, (tx) => setItemPrices(tx, A, item.id, [{ unit: 'TON', priceIqd: '1' }]))).rejects.toBeInstanceOf(InvalidCatalogError);
   });
 
-  it('freezes the units of an item that has stock, but lets other fields change', async () => {
+  it('freezes only the base unit of an item that has stock; other units and fields can change', async () => {
     const item = await run(A, (tx) => createItem(tx, A, rice));
     const main = await run(A, (tx) => warehouseOfKind(tx, A, 'MAIN'));
     await run(A, (tx) => receiveStock(tx, { restaurantId: A, itemId: item.id, warehouseId: main.id, qtyBase: new D(10), unitCostIqd: new D(100), ref: REF, user: { id: USER } }));
-    await expect(run(A, (tx) => updateItem(tx, A, item.id, { ...rice, units: [{ unit: 'PIECE', factorToBase: '1' }, { unit: 'CARTON', factorToBase: '24' }, { unit: 'TON', factorToBase: '1000' }] }))).rejects.toBeInstanceOf(ItemLockedError);
+    await expect(run(A, (tx) => updateItem(tx, A, item.id, { ...rice, baseUnit: 'KG', units: [{ unit: 'KG', factorToBase: '1' }] }))).rejects.toBeInstanceOf(ItemLockedError);
+    await run(A, (tx) => updateItem(tx, A, item.id, { ...rice, units: [{ unit: 'PIECE', factorToBase: '1' }, { unit: 'CARTON', factorToBase: '24' }] }));
+    const units = await run(A, (tx) => tx.whItemUnit.findMany({ where: { itemId: item.id }, orderBy: { unit: 'asc' } }));
+    expect(units.map((u) => [u.unit, u.factorToBase.toFixed()])).toEqual([['PIECE', '1'], ['CARTON', '24']]);
     await run(A, (tx) => updateItem(tx, A, item.id, { ...rice, category: 'Grains' }));
     expect((await run(A, (tx) => tx.whItem.findUniqueOrThrow({ where: { id: item.id } }))).category).toBe('Grains');
   });
