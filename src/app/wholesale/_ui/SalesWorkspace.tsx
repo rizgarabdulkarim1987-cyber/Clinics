@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { toast } from 'sonner';
 import { cancelSale, collectPayment, postSale } from '@/app/wholesale/_actions/company';
 import { describeFailure } from '@/studio/errors';
+import { printSaleReceipt, readPrinter } from './receipt-printer';
 import { useLocale, useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
 import { Button, cx } from '@/studio/ui';
@@ -227,7 +228,20 @@ export function SalesWorkspace({
     } catch {}
     window.dispatchEvent(new Event('wh-autoprint'));
   };
+  // With a printer set up in Settings the receipt goes straight to it (no dialog); otherwise, or if that fails, the browser's print window opens.
   const printReceipt = (saleId: string) => {
+    const device = readPrinter();
+    if (device) {
+      void printSaleReceipt(saleId, device).then((r) => {
+        if (r.ok) return;
+        toast.error(t(r.reason === 'printer' ? 'wh.printer.failedPrinter' : 'wh.printer.failedBridge'));
+        printInBrowser(saleId);
+      });
+      return;
+    }
+    printInBrowser(saleId);
+  };
+  const printInBrowser = (saleId: string) => {
     const frame = document.createElement('iframe');
     frame.setAttribute('aria-hidden', 'true');
     frame.style.cssText = 'position:fixed;inset-inline-end:0;bottom:0;width:0;height:0;border:0';

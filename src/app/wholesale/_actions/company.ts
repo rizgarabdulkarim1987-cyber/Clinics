@@ -8,7 +8,10 @@ import * as purchase from '@/server/wholesale/actions/purchase';
 import * as sale from '@/server/wholesale/actions/sale';
 import * as targets from '@/server/wholesale/actions/targets';
 import * as treasury from '@/server/wholesale/actions/treasury';
-import { invokeWh } from '@/server/wholesale/access';
+import { receiptPaperDoc } from '@/server/domain/wholesale/receipt-paper';
+import { getWhAccess, invokeWh, queryWh } from '@/server/wholesale/access';
+import { saleQuery } from '@/server/wholesale/queries/sale';
+import { getStudioTranslator } from '@/studio/messages';
 
 // The Wholesale screens' Server Actions. `invokeWh` puts in the company the person works in; the browser never names it.
 
@@ -206,4 +209,29 @@ export async function cancelAgencyOrder(input: unknown) {
 
 export async function receiveFromRep(input: unknown) {
   return invokeWh(treasury.receiveFromRepAction, input);
+}
+
+/** The sale as rows for the receipt printer (the browser draws them and sends the picture to the print bridge). Null when there is no receipt to print. */
+export async function saleReceiptDoc(saleId: string) {
+  const { actor } = await getWhAccess();
+  if (!actor || !/^[\w-]{1,64}$/.test(saleId)) return null;
+  const s = await queryWh(saleQuery, { id: saleId });
+  if (!s || (s.status !== 'POSTED' && s.status !== 'PENDING_APPROVAL')) return null;
+  const t = getStudioTranslator(actor.locale);
+  const pick = (n: { ckb: string; ar: string; en: string }) => (actor.locale === 'ar' ? n.ar : actor.locale === 'ckb' ? n.ckb : n.en) || n.ckb || n.ar || n.en;
+  return receiptPaperDoc(
+    {
+      company: actor.restaurantName,
+      number: s.number,
+      date: s.date,
+      customer: s.customer.name,
+      credit: s.paymentMode === 'CREDIT',
+      currency: s.currency,
+      totalDiscount: String(s.totalDiscount),
+      totalFinal: String(s.totalFinal),
+      seller: s.seller?.name ?? null,
+      lines: s.lines.map((l) => ({ name: pick(l.itemNames as { ckb: string; ar: string; en: string }), qty: String(l.qty), unitLabel: t(`wh.unit.${l.unit}`), price: String(l.finalPrice), total: String(l.lineTotal) })),
+    },
+    { invoice: t('wh.print.invoice'), customer: t('wh.print.customer'), credit: t('wh.purchases.credit'), cash: t('wh.purchases.cash'), discount: t('wh.sales.discount'), total: t('wh.purchases.total') },
+  );
 }
