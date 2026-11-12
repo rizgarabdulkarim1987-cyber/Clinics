@@ -28,6 +28,10 @@ export async function deleteItem(input: unknown) {
   return invokeWh(catalog.deleteItemAction, input);
 }
 
+export async function openItemStock(input: unknown) {
+  return invokeWh(catalog.openItemStockAction, input);
+}
+
 export async function setPrices(input: unknown) {
   return invokeWh(catalog.setPricesAction, input);
 }

@@ -4,6 +4,8 @@ import { scopedClient } from '@/server/data/tenant-db';
 import { InsufficientStockError } from '@/server/domain/wholesale/costing';
 import { D } from '@/server/domain/wholesale/money';
 import { createItem, createCustomer, listCustomers, deleteItem, seedCities, setItemActive, setItemPrices, updateItem, ItemLockedError, InvalidCatalogError } from '@/server/wholesale/catalog';
+import { seedChartOfAccounts } from '@/server/wholesale/ledger';
+import { openItemStock } from '@/server/wholesale/openingItem';
 import { issueStock, onHand, receiveStock, recostOnHand, reverseReceipt, transferStock } from '@/server/wholesale/stock';
 import { createRepWarehouse, seedWarehouses, stockFor, transferMainToRep, warehouseOfKind } from '@/server/wholesale/warehouses';
 import { databaseUrl, TEST_DB } from '../../scripts/db-config';
@@ -82,6 +84,16 @@ describe('the catalog', () => {
     await expect(run(A, (tx) => deleteItem(tx, A, used.id))).rejects.toBeInstanceOf(ItemLockedError);
     await run(A, (tx) => deleteItem(tx, A, item.id));
     expect(await run(A, (tx) => tx.whItem.findFirst({ where: { id: item.id } }))).toBeNull();
+  });
+
+  it('puts an opening quantity of a new item in MAIN at 75% of its price when no cost is given', async () => {
+    const item = await run(A, (tx) => createItem(tx, A, { ...rice, code: 'OPEN-1', units: [{ unit: 'PIECE', factorToBase: '1' }] }));
+    await run(A, (tx) => setItemPrices(tx, A, item.id, [{ unit: 'PIECE', priceIqd: '2000' }]));
+    await run(A, (tx) => seedChartOfAccounts(tx, A));
+    const done = await run(A, (tx) => openItemStock(tx, A, { id: USER, role: 'PARTNER' }, { itemId: item.id, qtyBase: '40' }));
+    expect(done.unitCostIqd).toBe('1500');
+    const main = await run(A, (tx) => warehouseOfKind(tx, A, 'MAIN'));
+    expect((await run(A, (tx) => onHand(tx, A, item.id, main.id))).toString()).toBe('40');
   });
 
   it('freezes only the base unit of an item that has stock; other units and fields can change', async () => {
