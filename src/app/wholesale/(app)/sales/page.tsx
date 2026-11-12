@@ -8,7 +8,7 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery, stockQuery } from '@/server/wholesale/queries/catalog';
 import { expiryQuery, repAccountsQuery, sellInfoQuery } from '@/server/wholesale/queries/reports';
 import { repTargetsQuery } from '@/server/wholesale/queries/targets';
-import { customerStatementQuery, debtsListQuery, pendingSalesQuery, saleQuery, saleWarehousesQuery, salesQuery } from '@/server/wholesale/queries/sale';
+import { customerStatementQuery, dayRatesQuery, debtsListQuery, pendingSalesQuery, saleQuery, saleWarehousesQuery, salesQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
 import { cx } from '@/studio/ui';
 import { ApproveButtons, CancelSaleForm, CollectForm, ReturnSaleForm } from '../../_ui/SaleForms';
@@ -119,6 +119,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       attention={pending.length}
       debts={debtList?.rows ?? []}
       period={period}
+      rates={await queryWh(dayRatesQuery)}
       range={range}
       by={sellerPick ?? ''}
       sellerOptions={sellerOptions}

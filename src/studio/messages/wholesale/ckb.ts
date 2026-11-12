@@ -113,6 +113,8 @@ const wholesale: Messages = {
   'wh.sw.p.year': 'ساڵ',
   'wh.sw.allSellers': 'هەموو فرۆشیارەکان',
   'wh.sw.noSalesPeriod': 'لەم ماوەیەدا فرۆشتن نییە.',
+  'wh.sw.exchange': 'گۆڕینەوە',
+  'wh.sw.exchangeNone': 'نرخی ئەمڕۆ نەنووسراوە',
   'wh.stock.qty': 'بەردەست',
   'wh.stock.avgCost': 'تێکڕای تێچوو (دینار)',
   'wh.stock.kind.MAIN': 'سەرەکی',
