@@ -11,6 +11,7 @@ import { StatusBadge } from '@/studio/ui';
 import { HeaderLink, PageHeader } from '../../_ui/PageHeader';
 import { PeriodButton, SettingsForm } from '../../_ui/BooksForms';
 import { DemoFill } from '../../_ui/DemoFill';
+import { PrinterSettings } from '../../_ui/PrinterSettings';
 
 export const metadata: Metadata = { title: 'Settings' };
 
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
         <section className="rounded-md border border-line bg-raised p-4">
           <SettingsForm values={settings} />
         </section>
+        <PrinterSettings />
         {(canAdd || canRemove) && <DemoFill canAdd={canAdd} canRemove={canRemove} />}
         <Fold icon={CalendarDays} tone="teal" title={t('wh.periods.title')}>
           <div className="flex flex-col gap-3">
