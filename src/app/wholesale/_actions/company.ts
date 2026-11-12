@@ -20,6 +20,14 @@ export async function updateItem(input: unknown) {
   return invokeWh(catalog.updateItemAction, input);
 }
 
+export async function setItemActive(input: unknown) {
+  return invokeWh(catalog.setItemActiveAction, input);
+}
+
+export async function deleteItem(input: unknown) {
+  return invokeWh(catalog.deleteItemAction, input);
+}
+
 export async function setPrices(input: unknown) {
   return invokeWh(catalog.setPricesAction, input);
 }

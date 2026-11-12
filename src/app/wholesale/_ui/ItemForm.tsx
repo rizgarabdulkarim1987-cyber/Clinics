@@ -1,14 +1,15 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { toast } from 'sonner';
-import { createItem, setPrices, updateItem } from '@/app/wholesale/_actions/company';
+import { createItem, deleteItem, setItemActive, setPrices, updateItem } from '@/app/wholesale/_actions/company';
 import { useActionForm, requireFields } from '@/studio/forms';
 import { useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
-import { Button, Field, FormError, Input, Select } from '@/studio/ui';
+import { Button, ConfirmDialog, Field, FormError, Input, Select } from '@/studio/ui';
 
-const BASE_UNITS = ['PIECE', 'KG', 'TON', 'CARTON'] as const;
+const BASE_UNITS = ['PIECE', 'KG', 'TON', 'CARTON', 'SINGLE'] as const;
 const UNITS = [...BASE_UNITS, 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25'] as const;
 type Unit = (typeof UNITS)[number];
 
@@ -19,6 +20,7 @@ export interface ItemRow {
   category: string | null;
   baseUnit: Unit;
   reorderPoint: string | null;
+  active?: boolean;
   units: { unit: Unit; factorToBase: string; barcode: string | null }[];
   prices: { unit: Unit; priceIqd: string; marketPriceIqd?: string | null }[];
 }
@@ -88,6 +90,7 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
           <Button type="submit" variant="primary" pending={form.pending}>
             {t('wh.common.save')}
           </Button>
+          <ItemStatus item={item} onDone={onDone} />
         </div>
       )}
       <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
@@ -154,5 +157,47 @@ export function PricesForm({ item, onDone }: { item: ItemRow; onDone?: () => voi
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Disable (hide from the sell and buy screens, keep the history) or delete an item that was never used. */
+function ItemStatus({ item, onDone }: { item: ItemRow; onDone?: () => void }) {
+  const t = useT();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const active = item.active !== false;
+  const toggle = async () => {
+    setPending(true);
+    const res = await settle(() => setItemActive({ itemId: item.id, active: !active }));
+    setPending(false);
+    if (!res.ok) return void toast.error(res.error.message);
+    toast.success(t('wh.common.saved'));
+    router.refresh();
+  };
+  return (
+    <>
+      <Button type="button" variant="secondary" pending={pending} onClick={toggle}>
+        {active ? t('wh.catalog.disable') : t('wh.catalog.enable')}
+      </Button>
+      <Button type="button" variant="danger" onClick={() => setOpen(true)}>
+        {t('wh.catalog.delete')}
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t('wh.catalog.deleteTitle')}
+        body={t('wh.catalog.deleteBody')}
+        confirmLabel={t('wh.catalog.delete')}
+        onConfirm={async () => {
+          const res = await settle(() => deleteItem({ itemId: item.id }));
+          if (!res.ok) return { message: res.error.message };
+          toast.success(t('wh.common.saved'));
+          router.refresh();
+          onDone?.();
+          return true;
+        }}
+      />
+    </>
   );
 }

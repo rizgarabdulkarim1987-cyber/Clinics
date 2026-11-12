@@ -3,7 +3,7 @@ import { getPrisma } from '@/server/data/prisma';
 import { scopedClient } from '@/server/data/tenant-db';
 import { InsufficientStockError } from '@/server/domain/wholesale/costing';
 import { D } from '@/server/domain/wholesale/money';
-import { createItem, createCustomer, listCustomers, seedCities, setItemPrices, updateItem, ItemLockedError, InvalidCatalogError } from '@/server/wholesale/catalog';
+import { createItem, createCustomer, listCustomers, deleteItem, seedCities, setItemActive, setItemPrices, updateItem, ItemLockedError, InvalidCatalogError } from '@/server/wholesale/catalog';
 import { issueStock, onHand, receiveStock, recostOnHand, reverseReceipt, transferStock } from '@/server/wholesale/stock';
 import { createRepWarehouse, seedWarehouses, stockFor, transferMainToRep, warehouseOfKind } from '@/server/wholesale/warehouses';
 import { databaseUrl, TEST_DB } from '../../scripts/db-config';
@@ -71,11 +71,27 @@ describe('the catalog', () => {
     await expect(run(A, (tx) => setItemPrices(tx, A, item.id, [{ unit: 'TON', priceIqd: '1' }]))).rejects.toBeInstanceOf(InvalidCatalogError);
   });
 
-  it('freezes the units of an item that has stock, but lets other fields change', async () => {
+  it('disables an item, and deletes only one that was never used', async () => {
+    const item = await run(A, (tx) => createItem(tx, A, rice));
+    await run(A, (tx) => setItemActive(tx, A, item.id, false));
+    expect((await run(A, (tx) => tx.whItem.findFirstOrThrow({ where: { id: item.id } }))).active).toBe(false);
+    await run(A, (tx) => setItemActive(tx, A, item.id, true));
+    const used = await run(A, (tx) => createItem(tx, A, { ...rice, code: 'USED-1' }));
+    const main = await run(A, (tx) => warehouseOfKind(tx, A, 'MAIN'));
+    await run(A, (tx) => receiveStock(tx, { restaurantId: A, itemId: used.id, warehouseId: main.id, qtyBase: new D(1), unitCostIqd: new D(100), ref: REF, user: { id: USER } }));
+    await expect(run(A, (tx) => deleteItem(tx, A, used.id))).rejects.toBeInstanceOf(ItemLockedError);
+    await run(A, (tx) => deleteItem(tx, A, item.id));
+    expect(await run(A, (tx) => tx.whItem.findFirst({ where: { id: item.id } }))).toBeNull();
+  });
+
+  it('freezes only the base unit of an item that has stock; other units and fields can change', async () => {
     const item = await run(A, (tx) => createItem(tx, A, rice));
     const main = await run(A, (tx) => warehouseOfKind(tx, A, 'MAIN'));
     await run(A, (tx) => receiveStock(tx, { restaurantId: A, itemId: item.id, warehouseId: main.id, qtyBase: new D(10), unitCostIqd: new D(100), ref: REF, user: { id: USER } }));
-    await expect(run(A, (tx) => updateItem(tx, A, item.id, { ...rice, units: [{ unit: 'PIECE', factorToBase: '1' }, { unit: 'CARTON', factorToBase: '24' }, { unit: 'TON', factorToBase: '1000' }] }))).rejects.toBeInstanceOf(ItemLockedError);
+    await expect(run(A, (tx) => updateItem(tx, A, item.id, { ...rice, baseUnit: 'KG', units: [{ unit: 'KG', factorToBase: '1' }] }))).rejects.toBeInstanceOf(ItemLockedError);
+    await run(A, (tx) => updateItem(tx, A, item.id, { ...rice, units: [{ unit: 'PIECE', factorToBase: '1' }, { unit: 'CARTON', factorToBase: '24' }] }));
+    const units = await run(A, (tx) => tx.whItemUnit.findMany({ where: { itemId: item.id }, orderBy: { unit: 'asc' } }));
+    expect(units.map((u) => [u.unit, u.factorToBase.toFixed()])).toEqual([['PIECE', '1'], ['CARTON', '24']]);
     await run(A, (tx) => updateItem(tx, A, item.id, { ...rice, category: 'Grains' }));
     expect((await run(A, (tx) => tx.whItem.findUniqueOrThrow({ where: { id: item.id } }))).category).toBe('Grains');
   });

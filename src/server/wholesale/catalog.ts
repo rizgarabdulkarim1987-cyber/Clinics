@@ -155,8 +155,8 @@ async function hasStock(tx: Db, rid: string, itemId: string): Promise<boolean> {
 
 /**
  * Replaces the item's fields and unit list. Removing a unit also removes its price. Archive with `active: false`.
- * Once the item has stock, the base unit, existing unit factors and the unit list (no removals) are frozen
- * (ItemLockedError); adding a unit and every other field stay editable. The item row is locked FOR UPDATE first;
+ * Once the item has stock only the base unit is frozen (ItemLockedError); unit factors, adding or dropping a unit and every
+ * other field stay editable. The item row is locked FOR UPDATE first;
  * stock writes take FOR SHARE on it, so a receipt cannot slip in between the check and the change.
  */
 export async function updateItem(tx: Db, rid: string, id: string, input: ItemInput): Promise<{ previous: Record<string, unknown>; next: Record<string, unknown> }> {
@@ -166,14 +166,9 @@ export async function updateItem(tx: Db, rid: string, id: string, input: ItemInp
   const prev = await tx.whItem.findFirstOrThrow({ where: { id, restaurantId: rid }, include: { units: { orderBy: { unit: 'asc' } } } });
   const c = cleanItem(input);
   await assertItemUnique(tx, rid, c, id);
-  if (await hasStock(tx, rid, id)) {
-    if (c.baseUnit !== prev.baseUnit) throw new ItemLockedError(id, 'the base unit cannot change');
-    for (const old of prev.units) {
-      const now = c.units.find((u) => u.unit === old.unit);
-      if (!now) throw new ItemLockedError(id, `the ${old.unit} unit cannot be removed`);
-      if (!new D(now.factorToBase).eq(old.factorToBase.toString())) throw new ItemLockedError(id, `the ${old.unit} factor cannot change`);
-    }
-  }
+  // Stock is counted in the base unit, so only the base unit is frozen once there is stock. The other units (their factors, or
+  // dropping one) only change how a quantity is typed in; every posted line keeps its own base quantity.
+  if (c.baseUnit !== prev.baseUnit && (await hasStock(tx, rid, id))) throw new ItemLockedError(id, 'the base unit cannot change');
   const previous = {
     code: prev.code,
     category: prev.category,
@@ -207,6 +202,37 @@ export async function updateItem(tx: Db, rid: string, id: string, input: ItemInp
     previous,
     next: { code: c.code, category: c.category, baseUnit: c.baseUnit, reorderPoint: c.reorderPoint, active: c.active ?? prev.active, units: c.units.map((u) => `${u.unit}=${u.factorToBase}`).join(',') },
   };
+}
+
+/** Disables (archives) or re-enables an item. A disabled item leaves the sell and buy screens but keeps its stock and history. */
+export async function setItemActive(tx: Db, rid: string, id: string, active: boolean): Promise<{ code: string; before: boolean }> {
+  const item = await tx.whItem.findFirst({ where: { id, restaurantId: rid }, select: { code: true, active: true } });
+  if (!item) throw new InvalidCatalogError('item not found');
+  await tx.whItem.update({ where: { id }, data: { active } });
+  return { code: item.code, before: item.active };
+}
+
+/**
+ * Deletes an item that was never used: no stock row, movement, batch, purchase, sale, count or rep target. Its units and prices go
+ * with it. An item with any history is refused (disable it instead), so the books never point at a missing item.
+ */
+export async function deleteItem(tx: Db, rid: string, id: string): Promise<{ code: string }> {
+  // eslint-disable-next-line no-restricted-properties -- a row lock on one item, matched only inside this company
+  const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "WhItem" WHERE id = ${id} AND "restaurantId" = ${rid} FOR UPDATE`;
+  if (!locked.length) throw new InvalidCatalogError('item not found');
+  const item = await tx.whItem.findFirstOrThrow({ where: { id, restaurantId: rid }, select: { code: true } });
+  const [stock, purchase, sale, target, count] = await Promise.all([
+    hasStock(tx, rid, id),
+    tx.whPurchaseLine.findFirst({ where: { itemId: id }, select: { id: true } }),
+    tx.whSaleLine.findFirst({ where: { itemId: id }, select: { id: true } }),
+    tx.whRepItemTarget.findFirst({ where: { itemId: id }, select: { id: true } }),
+    tx.whStockCountLine.findFirst({ where: { itemId: id }, select: { id: true } }),
+  ]);
+  if (stock || purchase || sale || target || count) throw new ItemLockedError(id, 'the item has history; disable it instead of deleting it');
+  await tx.whPriceListEntry.deleteMany({ where: { restaurantId: rid, itemId: id } });
+  await tx.whItemUnit.deleteMany({ where: { restaurantId: rid, itemId: id } });
+  await tx.whItem.delete({ where: { id } });
+  return { code: item.code };
 }
 
 export type PriceInput = { unit: Unit; priceIqd: string; marketPriceIqd?: string | null };
