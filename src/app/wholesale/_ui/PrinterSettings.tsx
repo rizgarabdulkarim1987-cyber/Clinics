@@ -8,7 +8,7 @@ import { bridgeAlive } from '@/app/pos/_ui/print/print-client';
 import type { PaperDoc } from '@/server/domain/pos/paper';
 import { useT } from '@/studio/i18n';
 import { Button, Field, Input, Select } from '@/studio/ui';
-import { printPaper, readPrinter, writePrinter } from './receipt-printer';
+import { openDrawer, printPaper, readPrinter, writePrinter } from './receipt-printer';
 
 const TEST_DOC: PaperDoc = {
   rows: [
@@ -63,7 +63,7 @@ function PrinterForm() {
     });
   }, []);
 
-  const change = (patch: Partial<PrinterDraft>) => setDraft({ ...draft, ...patch, drawerPin: 'none', drawerOnCash: false });
+  const change = (patch: Partial<PrinterDraft>) => setDraft({ ...draft, ...patch });
   const parsed = printerOfDraft(draft);
   const bad = draft.address.trim() !== '' && !parsed.ok;
   const chosen = found.find((p) => p.shared && p.shareName === draft.address);
@@ -77,6 +77,13 @@ function PrinterForm() {
     if (!configured) return;
     setNote('printing');
     const result = await printPaper(TEST_DOC, configured);
+    setNote(result.ok ? 'ok' : result.reason === 'printer' ? 'printer' : 'bridge');
+  };
+
+  const kick = async () => {
+    if (!configured) return;
+    setNote('printing');
+    const result = await openDrawer(configured);
     setNote(result.ok ? 'ok' : result.reason === 'printer' ? 'printer' : 'bridge');
   };
 
@@ -127,6 +134,26 @@ function PrinterForm() {
           <input type="checkbox" className="size-5" checked={draft.cut} onChange={(e) => change({ cut: e.target.checked })} />
           {t('wh.printer.cut')}
         </label>
+        <Field label={t('wh.printer.drawer')}>
+          <Select
+            value={draft.drawerPin}
+            onChange={(e) => {
+              const drawerPin = e.target.value as PrinterDraft['drawerPin'];
+              change({ drawerPin, drawerOnCash: drawerPin !== 'none' });
+            }}
+            options={[
+              { value: 'none', label: t('wh.printer.drawerNone') },
+              { value: '2', label: t('wh.printer.drawerPin', { n: 2 }) },
+              { value: '5', label: t('wh.printer.drawerPin', { n: 5 }) },
+            ]}
+          />
+        </Field>
+        {draft.drawerPin !== 'none' && (
+          <label className="flex min-h-11 items-center gap-2 self-end text-sm">
+            <input type="checkbox" className="size-5" checked={draft.drawerOnCash} onChange={(e) => change({ drawerOnCash: e.target.checked })} />
+            {t('wh.printer.drawerOnCash')}
+          </label>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" onClick={save} disabled={!parsed.ok}>
@@ -135,6 +162,11 @@ function PrinterForm() {
         <Button type="button" variant="secondary" onClick={() => void test()} disabled={!configured || note === 'printing'}>
           {t('wh.printer.test')}
         </Button>
+        {draft.drawerPin !== 'none' && (
+          <Button type="button" variant="secondary" onClick={() => void kick()} disabled={!configured || note === 'printing'}>
+            {t('wh.printer.drawerTest')}
+          </Button>
+        )}
         <Button type="button" variant="secondary" onClick={check}>
           <RefreshCw className="size-4" aria-hidden />
           {t('wh.printer.check')}

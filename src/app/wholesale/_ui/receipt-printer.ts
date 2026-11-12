@@ -1,4 +1,4 @@
-import { printDoc, type PrintResult } from '@/app/pos/_ui/print/print-client';
+import { kickDrawer, printDoc, type PrintResult } from '@/app/pos/_ui/print/print-client';
 import { saleReceiptDoc } from '@/app/wholesale/_actions/company';
 import { receiptPrinter, type ReceiptPrinterSettings } from '@/server/domain/pharmacy/print-settings';
 import type { PaperDoc } from '@/server/domain/pos/paper';
@@ -35,21 +35,26 @@ export function writePrinter(printer: ReceiptPrinterSettings | null): boolean {
 }
 
 export function printerView(p: ReceiptPrinterSettings): PrinterView {
-  return { id: 'device', name: 'Receipt', role: 'RECEIPT', transport: p.transport, address: p.address.trim(), paperWidth: p.paperWidth, cut: p.cut, drawerPin: null, isDefault: true, sectionId: null, sortOrder: 0 };
+  return { id: 'device', name: 'Receipt', role: 'RECEIPT', transport: p.transport, address: p.address.trim(), paperWidth: p.paperWidth, cut: p.cut, drawerPin: p.drawerPin, isDefault: true, sectionId: null, sortOrder: 0 };
 }
 
 export type ReceiptOutcome = PrintResult | { ok: false; reason: 'none'; message: string };
 
-export function printPaper(doc: PaperDoc, p: ReceiptPrinterSettings): Promise<PrintResult> {
-  return printDoc(doc, printerView(p), { drawer: false });
+export function printPaper(doc: PaperDoc, p: ReceiptPrinterSettings, drawer = false): Promise<PrintResult> {
+  return printDoc(doc, printerView(p), { drawer });
 }
 
-/** Fetches the sale's receipt rows and prints them on this device's printer. */
-export async function printSaleReceipt(saleId: string, p: ReceiptPrinterSettings): Promise<ReceiptOutcome> {
+/** Opens the cash drawer wired to the printer, with no paper. */
+export function openDrawer(p: ReceiptPrinterSettings): Promise<PrintResult> {
+  return kickDrawer(printerView(p));
+}
+
+/** Fetches the sale's receipt rows and prints them on this device's printer; the drawer opens when the sale took cash and the device is set to. */
+export async function printSaleReceipt(saleId: string, p: ReceiptPrinterSettings, cash = false): Promise<ReceiptOutcome> {
   try {
     const doc = await saleReceiptDoc(saleId);
     if (!doc) return { ok: false, reason: 'none', message: 'no receipt for this sale' };
-    return await printPaper(doc, p);
+    return await printPaper(doc, p, cash && p.drawerOnCash && p.drawerPin !== null);
   } catch (error) {
     return { ok: false, reason: 'bridge', message: error instanceof Error ? error.message : 'could not print' };
   }
