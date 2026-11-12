@@ -302,7 +302,10 @@ const ckb: Messages = {
   'nav.language': 'زمان',
 
   // Signing in and the pages around it
-  'auth.aside': 'مینیوی ڕێستۆرانەکان بە ئینگلیزی و عەرەبی و کوردیی سۆرانی، لە یەک شوێندا.',
+  'auth.aside': 'ژووری کۆنترۆڵ کە پلان و پارەدان و دەسەڵاتی هەموو کڕیارێک لە هەموو بەرهەمەکانی Buzzify ڕێکدەخات.',
+  'auth.stage.line1': 'هەرگیز ون مەکە',
+  'auth.stage.line2': 'کڕیارێک یان پارەدانێک.',
+  'auth.stage.products': 'یەک ژووری کۆنترۆڵ بۆ',
   'auth.backToSignIn': 'گەڕانەوە بۆ چوونەژوورەوە',
   'auth.passwordHint': 'لانیکەم 12 پیت. وشە نهێنییە باوەکان ڕەت دەکرێنەوە.',
   'auth.passwordMismatch': 'دوو وشە نهێنییەکە وەک یەک نین',

@@ -302,7 +302,10 @@ const ar: Messages = {
   'nav.language': 'اللغة',
 
   // Signing in and the pages around it
-  'auth.aside': 'قوائم المطاعم بالإنجليزية والعربية والكردية السورانية، في مكان واحد.',
+  'auth.aside': 'غرفة التحكم التي تُبقي خطة كل عميل ومدفوعاته وصلاحياته منظّمة عبر جميع منتجات Buzzify.',
+  'auth.stage.line1': 'لا تفقد أبدًا',
+  'auth.stage.line2': 'عميلًا أو دفعة.',
+  'auth.stage.products': 'غرفة تحكم واحدة لـ',
   'auth.backToSignIn': 'العودة إلى تسجيل الدخول',
   'auth.passwordHint': '12 حرفًا على الأقل. تُرفض كلمات المرور الشائعة.',
   'auth.passwordMismatch': 'كلمتا المرور غير متطابقتين',

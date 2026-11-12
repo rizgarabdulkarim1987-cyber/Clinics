@@ -330,3 +330,131 @@ html[data-tone='dark'] .brand-logo-light {
 html[data-tone='dark'] {
   color-scheme: dark;
 }
+
+/*
+ * The signed-out pages' brand world (the look of buzzify.me/business_core): black, electric blue, mono caps labels and
+ * a blue glow. It re-points the Studio's own tokens inside `.auth-world`, so every control (input, button, alert) takes
+ * it on without a class of its own, and nothing outside the auth layout changes. Contrast on black: text 21:1, muted
+ * 7.4:1, the lit blue (focus ring, links) 5.6:1, white on the button's blue 8.6:1.
+ */
+.auth-world {
+  color-scheme: dark;
+  --s-bg: #000000;
+  --s-surface: #07070d;
+  --s-raised: #0b0b14;
+  --s-line: rgb(255 255 255 / 0.12);
+  --s-line-strong: rgb(255 255 255 / 0.26);
+  --s-hover: rgb(255 255 255 / 0.07);
+  --s-pressed: rgb(255 255 255 / 0.12);
+  --s-text: #ffffff;
+  --s-muted: rgb(255 255 255 / 0.62);
+  --s-ink: #1a24ff;
+  --s-ink-hover: #4d5cff;
+  --s-on-ink: #ffffff;
+  --s-on-status: #000000;
+  --s-accent: #4d5cff;
+  --s-accent-wash: rgb(77 92 255 / 0.14);
+  --s-danger: #ff8579;
+  --s-danger-hover: #ffa297;
+  --s-danger-wash: rgb(255 90 70 / 0.12);
+  --s-success: #5ee08f;
+  --s-success-wash: rgb(60 220 130 / 0.1);
+  --s-info: #8b96ff;
+  --s-info-wash: rgb(77 92 255 / 0.14);
+  --s-mono: var(--font-geist-mono), ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+}
+
+/* Only the white logo on black, whatever tone the person's own look has. */
+.auth-world .brand-logo-dark {
+  display: block;
+}
+.auth-world .brand-logo-light {
+  display: none;
+}
+
+/* The form side: a faint blue haze rising from the foot, so the black is not flat. */
+.auth-form-side::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 55%;
+  background: radial-gradient(70% 100% at 50% 100%, rgb(26 36 255 / 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+/* The brand stage: two blue glows and a fine grid that fades out toward the edges. */
+.auth-stage {
+  background:
+    radial-gradient(60% 45% at 80% 0%, rgb(26 36 255 / 0.5), transparent 70%),
+    radial-gradient(70% 50% at 10% 100%, rgb(130 60 255 / 0.28), transparent 70%),
+    var(--s-surface);
+}
+.auth-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(80% 70% at 50% 45%, #000, transparent 85%);
+  mask-image: radial-gradient(80% 70% at 50% 45%, #000, transparent 85%);
+  pointer-events: none;
+}
+
+.auth-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--s-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8b96ff;
+}
+.auth-eyebrow-dim {
+  color: var(--s-muted);
+}
+.auth-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #4d5cff;
+  box-shadow: 0 0 12px 2px rgb(77 92 255 / 0.9);
+}
+
+.auth-headline {
+  font-size: clamp(2.5rem, 4.2vw, 4rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.auth-headline-lit {
+  background: linear-gradient(90deg, #6f7bff, #5ec8ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+[dir='rtl'] .auth-headline {
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.auth-product {
+  transition: color 150ms;
+}
+@media (hover: hover) {
+  .auth-product:hover {
+    color: #8b96ff;
+  }
+}
+
+/* Chrome paints a saved login pale blue; keep the field dark. */
+.auth-world input:-webkit-autofill,
+.auth-world input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  box-shadow: 0 0 0 1000px #0b0b14 inset;
+  transition: background-color 9999s;
+}
