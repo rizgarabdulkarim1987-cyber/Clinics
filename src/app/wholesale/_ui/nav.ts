@@ -40,7 +40,7 @@ export function whNav(role: WhRole): WhNavItem[] {
 
 /** What a section is called, where it leads, which paths belong to it, and the few places inside it. */
 export interface WhGroup {
-  key: 'home' | 'sales' | 'stock' | 'money' | 'admin';
+  key: 'home' | 'sales' | 'stock' | 'money' | 'reps' | 'admin';
   href: string;
   labelKey: string;
   match: string[];
@@ -55,7 +55,8 @@ const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'home', labelKey: 'wh.nav.g.home', keys: ['home', 'reports', 'assistant'] },
   { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers', 'agency', 'targets'] },
   { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
-  { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'reps', 'expenses', 'rates'] },
+  { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
+  { key: 'reps', labelKey: 'wh.nav.g.reps', keys: ['reps'] },
   { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },
 ];
 

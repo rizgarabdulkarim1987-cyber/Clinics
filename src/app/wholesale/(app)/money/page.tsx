@@ -4,7 +4,6 @@ import { getWhAccess } from '@/server/wholesale/access';
 import { Hub } from '../../_ui/Hub';
 import ExpensesPage from '../expenses/page';
 import RatesPage from '../rates/page';
-import RepsPage from '../reps/page';
 import TreasuryPage from '../treasury/page';
 
 export const metadata: Metadata = { title: 'Money' };
@@ -13,5 +12,5 @@ export const metadata: Metadata = { title: 'Money' };
 export default async function MoneyPage() {
   const { actor } = await getWhAccess();
   const can = (p: Parameters<typeof canWh>[1]) => canWh(actor!.role, p);
-  return <Hub panes={[can('custody.submit') && <TreasuryPage key="t" />, can('expense.submit') && <ExpensesPage key="e" />, can('custody.confirm') && <RepsPage key="p" />, can('rate.set') && <RatesPage key="r" />]} />;
+  return <Hub panes={[can('custody.submit') && <TreasuryPage key="t" />, can('expense.submit') && <ExpensesPage key="e" />, can('rate.set') && <RatesPage key="r" />]} />;
 }

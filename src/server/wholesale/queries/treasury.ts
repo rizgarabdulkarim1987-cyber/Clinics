@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { whPlaceInput, whTargetOf } from '@/server/wholesale/actions/catalog';
 import { listConversions } from '@/server/wholesale/posting/conversion';
 import { getCustody, listPendingHandovers, listRepAccounts } from '@/server/wholesale/posting/custody';
@@ -58,10 +59,10 @@ export const repAccountsQuery = defineQuery({
   name: 'wh.custody.reps',
   permission: null,
   wh: 'custody.confirm',
-  input: whPlaceInput,
+  input: whPlaceInput.extend({ repId: z.string().min(1).max(64).optional(), limit: z.number().int().min(1).max(2000).optional() }),
   target: whTargetOf,
-  run: async (ctx) => {
+  run: async (ctx, input) => {
     const { user, scoped, rid } = who(ctx);
-    return plain(await listRepAccounts(scoped, rid, user));
+    return plain(await listRepAccounts(scoped, rid, user, input.limit ?? 40, input.repId));
   },
 });

@@ -280,9 +280,9 @@ export type RepAccount = {
 }
 
 /** Every active rep with his custody and his last movements (custody:confirm): what he collected, handed in and spent. */
-export async function listRepAccounts(tx: Db, rid: string, user: WhUser, moveLimit = 40): Promise<RepAccount[]> {
+export async function listRepAccounts(tx: Db, rid: string, user: WhUser, moveLimit = 40, onlyRepId?: string): Promise<RepAccount[]> {
   if (!canWh(user.role, 'custody.confirm')) throw new ForbiddenError('custody.confirm')
-  const reps = await tx.whStaff.findMany({ where: { role: 'REP', deactivatedAt: null }, select: { userId: true, user: { select: { name: true } } }, orderBy: { createdAt: 'asc' } })
+  const reps = await tx.whStaff.findMany({ where: { role: 'REP', deactivatedAt: null, ...(onlyRepId ? { userId: onlyRepId } : {}) }, select: { userId: true, user: { select: { name: true } } }, orderBy: { createdAt: 'asc' } })
   const out: RepAccount[] = []
   for (const r of reps) {
     const custody = await getCustody(tx, rid, user, r.userId)
