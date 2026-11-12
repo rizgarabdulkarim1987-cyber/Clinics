@@ -119,7 +119,7 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
           )}
           </>
         )}
-        <PoweredBy className="ms-auto px-0 py-0" />
+        <PoweredBy className="mr-auto px-0 py-0" />
       </div>
     <SalesWorkspace
       today={today}
