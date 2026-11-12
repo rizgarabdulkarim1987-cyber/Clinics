@@ -215,7 +215,7 @@ export default async function HomePage() {
         )}
 
         {board && (
-          <div className="grid gap-2.5 md:min-h-0 md:flex-[3] xl:grid-cols-3">
+          <div className="grid gap-2.5 md:min-h-0 md:flex-[2] xl:grid-cols-3">
             <Block icon={BarChart3} tone="blue" title={t('wh.home.last7')}>
               <div className="flex min-h-0 flex-1 flex-col gap-1 px-3.5 pb-2 pt-1.5">
                 <p className="flex items-baseline gap-2 text-sm text-muted">
@@ -223,7 +223,7 @@ export default async function HomePage() {
                     {money(weekTotal)} IQD
                   </span>
                 </p>
-                <div className="relative min-h-28 flex-1" dir="ltr">
+                <div className="relative min-h-20 flex-1" dir="ltr">
                   <div aria-hidden className="absolute inset-0 flex flex-col justify-between pb-5">
                     {[0, 1, 2].map((i) => (
                       <span key={i} className="border-t border-dashed border-line" />
@@ -249,7 +249,7 @@ export default async function HomePage() {
                 <p className="text-lg font-bold tabular-nums text-wh-rail" dir="ltr">
                   {money(yearTotal)} IQD
                 </p>
-                <div className="relative min-h-28 flex-1" dir="ltr">
+                <div className="relative min-h-20 flex-1" dir="ltr">
                   <div aria-hidden className="absolute inset-0 flex flex-col justify-between pb-5">
                     {[0, 1, 2].map((i) => (
                       <span key={i} className="border-t border-dashed border-line" />
@@ -308,7 +308,7 @@ export default async function HomePage() {
         )}
 
         {ok && (
-          <div className="grid gap-2.5 md:min-h-0 md:flex-[2] lg:grid-cols-3">
+          <div className="grid gap-2.5 md:min-h-0 md:flex-[3] lg:grid-cols-3">
             <Block icon={Receipt} tone="green" title={t('wh.home.recent')} href="/wholesale/sales" more={t('wh.home.all')}>
               {(sales ?? []).length === 0 ? (
                 <p className="px-4 py-4 text-center text-sm text-muted">{t('wh.sw.noRecent')}</p>
