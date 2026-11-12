@@ -5,6 +5,7 @@ import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery } from '@/server/wholesale/queries/catalog';
 import { saleQuery } from '@/server/wholesale/queries/sale';
 import { getStudioTranslator } from '@/studio/messages';
+import { FitReceipt } from '../../../../_ui/FitReceipt';
 import { PrintButton } from '../../../../_ui/PrintButton';
 
 export const metadata: Metadata = { title: 'Invoice' };
@@ -26,9 +27,9 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
   if (narrow) {
     // an 80 mm thermal receipt: one narrow column, the item on its own line, quantity x price = total under it
     return (
-      <div className="mx-auto flex w-[72mm] max-w-full flex-col gap-2 bg-white p-2 text-[13px] leading-snug text-black print:p-0">
-        <style>{'@page { size: 80mm auto; margin: 3mm }'}</style>
-        <div className="flex items-center justify-between gap-2 print:hidden">
+      <div data-receipt className="mx-auto flex w-[72mm] max-w-full flex-col gap-2 bg-white p-2 text-[13px] leading-snug text-black print:p-0">
+        <FitReceipt />
+        <div data-screen-only className="flex items-center justify-between gap-2 print:hidden">
           <Link href={`/wholesale/sales/${s.id}/print`} className="text-sm underline">
             {t('wh.print.a4')}
           </Link>
