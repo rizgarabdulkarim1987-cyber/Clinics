@@ -75,7 +75,8 @@ const wholesale: Messages = {
   'wh.unit.SACK_5': "كيس 5 كغم",
   'wh.unit.SACK_10': "كيس 10 كغم",
   'wh.unit.SACK_15': "كيس 15 كغم",
-  'wh.unit.SACK_25': "كيس 25 كغم",
+  'wh.unit.SACK_25': "فردة 25 كغم",
+  'wh.unit.SINGLE': "فردة مفردة",
 
   'wh.stock.title': 'المخزون',
   'wh.stock.description': 'ما هو موجود في كل مخزن.',
