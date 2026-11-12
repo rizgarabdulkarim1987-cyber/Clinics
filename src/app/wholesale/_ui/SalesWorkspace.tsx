@@ -138,6 +138,7 @@ export function SalesWorkspace({
   info,
   debts,
   todaySales,
+  rates,
   period,
   range,
   by,
@@ -158,6 +159,7 @@ export function SalesWorkspace({
   info: SellInfo;
   debts: DebtRow[];
   todaySales: TodaySale[];
+  rates: { USD: string | null; IRT: string | null };
   period: string;
   range: { from: string; to: string };
   by: string;
@@ -478,7 +480,7 @@ export function SalesWorkspace({
           {shown.length === 0 ? (
             <p className="py-6 text-center text-base text-muted">{t('wh.sw.noItems')}</p>
           ) : (
-            <ul className="grid min-h-0 flex-[3] content-start grid-cols-2 gap-2 overflow-y-auto pe-1 sm:grid-cols-3 xl:grid-cols-4">
+            <ul className="grid min-h-0 flex-[3] content-start grid-cols-2 gap-1.5 overflow-y-auto pe-1 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
               {shown.map((i) => {
                 const u = unitsOf(i)[0] ?? i.baseUnit;
                 const p = listPrice(i, u);
@@ -490,20 +492,20 @@ export function SalesWorkspace({
                     <button
                       type="button"
                       onClick={() => addItem(i)}
-                      className={cx('relative flex min-h-28 w-full flex-col items-start justify-between gap-1 rounded-md border border-line px-3 py-2 text-start transition-colors active:brightness-95', n > 0 ? h.wash : cx('bg-raised', h.hover))}
+                      className={cx('relative flex w-full flex-col items-start gap-0.5 rounded-md border border-line px-2 py-1.5 text-start transition-colors active:brightness-95', n > 0 ? h.wash : cx('bg-raised', h.hover))}
                     >
-                      <span aria-hidden className={cx("absolute end-2 top-2 size-2 rounded-full", h.chip)} />
-                      <span className="line-clamp-2 text-base font-semibold leading-snug" dir="auto">
+                      <span aria-hidden className={cx("absolute end-1.5 top-2 size-1.5 rounded-full", h.chip)} />
+                      <span className="line-clamp-1 pe-4 text-sm font-semibold leading-snug" dir="auto">
                         {i.label}
                       </span>
-                      <span className={cx('text-base font-bold tabular-nums', h.ink)} dir="ltr">
+                      <span className={cx('text-sm font-bold tabular-nums', h.ink)} dir="ltr">
                         {Number.isFinite(p) ? money(p) : i.code} <span className="text-xs font-medium text-muted">{Number.isFinite(p) ? `/ ${t(`wh.unit.${u}`)}` : ''}</span>
                       </span>
-                      <span className={cx('inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold tabular-nums', onHand > 0 ? 'bg-wh-teal-wash text-wh-teal' : 'bg-wh-rose-wash text-wh-rose')} dir="ltr">
+                      <span className={cx('inline-flex items-center gap-1 rounded-full px-1.5 text-[11px] font-semibold leading-5 tabular-nums', onHand > 0 ? 'bg-wh-teal-wash text-wh-teal' : 'bg-wh-rose-wash text-wh-rose')} dir="ltr">
                         {onHand.toLocaleString('en-US', { maximumFractionDigits: 2 })} {t(`wh.unit.${i.baseUnit}`)}
                       </span>
                       {i.expiry && (
-                        <span className={cx('inline-flex items-center gap-1 text-xs tabular-nums', i.expiry.status === 'expired' ? 'font-semibold text-wh-rose' : i.expiry.status === 'soon' ? 'font-semibold text-wh-amber' : 'text-muted')} dir="ltr">
+                        <span className={cx('inline-flex items-center gap-1 text-[11px] tabular-nums', i.expiry.status === 'expired' ? 'font-semibold text-wh-rose' : i.expiry.status === 'soon' ? 'font-semibold text-wh-amber' : 'text-muted')} dir="ltr">
                           <CalendarClock aria-hidden className="size-3" />
                           {i.expiry.date}
                         </span>
@@ -738,6 +740,11 @@ export function SalesWorkspace({
                   </span>
                 )}
                 {overPaid && <span className="block text-sm font-medium text-wh-rose">{t('wh.sw.paidTooMuch')}</span>}
+                {estimate > 0 && (rates.USD || rates.IRT) && (
+                  <span className="block text-sm font-medium tabular-nums text-muted" dir="ltr">
+                    {[rates.USD && currency !== 'USD' ? `$${(estimate / Number(rates.USD)).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : null, rates.IRT && currency !== 'IRT' ? `${money(estimate / Number(rates.IRT))} IRT` : null].filter(Boolean).join('  ·  ')}
+                  </span>
+                )}
                 {currency !== 'IQD' && lines.length > 0 && <span className="block text-xs text-muted">{t('wh.sw.estimateNote')}</span>}
               </p>
               <button

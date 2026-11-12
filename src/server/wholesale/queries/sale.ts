@@ -109,3 +109,17 @@ export const debtsListQuery = defineQuery({
     return plain({ today, rows: list });
   },
 });
+
+/** Today's dollar and toman rates (dinars per unit) for the sell screen's conversion line. A rep can read them: no cost in them. */
+export const dayRatesQuery = defineQuery({
+  name: 'wh.dayRates',
+  permission: null,
+  wh: 'sale.create',
+  input: whPlaceInput,
+  target: whTargetOf,
+  run: async (ctx) => {
+    const { scoped } = who(ctx);
+    const rows = await scoped.whExchangeRate.findMany({ where: { date: new Date(`${baghdadDate()}T00:00:00Z`) } });
+    return { USD: rows.find((r) => r.currency === 'USD')?.iqdPer.toFixed() ?? null, IRT: rows.find((r) => r.currency === 'IRT')?.iqdPer.toFixed() ?? null };
+  },
+});
