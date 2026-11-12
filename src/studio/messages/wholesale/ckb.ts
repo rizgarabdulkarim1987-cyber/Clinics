@@ -541,6 +541,7 @@ const wholesale: Messages = {
   'wh.sw.remove': 'سڕینەوە',
   'wh.sw.total': 'کۆی گشتی',
   'wh.sw.estimateNote': 'بە دینار نزیکەیی. کۆی کۆتایی لە کاتی تۆمارکردن دەژمێردرێت.',
+  'wh.sw.autoPrint': "وەسڵ خۆکارانە چاپ بکە",
   'wh.sw.account': 'هەژماری کڕیار',
   'wh.sw.debt': 'قەرزاری ئێمەیە',
   'wh.sw.recent': 'دوایین فرۆشتنەکان',

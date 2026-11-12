@@ -3,7 +3,7 @@
 import { Banknote, CalendarClock, Coins, HandCoins, ChevronDown, Minus, Plus, Printer, Pencil, Receipt, Search, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { cancelSale, collectPayment, postSale } from '@/app/wholesale/_actions/company';
 import { describeFailure } from '@/studio/errors';
@@ -206,6 +206,43 @@ export function SalesWorkspace({
   const [editing, setEditing] = useState<string | null>(null);
   const [replacing, setReplacing] = useState<{ id: string; number: number | null } | null>(null);
   const [lastSale, setLastSale] = useState<{ id: string; held: boolean } | null>(null);
+  // Print the 80 mm receipt by itself right after a sale posts; the choice is remembered per device.
+  const autoPrint = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener('wh-autoprint', cb);
+      return () => window.removeEventListener('wh-autoprint', cb);
+    },
+    () => {
+      try {
+        return localStorage.getItem('wh.autoPrint') !== '0';
+      } catch {
+        return true;
+      }
+    },
+    () => true,
+  );
+  const toggleAutoPrint = (on: boolean) => {
+    try {
+      localStorage.setItem('wh.autoPrint', on ? '1' : '0');
+    } catch {}
+    window.dispatchEvent(new Event('wh-autoprint'));
+  };
+  const printReceipt = (saleId: string) => {
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;inset-inline-end:0;bottom:0;width:0;height:0;border:0';
+    frame.src = `/wholesale/sales/${saleId}/print?w=80`;
+    frame.onload = () => {
+      const w = frame.contentWindow;
+      if (!w) return;
+      setTimeout(() => {
+        w.focus();
+        w.print();
+        setTimeout(() => frame.remove(), 60_000);
+      }, 400);
+    };
+    document.body.appendChild(frame);
+  };
   const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>('IQD');
   const [payment, setPayment] = useState<'CASH' | 'CREDIT'>('CASH');
   const [dueDate, setDueDate] = useState('');
@@ -387,6 +424,7 @@ export function SalesWorkspace({
       }
       toast.success(held ? t('wh.sales.held') : t('wh.sales.posted'));
       setLastSale({ id: result.data.saleId, held });
+      if (!held && autoPrint) printReceipt(result.data.saleId);
       setPaidNow('');
       setLines([]);
       setEditing(null);
@@ -789,6 +827,11 @@ export function SalesWorkspace({
                 )}
                 {currency !== 'IQD' && lines.length > 0 && <span className="block text-xs text-muted">{t('wh.sw.estimateNote')}</span>}
               </p>
+              <label className="flex min-h-11 items-center gap-2 text-sm text-muted">
+                <input type="checkbox" checked={autoPrint} onChange={(e) => toggleAutoPrint(e.target.checked)} className="size-5" />
+                <Printer className="size-4" aria-hidden />
+                <span>{t('wh.sw.autoPrint')}</span>
+              </label>
               <button
                 type="button"
                 disabled={!valid || pending}
