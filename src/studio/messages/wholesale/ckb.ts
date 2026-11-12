@@ -611,6 +611,8 @@ const wholesale: Messages = {
   'wh.reports.x.debts': "قەرزەکان",
   'wh.print.open': "چاپکردنی فاتورە",
   'wh.print.print': "چاپ / پاشکەوتکردن وەک PDF",
+  'wh.print.a4': "فاتورەی A4",
+  'wh.print.thermal': "وەسڵی ٨٠ ملم",
   'wh.print.back': "گەڕانەوە",
   'wh.print.invoice': "فاتورەی فرۆشتن",
   'wh.print.date': "بەروار",

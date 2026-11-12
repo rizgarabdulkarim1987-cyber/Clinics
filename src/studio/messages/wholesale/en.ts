@@ -611,6 +611,8 @@ const wholesale: Messages = {
   'wh.reports.x.debts': "Debts",
   'wh.print.open': "Print invoice",
   'wh.print.print': "Print / save PDF",
+  'wh.print.a4': "A4 invoice",
+  'wh.print.thermal': "80 mm receipt",
   'wh.print.back': "Back",
   'wh.print.invoice': "Sales invoice",
   'wh.print.date': "Date",
