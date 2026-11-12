@@ -2,16 +2,24 @@ import '@/studio/studio.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { direction } from '@/lib/locale';
+import { getWhAccess } from '@/server/wholesale/access';
 import { studioFontVariables } from '@/studio/fonts';
 import { StudioI18nProvider } from '@/studio/i18n';
 import { clientMessages } from '@/studio/messages';
 import { requestStudioLocale } from '@/studio/request-locale';
 import { Toaster } from '@/studio/ui/Toaster';
 
-export const metadata: Metadata = {
-  title: { default: 'Buzzify Wholesale', template: '%s · Buzzify Wholesale' },
-  robots: { index: false, follow: false },
-};
+/** The tab carries the company's own name once someone is signed in; the product name only before that. */
+export async function generateMetadata(): Promise<Metadata> {
+  let name = 'Buzzify Wholesale';
+  try {
+    const access = await getWhAccess();
+    if (access.signedIn && access.actor?.restaurantName) name = access.actor.restaurantName;
+  } catch {
+    // the sign-in page and a missing company keep the product name
+  }
+  return { title: { default: name, template: `%s · ${name}` }, robots: { index: false, follow: false } };
+}
 
 /**
  * The Wholesale company's root layout: the Studio's document (same stylesheet, fonts, language and direction from the
