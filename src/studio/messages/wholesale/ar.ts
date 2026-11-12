@@ -611,6 +611,8 @@ const wholesale: Messages = {
   'wh.reports.x.debts': "الديون",
   'wh.print.open': "طباعة الفاتورة",
   'wh.print.print': "طباعة / حفظ PDF",
+  'wh.print.a4': "فاتورة A4",
+  'wh.print.thermal': "وصل 80 ملم",
   'wh.print.back': "رجوع",
   'wh.print.invoice': "فاتورة بيع",
   'wh.print.date': "التاريخ",
