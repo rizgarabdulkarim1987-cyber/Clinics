@@ -472,6 +472,7 @@ const wholesale: Messages = {
   'wh.assistant.tool.profit': 'قازانج',
   'wh.assistant.tool.sales': 'فرۆشتن',
   'wh.assistant.tool.stock': 'کۆگا',
+  'wh.assistant.tool.item': "کاڵا",
   'wh.assistant.tool.pending': 'چاوەڕێی تۆیە',
   'wh.assistant.q.cash': 'چەند پارەمان هەیە؟',
   'wh.assistant.q.debts': 'کێ قەرزاری ئێمەیە؟',

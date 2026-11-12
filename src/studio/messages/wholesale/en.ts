@@ -472,6 +472,7 @@ const wholesale: Messages = {
   'wh.assistant.tool.profit': 'Profit',
   'wh.assistant.tool.sales': 'Sales',
   'wh.assistant.tool.stock': 'Stock',
+  'wh.assistant.tool.item': "Item",
   'wh.assistant.tool.pending': 'Waiting for you',
   'wh.assistant.q.cash': 'How much cash do we have?',
   'wh.assistant.q.debts': 'Who owes us money?',
