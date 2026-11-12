@@ -18,7 +18,13 @@ export async function generateMetadata(): Promise<Metadata> {
   } catch {
     // the sign-in page and a missing company keep the product name
   }
-  return { title: { default: name, template: `%s · ${name}` }, robots: { index: false, follow: false } };
+  return {
+    title: { default: name, template: `%s · ${name}` },
+    robots: { index: false, follow: false },
+    // installable: "Install" in Chrome/Edge, "Add to Home screen" on a phone
+    manifest: '/wholesale/manifest',
+    icons: { icon: '/wholesale/icon-192.png', apple: '/wholesale/icon-192.png' },
+  };
 }
 
 /**
