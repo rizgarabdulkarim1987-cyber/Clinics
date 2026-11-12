@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Handshake, Printer } from 'lucide-react';
+import { Coins, Handshake, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { canWh } from '@/server/domain/wholesale/permissions';
 import { addDays } from '@/server/domain/wholesale/forecast';
@@ -109,6 +109,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
             <Handshake aria-hidden className="size-4 text-wh-violet" />
             {t('wh.agency.title')}
           </Link>
+          {canWh(actor!.role, 'rate.set') && (
+            <Link href="/wholesale/rates" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line-strong bg-raised px-3 text-sm font-semibold hover:bg-wh-amber-wash">
+              <Coins aria-hidden className="size-4 text-wh-amber" />
+              {t('wh.nav.rates')}
+            </Link>
+          )}
         </div>
       )}
     <SalesWorkspace
