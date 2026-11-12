@@ -9,7 +9,7 @@ import { settle } from '@/studio/settle';
 import { Button, Field, FormError, Input, Select } from '@/studio/ui';
 
 const BASE_UNITS = ['PIECE', 'KG', 'TON', 'CARTON'] as const;
-const UNITS = [...BASE_UNITS, 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25', 'SINGLE'] as const;
+const UNITS = [...BASE_UNITS, 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25'] as const;
 type Unit = (typeof UNITS)[number];
 
 export interface ItemRow {

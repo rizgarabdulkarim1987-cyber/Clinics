@@ -34,7 +34,7 @@ export type SellInfo = {
 type Line = { key: string; itemId: string; unit: string; qty: string; mode: 'OFFICIAL' | 'PERCENT' | 'MANUAL'; value: string };
 
 const CURRENCIES = ['IQD', 'USD', 'IRT'] as const;
-const UNIT_ORDER = ['PIECE', 'KG', 'TON', 'CARTON', 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25', 'SINGLE'];
+const UNIT_ORDER = ['PIECE', 'KG', 'TON', 'CARTON', 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25'];
 const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 const num = (s: string) => {
   const n = Number(s.replace(',', '.'));

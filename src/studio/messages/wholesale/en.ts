@@ -75,7 +75,7 @@ const wholesale: Messages = {
   'wh.unit.SACK_5': "Sack 5 kg",
   'wh.unit.SACK_10': "Sack 10 kg",
   'wh.unit.SACK_15': "Sack 15 kg",
-  'wh.unit.SACK_25': "Sack 25 kg",
+  'wh.unit.SACK_25': "Sack 25 kg (farda)",
   'wh.unit.SINGLE': "Single",
 
   'wh.stock.title': 'Stock',
