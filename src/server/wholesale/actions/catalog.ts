@@ -40,7 +40,7 @@ export async function refusing<T>(fn: () => Promise<T>): Promise<T> {
       error instanceof InsufficientStockError ||
       error instanceof NoStockToRecostError
     ) {
-      throw new StudioError(error instanceof ItemLockedError || error instanceof InsufficientStockError ? 'CONFLICT' : 'INVALID', error.message);
+      throw new StudioError(error instanceof InsufficientStockError ? 'CONFLICT' : 'INVALID', error.message);
     }
     throw error;
   }
