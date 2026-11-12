@@ -83,6 +83,13 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
           <Select name="baseUnit" defaultValue={form.value('baseUnit') ?? item?.baseUnit ?? 'PIECE'} options={BASE_UNITS.map((u) => ({ value: u, label: t(`wh.unit.${u}`) }))} />
         </Field>
       </div>
+      {item && (
+        <div>
+          <Button type="submit" variant="primary" pending={form.pending}>
+            {t('wh.common.save')}
+          </Button>
+        </div>
+      )}
       <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
         <legend className="px-1 text-sm font-semibold">{t('wh.catalog.units')}</legend>
         <p className="text-sm text-muted">{t('wh.catalog.unitFactorHint')}</p>
@@ -94,11 +101,13 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
           ))}
         </div>
       </fieldset>
-      <div>
-        <Button type="submit" variant="primary" pending={form.pending}>
-          {t('wh.common.save')}
-        </Button>
-      </div>
+      {!item && (
+        <div>
+          <Button type="submit" variant="primary" pending={form.pending}>
+            {t('wh.common.save')}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
