@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { toast } from 'sonner';
 import { cancelSale, collectPayment, postSale } from '@/app/wholesale/_actions/company';
 import { describeFailure } from '@/studio/errors';
+import { PoweredBy } from '@/studio/shell/PoweredBy';
 import { printSaleReceipt, readPrinter } from './receipt-printer';
 import { useLocale, useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
@@ -134,6 +135,7 @@ function InfoStrip({ info, rates, t, debtCount, onDebts }: { info: SellInfo; rat
         <span className={label}>{t('wh.sw.debts')}</span>
         <span className={value}>{debtCount > 0 ? t('wh.sw.debtsN', { n: debtCount }) : t('wh.sw.debtsNone')}</span>
       </button>
+      <PoweredBy className="ms-auto" />
     </div>
   );
 }
