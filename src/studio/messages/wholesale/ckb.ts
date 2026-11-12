@@ -76,6 +76,7 @@ const wholesale: Messages = {
   'wh.unit.SACK_10': "گونی 10 کگم",
   'wh.unit.SACK_15': "گونی 15 کگم",
   'wh.unit.SACK_25': "گونی 25 کگم",
+  'wh.unit.SINGLE': "تاک",
 
   'wh.stock.title': 'کۆگا',
   'wh.stock.description': 'ئەوەی لە هەر کۆگایەکدا هەیە.',

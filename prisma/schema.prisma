@@ -4773,6 +4773,7 @@ enum WhUnit {
   SACK_10
   SACK_15
   SACK_25
+  SINGLE
 }
 
 enum WhWarehouseKind {

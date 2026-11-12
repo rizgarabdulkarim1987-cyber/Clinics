@@ -2,7 +2,7 @@ import { D } from '@/server/domain/wholesale/money'
 import type { Locale } from '@/lib/locale'
 
 /** Units an item can be sold/stocked in. */
-export const UNITS = ['PIECE', 'KG', 'TON', 'CARTON', 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25'] as const
+export const UNITS = ['PIECE', 'KG', 'TON', 'CARTON', 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25', 'SINGLE'] as const
 export type Unit = (typeof UNITS)[number]
 export const isUnit = (v: unknown): v is Unit => typeof v === 'string' && (UNITS as readonly string[]).includes(v)
 
