@@ -16,7 +16,6 @@ import { Alert } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
 import { PageHeader } from '../../_ui/PageHeader';
 import { SetupButton } from '../../_ui/PeopleForms';
-import { TargetBars } from '../../_ui/TargetBars';
 
 export const metadata: Metadata = { title: 'Home' };
 
@@ -298,27 +297,14 @@ export default async function HomePage() {
           </div>
         )}
 
-        {ok && goals && (goals.reps.length > 0 || canWh(actor!.role, 'staff.manage')) && (
-          <Block icon={Target} tone="violet" title={`${t('wh.target.title')} · ${goals.month.split('-').reverse().join('/')}`} href={canWh(actor!.role, 'staff.manage') ? '/wholesale/targets' : undefined} more={t('wh.target.setLink')}>
-            <div className={`grid gap-x-6 gap-y-4 px-3.5 py-3 ${goals.reps.length > 1 ? 'lg:grid-cols-2 xl:grid-cols-3' : ''}`}>
-              {goals.reps.length === 0 && (
-                <p className="text-sm text-muted">
-                  {t('wh.target.noReps')} <Link href="/wholesale/staff" className="font-semibold text-wh-blue underline">{t('wh.staff.addTitle')}</Link>
-                </p>
-              )}
-              {goals.reps.map((r) => (
-                <div key={r.userId} className="flex min-w-0 flex-col gap-2">
-                  <p className="flex items-baseline justify-between gap-2 text-sm font-semibold">
-                    <span className="truncate" dir="auto">
-                      {r.name}
-                    </span>
-                    <span className="shrink-0 text-xs font-normal text-muted">{t('wh.target.dayOf', { n: goals.progress })}</span>
-                  </p>
-                  <TargetBars row={r} pace={goals.progress} t={t} locale={locale} wide={goals.reps.length === 1} />
-                </div>
-              ))}
-            </div>
-          </Block>
+        {ok && goals && canWh(actor!.role, 'staff.manage') && (
+          <Link href="/wholesale/targets" className="flex min-h-11 items-center gap-3 rounded-lg border border-line bg-raised px-3.5 py-2 hover:bg-hover">
+            <Target aria-hidden className="size-5 shrink-0 text-wh-violet" />
+            <span className="min-w-0 flex-1 truncate text-base font-semibold">
+              {t('wh.target.title')} · {goals.month.split('-').reverse().join('/')}
+            </span>
+            <span className="shrink-0 text-sm font-medium text-wh-blue">{t('wh.home.all')}</span>
+          </Link>
         )}
 
         {ok && (
