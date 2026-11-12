@@ -101,7 +101,16 @@ async function addRows(
 // Create
 // ---------------------------------------------------------------------------------------------------------------
 
-export type AgencyOrderInput = { principalId: string; title: string; note?: string | null; currency: Currency; agreedTotal: Dec; date: string }
+export type AgencyOrderInput = {
+  principalId: string
+  title: string
+  note?: string | null
+  currency: Currency
+  agreedTotal: Dec
+  date: string
+  /** An advance taken when the order is opened: into the till, or a rep's custody. */
+  advance?: { amount: Dec; custodyRepId?: string | null } | null
+}
 
 export async function createAgencyOrderTx(tx: Db, rid: string, user: WhUser, p: AgencyOrderInput): Promise<{ orderId: string }> {
   requireManager(user)
@@ -123,6 +132,7 @@ export async function createAgencyOrderTx(tx: Db, rid: string, user: WhUser, p: 
     },
     select: { id: true },
   })
+  if (p.advance && p.advance.amount !== '' && p.advance.amount !== undefined) await receiveAdvanceTx(tx, rid, user, { orderId: order.id, amount: p.advance.amount, date: p.date, custodyRepId: p.advance.custodyRepId ?? null })
   return { orderId: order.id }
 }
 
@@ -176,7 +186,7 @@ export async function payCostTx(tx: Db, rid: string, user: WhUser, p: CostInput)
   return { entryId }
 }
 
-export type SettleInput = { orderId: string; total: Dec; date: string }
+export type SettleInput = { orderId: string; total: Dec; date: string; /** Money the customer pays right now at delivery: it goes into the till (or a rep's custody). */ receivedNow?: Dec | null; custodyRepId?: string | null }
 export type SettleResult = { entryId: string; total: string; cost: string; profit: string; applied: string; refund: string; remaining: string; status: 'DELIVERED' | 'CLOSED' }
 
 /** Delivery: the final total is the sale; advances pay part of it, the rest is owed; the cost paid becomes the cost of goods. */
@@ -205,9 +215,16 @@ export async function settleAgencyOrderTx(tx: Db, rid: string, user: WhUser, p: 
   if (plan.applied.gt(0)) rows.push({ kind: 'APPLIED', amount: plan.applied })
   if (plan.refund.gt(0)) rows.push({ kind: 'REFUND', amount: plan.refund })
   await addRows(tx, rid, order, user, entryId, date, rows)
-  const status = nextStatusAfterCollection(plan.remaining) as 'DELIVERED' | 'CLOSED'
+  let status = nextStatusAfterCollection(plan.remaining) as 'DELIVERED' | 'CLOSED'
   await tx.whAgencyOrder.update({ where: { id: order.id }, data: { status, settledAt: new Date() } })
-  return { entryId, total: plan.total.toFixed(), cost: plan.cost.toFixed(), profit: plan.profit.toFixed(), applied: plan.applied.toFixed(), refund: plan.refund.toFixed(), remaining: plan.remaining.toFixed(), status }
+  let remaining = plan.remaining
+  const now = p.receivedNow === undefined || p.receivedNow === null || p.receivedNow === '' ? null : parseAmount(p.receivedNow, { label: 'received now', dp: AMOUNT_DP, min: 'zero' })
+  if (now && now.gt(0)) {
+    if (now.gt(plan.remaining)) throw new InvalidAgencyError(`the customer owes ${plan.remaining.toFixed()} only`)
+    status = (await collectAgencyTx(tx, rid, user, { orderId: order.id, amount: now, date, custodyRepId: p.custodyRepId ?? null })).status
+    remaining = plan.remaining.minus(now)
+  }
+  return { entryId, total: plan.total.toFixed(), cost: plan.cost.toFixed(), profit: plan.profit.toFixed(), applied: plan.applied.toFixed(), refund: plan.refund.toFixed(), remaining: remaining.toFixed(), status }
 }
 
 export type CollectInput = { orderId: string; amount: Dec; date: string; custodyRepId?: string | null; note?: string | null }

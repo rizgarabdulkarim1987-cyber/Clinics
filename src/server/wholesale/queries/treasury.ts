@@ -1,6 +1,7 @@
+import { z } from 'zod';
 import { whPlaceInput, whTargetOf } from '@/server/wholesale/actions/catalog';
 import { listConversions } from '@/server/wholesale/posting/conversion';
-import { getCustody, listPendingHandovers } from '@/server/wholesale/posting/custody';
+import { getCustody, listPendingHandovers, listRepAccounts } from '@/server/wholesale/posting/custody';
 import { listExpenses } from '@/server/wholesale/posting/expense';
 import { plain } from '@/server/wholesale/plain';
 import { defineQuery } from '@/server/studio/framework/query';
@@ -51,5 +52,17 @@ export const expensesQuery = defineQuery({
   run: async (ctx) => {
     const { user, scoped } = who(ctx);
     return plain(await listExpenses(scoped, user));
+  },
+});
+
+export const repAccountsQuery = defineQuery({
+  name: 'wh.custody.reps',
+  permission: null,
+  wh: 'custody.confirm',
+  input: whPlaceInput.extend({ repId: z.string().min(1).max(64).optional(), limit: z.number().int().min(1).max(2000).optional() }),
+  target: whTargetOf,
+  run: async (ctx, input) => {
+    const { user, scoped, rid } = who(ctx);
+    return plain(await listRepAccounts(scoped, rid, user, input.limit ?? 40, input.repId));
   },
 });

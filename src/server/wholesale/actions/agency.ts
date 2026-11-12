@@ -32,7 +32,7 @@ export const createAgencyOrderAction = defineAction({
   name: 'wh.agency.create',
   permission: null,
   wh: 'catalog.manage',
-  input: whPlaceInput.extend({ principalId: id, title: z.string().trim().min(1).max(200), note: z.string().trim().max(2000).nullish(), currency: z.enum(CURRENCIES), agreedTotal: money, date: day.optional() }),
+  input: whPlaceInput.extend({ principalId: id, title: z.string().trim().min(1).max(200), note: z.string().trim().max(2000).nullish(), currency: z.enum(CURRENCIES), agreedTotal: money, date: day.optional(), advance: z.object({ amount: z.string().trim().max(40), custodyRepId: id.nullish() }).nullish() }),
   target: whTargetOf,
   run: (ctx, { restaurantId, date, ...order }) =>
     ctx.transaction(async (tx) =>
@@ -80,7 +80,7 @@ export const settleAgencyAction = defineAction({
   name: 'wh.agency.settle',
   permission: null,
   wh: 'catalog.manage',
-  input: whPlaceInput.extend({ orderId: id, total: money, date: day.optional() }),
+  input: whPlaceInput.extend({ orderId: id, total: money, date: day.optional(), receivedNow: z.string().trim().max(40).nullish(), custodyRepId: id.nullish() }),
   target: whTargetOf,
   run: (ctx, { restaurantId, date, ...p }) =>
     ctx.transaction(async (tx) =>

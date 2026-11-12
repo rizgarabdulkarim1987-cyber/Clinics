@@ -1,7 +1,7 @@
 import { Boxes, Coins, Contact, Handshake, Home, PackageSearch, Receipt, ShoppingCart, Wallet, HandCoins, Settings, BarChart3, Sparkles, Target, Truck, Users, type LucideIcon } from 'lucide-react';
 import { canWh, type WhPermission, type WhRole } from '@/server/domain/wholesale/permissions';
 
-export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'targets' | 'settings' | 'reports' | 'assistant' | 'staff' | 'opening' | 'agency';
+export type WhNavKey = 'home' | 'catalog' | 'stock' | 'customers' | 'suppliers' | 'purchases' | 'sales' | 'treasury' | 'expenses' | 'rates' | 'targets' | 'settings' | 'reports' | 'assistant' | 'staff' | 'opening' | 'agency' | 'reps';
 
 export interface WhNavItem {
   key: WhNavKey;
@@ -24,6 +24,7 @@ const ALL: WhNavItem[] = [
   { key: 'treasury', href: '/wholesale/treasury', labelKey: 'wh.nav.treasury', icon: Wallet, needs: 'custody.submit' },
   { key: 'reports', href: '/wholesale/reports', labelKey: 'wh.nav.reports', icon: BarChart3, needs: 'report.view' },
   { key: 'assistant', href: '/wholesale/assistant', labelKey: 'wh.nav.assistant', icon: Sparkles, needs: 'ai.use' },
+  { key: 'reps', href: '/wholesale/reps', labelKey: 'wh.nav.reps', icon: Users, needs: 'custody.confirm' },
   { key: 'expenses', href: '/wholesale/expenses', labelKey: 'wh.nav.expenses', icon: HandCoins, needs: 'expense.submit' },
   { key: 'rates', href: '/wholesale/rates', labelKey: 'wh.nav.rates', icon: Coins, needs: 'rate.set' },
   { key: 'targets', href: '/wholesale/targets', labelKey: 'wh.nav.targets', icon: Target, needs: 'staff.manage' },
@@ -39,7 +40,7 @@ export function whNav(role: WhRole): WhNavItem[] {
 
 /** What a section is called, where it leads, which paths belong to it, and the few places inside it. */
 export interface WhGroup {
-  key: 'home' | 'sales' | 'stock' | 'money' | 'admin';
+  key: 'home' | 'sales' | 'stock' | 'money' | 'reps' | 'admin';
   href: string;
   labelKey: string;
   match: string[];
@@ -55,6 +56,7 @@ const GROUPS: { key: WhGroup['key']; labelKey: string; keys: WhNavKey[] }[] = [
   { key: 'sales', labelKey: 'wh.nav.g.sales', keys: ['sales', 'customers', 'agency', 'targets'] },
   { key: 'stock', labelKey: 'wh.nav.g.stock', keys: ['stock', 'catalog', 'purchases', 'suppliers'] },
   { key: 'money', labelKey: 'wh.nav.g.money', keys: ['treasury', 'expenses', 'rates'] },
+  { key: 'reps', labelKey: 'wh.nav.g.reps', keys: ['reps'] },
   { key: 'admin', labelKey: 'wh.nav.g.admin', keys: ['settings', 'staff', 'opening'] },
 ];
 

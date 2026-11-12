@@ -7,7 +7,7 @@ import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { createCustomer, createItem, seedCities, setItemPrices } from '@/server/wholesale/catalog';
 import { seedChartOfAccounts } from '@/server/wholesale/ledger';
 import { convertCashTx } from '@/server/wholesale/posting/conversion';
-import { confirmHandoverTx, getCustody, rejectHandoverTx, submitHandoverTx } from '@/server/wholesale/posting/custody';
+import { confirmHandoverTx, getCustody, listRepAccounts, receiveFromRepTx, rejectHandoverTx, submitHandoverTx } from '@/server/wholesale/posting/custody';
 import { approveExpenseTx, listExpenses, postExpenseTx, rejectExpenseTx } from '@/server/wholesale/posting/expense';
 import { postSaleTx } from '@/server/wholesale/posting/sale';
 import { setRate } from '@/server/wholesale/rates';
@@ -87,6 +87,22 @@ describe('treasury', () => {
     expect(done.status).toBe('CONFIRMED_SHORT');
     const after = await run(A, (tx) => getCustody(tx, A, REP, REP.id));
     expect(after.find((c) => c.currency === 'IQD')?.balance.toString()).toBe('1000');
+    await assertBalanced();
+  });
+
+  it('the office takes cash from a rep directly: till up, his custody down, never more than he holds, never by himself', async () => {
+    await expect(run(A, (tx) => receiveFromRepTx(tx, A, REP, { repId: REP.id, amounts: [{ amount: '1', currency: 'IQD' }] }))).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(run(A, (tx) => receiveFromRepTx(tx, A, PARTNER, { repId: REP.id, amounts: [{ amount: '30001', currency: 'IQD' }] }))).rejects.toThrow();
+    await run(A, (tx) => receiveFromRepTx(tx, A, PARTNER, { repId: REP.id, amounts: [{ amount: '20000', currency: 'IQD' }] }));
+    const after = await run(A, (tx) => getCustody(tx, A, REP, REP.id));
+    expect(after.find((c) => c.currency === 'IQD')?.balance.toString()).toBe('10000');
+    // a pending handover reserves cash: only the rest can be taken directly
+    await run(A, (tx) => submitHandoverTx(tx, A, REP, { amounts: [{ amount: '6000', currency: 'IQD' }] }));
+    await expect(run(A, (tx) => receiveFromRepTx(tx, A, PARTNER, { repId: REP.id, amounts: [{ amount: '5000', currency: 'IQD' }] }))).rejects.toThrow();
+    const reps = await run(A, (tx) => listRepAccounts(tx, A, PARTNER));
+    expect(reps).toHaveLength(1);
+    expect(reps[0]!.moves.some((m) => m.side === 'CR' && m.amount.toString() === '20000')).toBe(true);
+    expect(reps[0]!.moves.some((m) => m.side === 'DR' && m.sourceType === 'SALE')).toBe(true);
     await assertBalanced();
   });
 

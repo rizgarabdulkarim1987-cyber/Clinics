@@ -18,7 +18,7 @@ const AREA_OF: ReadonlyArray<{ area: string; has: (key: Permission) => boolean }
   { area: 'data', has: (key) => key === 'import.run' || key === 'export.run' || key === 'prices.bulk' },
   { area: 'media', has: (key) => key === 'media.manage' },
   { area: 'people', has: (key) => key.startsWith('people.') || key === 'permissions.manage' },
-  { area: 'platform', has: (key) => key === 'audit.view' || key === 'platform.settings' },
+  { area: 'platform', has: (key) => key === 'audit.view' || key === 'platform.settings' || key.startsWith('accounts.') },
 ];
 
 const NEVER = new Set<Permission>(NEVER_GRANTABLE);

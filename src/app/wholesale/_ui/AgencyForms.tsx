@@ -51,7 +51,7 @@ function Label({ text, children, hint }: { text: ReactNode; children: ReactNode;
 
 const CURRENCY_OPTIONS = ['IQD', 'USD', 'IRT'] as const;
 
-export function NewAgencyForm({ principals }: { principals: Option[] }) {
+export function NewAgencyForm({ principals, reps }: { principals: Option[]; reps: Option[] }) {
   const t = useT();
   const router = useRouter();
   const [principalId, setPrincipalId] = useState(principals[0]?.id ?? '');
@@ -59,6 +59,8 @@ export function NewAgencyForm({ principals }: { principals: Option[] }) {
   const [note, setNote] = useState('');
   const [currency, setCurrency] = useState<(typeof CURRENCY_OPTIONS)[number]>('IQD');
   const [agreedTotal, setAgreedTotal] = useState('');
+  const [advance, setAdvance] = useState('');
+  const [into, setInto] = useState('');
   const { pending, submit } = useSubmit((data) => {
     const id = (data as { orderId?: string } | undefined)?.orderId;
     router.push(id ? `/wholesale/agency/${id}` : '/wholesale/agency');
@@ -69,7 +71,7 @@ export function NewAgencyForm({ principals }: { principals: Option[] }) {
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        submit(() => createAgencyOrder({ principalId, title, note: note || null, currency, agreedTotal: agreedTotal || '0' }));
+        submit(() => createAgencyOrder({ principalId, title, note: note || null, currency, agreedTotal: agreedTotal || '0', advance: advance.trim() ? { amount: advance.trim(), custodyRepId: into || null } : null }));
       }}
     >
       <Label text={t('wh.agency.principal')}>
@@ -95,6 +97,12 @@ export function NewAgencyForm({ principals }: { principals: Option[] }) {
         <Label text={t('wh.agency.agreedTotal')}>
           <input value={agreedTotal} onChange={(e) => setAgreedTotal(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0" className={`${field} ${num}`} />
         </Label>
+      </div>
+      <div className="flex flex-col gap-3 rounded-lg border border-line bg-hover p-3">
+        <Label text={`${t('wh.agency.advance.title')} (${currency})`} hint={t('wh.agency.advance.optional')}>
+          <input value={advance} onChange={(e) => setAdvance(e.target.value)} inputMode="decimal" dir="ltr" placeholder="0" className={`${field} ${num}`} />
+        </Label>
+        {advance.trim() !== '' && <IntoPicker reps={reps} value={into} onChange={setInto} />}
       </div>
       <Label text={t('wh.agency.note')}>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={2000} className="w-full rounded-md border border-line-strong bg-raised px-2.5 py-2 text-base" dir="auto" />
@@ -201,9 +209,11 @@ export function CostForm({ orderId, currency }: { orderId: string; currency: str
 }
 
 /** Delivery: the final total, with a live preview of the advances, what is owed and the profit or loss before anything is posted. */
-export function SettleForm({ orderId, currency, held, costs, agreedTotal }: { orderId: string; currency: string; held: string; costs: string; agreedTotal: string }) {
+export function SettleForm({ orderId, currency, held, costs, agreedTotal, reps }: { orderId: string; currency: string; held: string; costs: string; agreedTotal: string; reps: Option[] }) {
   const t = useT();
   const [total, setTotal] = useState(Number(agreedTotal) > 0 ? agreedTotal : '');
+  const [now, setNow] = useState('');
+  const [into, setInto] = useState('');
   const { pending, submit } = useSubmit();
   const plan = useMemo(() => {
     try {
@@ -227,7 +237,7 @@ export function SettleForm({ orderId, currency, held, costs, agreedTotal }: { or
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        submit(() => settleAgencyOrder({ orderId, total }));
+        submit(() => settleAgencyOrder({ orderId, total, receivedNow: now.trim() || null, custodyRepId: into || null }));
       }}
     >
       <Label text={`${t('wh.agency.settle.total')} (${currency})`} hint={t('wh.agency.settle.totalHint')}>
@@ -243,6 +253,14 @@ export function SettleForm({ orderId, currency, held, costs, agreedTotal }: { or
           {row(t('wh.agency.costs'), plan.cost.toFixed())}
           {row(plan.profit.isNegative() ? t('wh.agency.loss') : t('wh.agency.profit'), plan.profit.abs().toFixed(), true)}
         </dl>
+      )}
+      {plan && plan.remaining.gt(0) && (
+        <div className="flex flex-col gap-3">
+          <Label text={`${t('wh.agency.settle.now')} (${currency})`} hint={t('wh.agency.settle.nowHint')}>
+            <input value={now} onChange={(e) => setNow(e.target.value)} inputMode="decimal" dir="ltr" placeholder={plan.remaining.toFixed()} className={`${field} ${num}`} />
+          </Label>
+          {now.trim() !== '' && <IntoPicker reps={reps} value={into} onChange={setInto} />}
+        </div>
       )}
       <Button type="submit" disabled={pending || !plan}>
         {t('wh.agency.settle.do')}

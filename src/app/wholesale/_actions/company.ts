@@ -191,3 +191,7 @@ export async function collectAgencyOrder(input: unknown) {
 export async function cancelAgencyOrder(input: unknown) {
   return invokeWh(agency.cancelAgencyAction, input);
 }
+
+export async function receiveFromRep(input: unknown) {
+  return invokeWh(treasury.receiveFromRepAction, input);
+}

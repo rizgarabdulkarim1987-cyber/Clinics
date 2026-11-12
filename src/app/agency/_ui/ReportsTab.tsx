@@ -1,8 +1,8 @@
 'use client';
 
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Printer } from 'lucide-react';
 import { useState } from 'react';
-import { ACCOUNT_CURRENCIES, byClient, byMonth, byService, inPeriod, periodKey, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
+import { ACCOUNT_CURRENCIES, byClient, byMonth, byService, inPeriod, percentChange, periodKey, previousPeriod, summarize, type AccountCurrency, type Period } from '@/lib/accounts';
 import type { AccountsBook } from '@/server/studio/queries/accounts';
 import { useLocale, useT } from '@/studio/i18n';
 import { buttonClasses } from '@/studio/ui/Button';
@@ -36,6 +36,9 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
   const rate = book.rate;
   const dollarsAndDinars = summarize(rows);
   const totals = summarize(rows, rate);
+  const before = previousPeriod(period);
+  const beforeTotals = before ? summarize(inPeriod(book.movements, before)) : null;
+  const beforeName = before ? (before.kind === 'year' ? String(before.year) : before.kind === 'month' ? `${monthLabels(locale, 'long')[before.month - 1]} ${before.year}` : '') : '';
   const names = new Map(book.movements.flatMap((row) => (row.clientId && row.clientName ? [[row.clientId, row.clientName] as const] : [])));
   const byName = byClient(rows, names, rate);
   const services = byService(rows, rate);
@@ -66,6 +69,10 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
         {kind !== 'all' && <Select aria-label={t('accounts.period.year')} className={toolbarSelect} value={String(year)} onChange={(e) => setYear(Number(e.target.value))} options={years.map((value) => ({ value: String(value), label: String(value) }))} />}
         {kind === 'month' && <Select aria-label={t('accounts.period.monthLabel')} className={toolbarSelect} value={String(month)} onChange={(e) => setMonth(Number(e.target.value))} options={long.map((label, index) => ({ value: String(index + 1), label }))} />}
         <span className="ms-auto flex flex-wrap items-center gap-2">
+          <a href={`/agency/report?period=${encodeURIComponent(periodKey(period))}`} target="_blank" rel="noopener" className={buttonClasses('secondary', 'md')}>
+            <Printer aria-hidden />
+            {t('accounts.report.open')}
+          </a>
           <a href={`/agency/export?period=${encodeURIComponent(periodKey(period))}`} className={buttonClasses('secondary', 'md')} download title={t('accounts.export.note')}>
             <Download aria-hidden />
             {t('accounts.export')}
@@ -81,6 +88,27 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
 
       <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto">
         <TotalsCard totals={totals} footer={<RateHint totals={dollarsAndDinars} rate={rate} />} />
+        {beforeTotals && (
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+            <span>{t('accounts.compare.title', { period: beforeName })}</span>
+            {ACCOUNT_CURRENCIES.filter((code) => beforeTotals[code].income !== 0 || beforeTotals[code].expense !== 0).map((code) => (
+              <span key={code} className="inline-flex flex-wrap items-center gap-x-3" dir="ltr">
+                <span className="font-medium text-text">{code}</span>
+                {(['income', 'expense', 'net'] as const).map((pick) => {
+                  const change = percentChange(dollarsAndDinars[code][pick], beforeTotals[code][pick]);
+                  if (change === null) return null;
+                  const good = change === 0 ? null : change > 0 === (pick !== 'expense');
+                  return (
+                    <span key={pick} className={cx('tabular-nums', good === null ? '' : good ? 'text-success' : 'text-danger')}>
+                      {t(`accounts.summary.${pick}`)} {change > 0 ? '+' : change < 0 ? '−' : ''}
+                      {Math.abs(change)}%
+                    </span>
+                  );
+                })}
+              </span>
+            ))}
+          </p>
+        )}
 
         <section aria-labelledby="chart-title" className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -167,7 +195,7 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                     <th scope="col" className="h-9 px-4 text-end">
                       {t('accounts.col.net')}
                     </th>
-                    <th scope="col" className="w-10 p-0">
+                    <th scope="col" className="w-20 p-0">
                       <span className="sr-only">{t('accounts.statement')}</span>
                     </th>
                   </tr>
@@ -184,7 +212,19 @@ export function ReportsTab({ book, today }: { book: AccountsBook; today: string 
                       <td className="px-4 py-2.5 text-end font-semibold">
                         <MoneyStack totals={row.totals} pick="net" locale={locale} tone="net" sign />
                       </td>
-                      <td className="w-10 ps-0 pe-3 py-1.5 text-end">
+                      <td className="w-20 ps-0 pe-3 py-1.5 text-end">
+                        {row.clientId && (
+                          <a
+                            href={`/agency/invoice?client=${row.clientId}&period=all`}
+                            target="_blank"
+                            rel="noopener"
+                            aria-label={`${t('accounts.statement.pdf')}: ${row.name ?? ''}`}
+                            title={t('accounts.statement.pdf')}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-surface hover:text-text"
+                          >
+                            <FileText aria-hidden className="size-4" />
+                          </a>
+                        )}
                         {row.clientId && (
                           <a
                             href={`/agency/statement?client=${row.clientId}`}
