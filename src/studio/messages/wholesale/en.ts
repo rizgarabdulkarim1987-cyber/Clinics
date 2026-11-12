@@ -67,6 +67,8 @@ const wholesale: Messages = {
   'wh.catalog.nameEn': 'Name (English)',
   'wh.catalog.namesHint': 'At least one name.',
   'wh.catalog.unitFactor': 'How many {base} in one {unit}',
+  'wh.catalog.barcode': "Barcode",
+  'wh.catalog.barcodeHint': "Optional. Type or scan each unit's barcode. On the sell screen, scanning it adds the item in that unit.",
   'wh.catalog.unitFactorHint': 'Leave empty if the item is not sold in this unit.',
   'wh.catalog.locked': 'This item already has stock, so its smallest unit and the sizes of its units are fixed. You can still add a unit and change everything else.',
   'wh.catalog.createTitle': 'New item',

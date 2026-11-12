@@ -35,7 +35,7 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
   const form = useActionForm(
     (v) => {
       const base = (v.baseUnit as Unit) || 'PIECE';
-      const units = UNITS.map((unit) => ({ unit, factorToBase: unit === base ? '1' : (v[`factor_${unit}`] ?? '').trim() })).filter((u) => u.factorToBase !== '');
+      const units = UNITS.map((unit) => ({ unit, factorToBase: unit === base ? '1' : (v[`factor_${unit}`] ?? '').trim(), barcode: (v[`barcode_${unit}`] ?? '').trim() || null })).filter((u) => u.factorToBase !== '');
       const body = {
         code: v.code ?? '',
         names: { ckb: v.nameCkb ?? '', ar: v.nameAr ?? '', en: v.nameEn ?? '' },
@@ -118,6 +118,17 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
           {UNITS.map((unit) => (
             <Field key={unit} label={t('wh.catalog.unitFactor', { base: t('wh.catalog.baseUnit'), unit: t(`wh.unit.${unit}`) })} optional>
               <Input name={`factor_${unit}`} inputMode="decimal" defaultValue={form.value(`factor_${unit}`) ?? factor(unit)} dir="ltr" />
+            </Field>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
+        <legend className="px-1 text-sm font-semibold">{t('wh.catalog.barcode')}</legend>
+        <p className="text-sm text-muted">{t('wh.catalog.barcodeHint')}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {UNITS.map((unit) => (
+            <Field key={unit} label={t(`wh.unit.${unit}`)} optional error={form.fieldError(`barcode_${unit}`)}>
+              <Input name={`barcode_${unit}`} defaultValue={form.value(`barcode_${unit}`) ?? item?.units.find((u) => u.unit === unit)?.barcode ?? ''} maxLength={60} dir="ltr" />
             </Field>
           ))}
         </div>

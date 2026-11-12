@@ -67,6 +67,8 @@ const wholesale: Messages = {
   'wh.catalog.nameEn': 'الاسم (إنجليزي)',
   'wh.catalog.namesHint': 'اسم واحد على الأقل.',
   'wh.catalog.unitFactor': 'كم {base} في {unit} واحد',
+  'wh.catalog.barcode': "الباركود",
+  'wh.catalog.barcodeHint': "اختياري. اكتب باركود كل وحدة أو امسحه بالقارئ. بشاشة البيع يكفي مسح الباركود لإضافة الصنف بوحدته.",
   'wh.catalog.unitFactorHint': 'اتركه فارغاً إن كان الصنف لا يُباع بهذه الوحدة.',
   'wh.catalog.locked': 'هذا الصنف له مخزون، لذلك أصغر وحدة وأحجام وحداته ثابتة. تستطيع إضافة وحدة وتعديل كل شيء آخر.',
   'wh.catalog.createTitle': 'صنف جديد',
