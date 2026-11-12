@@ -38,7 +38,7 @@ export const dashboardQuery = defineQuery({
     const today = baghdadDate();
     const monthStart = `${today.slice(0, 7)}-01`;
     const yearAgo = new Date(`${monthStart}T00:00:00Z`);
-    yearAgo.setUTCMonth(yearAgo.getUTCMonth() - 11);
+    yearAgo.setUTCMonth(0); // the calendar year, January to December in order
     const [position, owed, month, todaySales, week, stock, pendingSales, pendingHandovers, pendingExpenses, year] = await Promise.all([
       cashPosition(db),
       debts(db),
