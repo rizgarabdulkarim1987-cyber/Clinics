@@ -34,7 +34,7 @@ export type SellInfo = {
 type Line = { key: string; itemId: string; unit: string; qty: string; mode: 'OFFICIAL' | 'PERCENT' | 'MANUAL'; value: string };
 
 const CURRENCIES = ['IQD', 'USD', 'IRT'] as const;
-const UNIT_ORDER = ['PIECE', 'KG', 'TON', 'CARTON'];
+const UNIT_ORDER = ['PIECE', 'KG', 'TON', 'CARTON', 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25'];
 const money = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 const num = (s: string) => {
   const n = Number(s.replace(',', '.'));
@@ -491,7 +491,7 @@ export function SalesWorkspace({
           {shown.length === 0 ? (
             <p className="py-6 text-center text-base text-muted">{t('wh.sw.noItems')}</p>
           ) : (
-            <ul className="grid min-h-0 flex-[3] content-start grid-cols-2 gap-1.5 overflow-y-auto pe-1 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+            <ul className="grid min-h-0 flex-[2] content-start grid-cols-2 gap-1.5 overflow-y-auto pe-1 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
               {shown.map((i) => {
                 const u = unitsOf(i)[0] ?? i.baseUnit;
                 const p = listPrice(i, u);
@@ -528,7 +528,7 @@ export function SalesWorkspace({
               })}
             </ul>
           )}
-          <div className="mt-3 flex min-h-0 flex-[2] flex-col border-t border-line pt-3">
+          <div className="mt-3 flex min-h-0 flex-[3] flex-col border-t border-line pt-3">
             <h3 className="mb-2 flex shrink-0 items-center gap-2 text-base font-semibold">
               <Receipt aria-hidden className="size-4 text-wh-blue" />
               {t('wh.sw.salesList')}

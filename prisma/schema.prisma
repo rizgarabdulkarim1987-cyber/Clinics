@@ -4769,6 +4769,10 @@ enum WhUnit {
   CARTON
   TON
   KG
+  SACK_5
+  SACK_10
+  SACK_15
+  SACK_25
 }
 
 enum WhWarehouseKind {
