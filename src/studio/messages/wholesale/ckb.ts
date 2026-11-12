@@ -67,6 +67,8 @@ const wholesale: Messages = {
   'wh.catalog.nameEn': 'ناو (ئینگلیزی)',
   'wh.catalog.namesHint': 'لانیکەم یەک ناو.',
   'wh.catalog.unitFactor': 'چەند {base} لە یەک {unit}دا',
+  'wh.catalog.barcode': "باڕکۆد",
+  'wh.catalog.barcodeHint': "ئارەزوومەندانە. باڕکۆدی هەر یەکەیەک بنووسە یان بە خوێنەر سکانی بکە. لە شاشەی فرۆشتن بە سکانکردن کاڵاکە بە یەکەکەی زیاد دەکرێت.",
   'wh.catalog.unitFactorHint': 'ئەگەر کاڵاکە بەم یەکەیە نافرۆشرێت بەتاڵی بهێڵەرەوە.',
   'wh.catalog.locked': 'ئەم کاڵایە کۆگای هەیە، بۆیە بچووکترین یەکە و قەبارەی یەکەکانی نەگۆڕن. دەتوانیت یەکەیەک زیاد بکەیت و هەموو شتێکی تر بگۆڕیت.',
   'wh.catalog.createTitle': 'کاڵای نوێ',
