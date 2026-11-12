@@ -798,6 +798,8 @@ const wholesale: Messages = {
   'wh.reps.print.what': "الحركة",
   'wh.reps.print.amount': "المبلغ",
   'wh.reps.print.balance': "الفلوس اللي عنده",
+  'wh.reps.print.stock': "المخزون اللي عنده",
+  'wh.reps.print.sales': "مبيعاته",
   'wh.reps.print.signRep': "توقيع المندوب",
   'wh.reps.print.signOffice': "توقيع المكتب",
   'wh.reps.in': "جمع",
