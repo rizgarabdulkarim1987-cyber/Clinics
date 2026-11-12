@@ -768,6 +768,8 @@ const wholesale: Messages = {
   'wh.reps.print.what': "Movement",
   'wh.reps.print.amount': "Amount",
   'wh.reps.print.balance': "Cash he holds",
+  'wh.reps.print.stock': "Stock he holds",
+  'wh.reps.print.sales': "His sales",
   'wh.reps.print.signRep': "Rep signature",
   'wh.reps.print.signOffice': "Office signature",
   'wh.reps.in': "Collected",

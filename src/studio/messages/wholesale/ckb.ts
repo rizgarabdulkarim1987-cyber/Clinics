@@ -768,6 +768,8 @@ const wholesale: Messages = {
   'wh.reps.print.what': "جووڵە",
   'wh.reps.print.amount': "بڕ",
   'wh.reps.print.balance': "پارەی لای",
+  'wh.reps.print.stock': "ئەو کاڵایانەی لای ئەوە",
+  'wh.reps.print.sales': "فرۆشتنەکانی",
   'wh.reps.print.signRep': "واژووی نوێنەر",
   'wh.reps.print.signOffice': "واژووی نووسینگە",
   'wh.reps.in': "کۆکرایەوە",
