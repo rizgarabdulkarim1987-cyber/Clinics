@@ -24,13 +24,32 @@ function useCurrencyOptions() {
   return CURRENCIES.map((c) => ({ value: c, label: t(`wh.currency.${c}`) }));
 }
 
-export function RateForm({ today }: { today: string }) {
+/**
+ * The day's rates, entered the easy way: dinars for one dollar, and tomans for one dollar. The toman is worth far
+ * less than a dinar, so its own rate (dinars per toman) would be a tiny number like 0.0147; it is worked out from the two.
+ */
+export function RateForm({ today, usdByDate }: { today: string; usdByDate: Record<string, string> }) {
   const t = useT();
   const router = useRouter();
   const form = useActionForm(
-    (v) => settle(() => setRate({ date: v.date ?? '', currency: v.currency ?? 'USD', iqdPer: v.iqdPer ?? '' })),
+    async (v) => {
+      const date = v.date ?? '';
+      const usd = (v.usd ?? '').replace(/,/g, '').trim();
+      const irt = (v.irt ?? '').replace(/,/g, '').trim();
+      if (usd) {
+        const r = await settle(() => setRate({ date, currency: 'USD', iqdPer: usd }));
+        if (!r.ok) return r;
+      }
+      if (irt) {
+        const usdRate = usd || usdByDate[date];
+        const per = Number(irt);
+        if (!usdRate || !(per > 0)) return { ok: false as const, error: { code: 'INVALID' as const, message: t('wh.rates.needUsd') } };
+        return settle(() => setRate({ date, currency: 'IRT', iqdPer: (Number(usdRate) / per).toFixed(8) }));
+      }
+      return settle(() => setRate({ date, currency: 'USD', iqdPer: usd }));
+    },
     {
-      validate: (v) => requireFields(v, { date: t('wh.rates.date'), iqdPer: t('wh.rates.iqdPer') }),
+      validate: (v) => (v.usd?.trim() || v.irt?.trim() ? {} : requireFields(v, { usd: t('wh.rates.usdIn') })),
       onSuccess: () => {
         toast.success(t('wh.common.saved'));
         router.refresh();
@@ -39,23 +58,16 @@ export function RateForm({ today }: { today: string }) {
   );
   return (
     <form {...form.props} className="flex flex-col gap-4">
-      <FormError form={form} fields={['date', 'currency', 'iqdPer']} />
+      <FormError form={form} fields={['date', 'usd', 'irt']} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label={t('wh.rates.date')} error={form.fieldError('date')}>
           <Input name="date" type="date" defaultValue={form.value('date') ?? today} dir="ltr" />
         </Field>
-        <Field label={t('wh.rates.currency')}>
-          <Select
-            name="currency"
-            defaultValue={form.value('currency') ?? 'USD'}
-            options={[
-              { value: 'USD', label: t('wh.currency.USD') },
-              { value: 'IRT', label: t('wh.currency.IRT') },
-            ]}
-          />
+        <Field label={t('wh.rates.usdIn')} error={form.fieldError('usd')}>
+          <Input name="usd" inputMode="decimal" dir="ltr" placeholder="1480" />
         </Field>
-        <Field label={t('wh.rates.iqdPer')} error={form.fieldError('iqdPer')}>
-          <Input name="iqdPer" inputMode="decimal" dir="ltr" />
+        <Field label={t('wh.rates.irtPerUsd')} error={form.fieldError('irt')}>
+          <Input name="irt" inputMode="decimal" dir="ltr" placeholder="100000" />
         </Field>
       </div>
       <div>
