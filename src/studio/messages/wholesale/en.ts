@@ -113,6 +113,8 @@ const wholesale: Messages = {
   'wh.sw.p.year': 'Year',
   'wh.sw.allSellers': 'All sellers',
   'wh.sw.noSalesPeriod': 'No sales in this period.',
+  'wh.sw.exchange': 'Exchange',
+  'wh.sw.exchangeNone': 'Rate not set for today',
   'wh.stock.qty': 'On hand',
   'wh.stock.avgCost': 'Average cost (IQD)',
   'wh.stock.kind.MAIN': 'Main',

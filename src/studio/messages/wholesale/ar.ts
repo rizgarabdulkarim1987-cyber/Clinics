@@ -113,6 +113,8 @@ const wholesale: Messages = {
   'wh.sw.p.year': 'السنة',
   'wh.sw.allSellers': 'كل البائعين',
   'wh.sw.noSalesPeriod': 'لا مبيعات بهذه الفترة.',
+  'wh.sw.exchange': 'الصرف',
+  'wh.sw.exchangeNone': 'سعر اليوم غير مدخل',
   'wh.stock.qty': 'الموجود',
   'wh.stock.avgCost': 'متوسط الكلفة (دينار)',
   'wh.stock.kind.MAIN': 'الرئيسي',

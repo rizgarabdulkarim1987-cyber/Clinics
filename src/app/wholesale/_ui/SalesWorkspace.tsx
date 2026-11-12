@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, CalendarClock, HandCoins, ChevronDown, Minus, Plus, Printer, Pencil, Receipt, Search, Trash2, UserRound, Wallet, X } from 'lucide-react';
+import { Banknote, CalendarClock, Coins, HandCoins, ChevronDown, Minus, Plus, Printer, Pencil, Receipt, Search, Trash2, UserRound, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
@@ -79,7 +79,7 @@ function Segmented<T extends string>({ value, onChange, options, label, tone = (
   );
 }
 
-function InfoStrip({ info, t, debtCount, onDebts }: { info: SellInfo; t: (k: string, p?: Record<string, string | number>) => string; debtCount: number; onDebts: () => void }) {
+function InfoStrip({ info, rates, t, debtCount, onDebts }: { info: SellInfo; rates: { USD: string | null; IRT: string | null }; t: (k: string, p?: Record<string, string | number>) => string; debtCount: number; onDebts: () => void }) {
   const cash = info.cash ? (['IQD', 'USD', 'IRT'] as const).filter((c) => Number(info.cash![c] ?? 0) !== 0) : [];
   const stat = 'flex min-w-0 items-center gap-2 px-3 py-1';
   const icon = 'grid size-6 shrink-0 place-items-center rounded-full';
@@ -87,7 +87,7 @@ function InfoStrip({ info, t, debtCount, onDebts }: { info: SellInfo; t: (k: str
   const value = 'whitespace-nowrap text-sm font-bold tabular-nums';
   const expiryText = info.expired === 0 && info.soon === 0 ? t('wh.sw.expiryNone') : [info.expired > 0 ? t('wh.sw.expiredN', { n: info.expired }) : '', info.soon > 0 ? t('wh.sw.soonN', { n: info.soon }) : ''].filter(Boolean).join(' · ');
   return (
-    <div className="flex shrink-0 flex-wrap divide-x divide-line rounded-lg border border-line bg-raised shadow-[0_1px_2px_rgb(15_42_74/0.06)] rtl:divide-x-reverse xl:flex-nowrap">
+    <div className="flex shrink-0 flex-wrap divide-x divide-line rounded-lg border border-line bg-raised shadow-[0_1px_2px_rgb(15_42_74/0.06)] rtl:divide-x-reverse">
       <div className={stat} title={t('wh.sw.invoicesN', { n: info.todayCount })}>
         <span className={cx(icon, 'bg-wh-blue-wash text-wh-blue')}>
           <Receipt aria-hidden className="size-3.5" />
@@ -108,6 +108,17 @@ function InfoStrip({ info, t, debtCount, onDebts }: { info: SellInfo; t: (k: str
           </span>
         </div>
       )}
+      <div className={stat} title={t('wh.sw.exchange')}>
+        <span className={cx(icon, rates.USD || rates.IRT ? 'bg-wh-violet-wash text-wh-violet' : 'bg-wh-amber-wash text-wh-amber')}>
+          <Coins aria-hidden className="size-3.5" />
+        </span>
+        <span className={label}>{t('wh.sw.exchange')}</span>
+        <span className={value} dir="ltr">
+          {rates.USD || rates.IRT
+            ? [rates.USD ? `$1 = ${money(Number(rates.USD))} IQD` : null, rates.USD && rates.IRT ? `$1 = ${money(Number(rates.USD) / Number(rates.IRT))} IRT` : null].filter(Boolean).join(' · ')
+            : <span dir="auto" className="text-wh-amber">{t('wh.sw.exchangeNone')}</span>}
+        </span>
+      </div>
       <div className={stat} title={info.next ? t('wh.sw.nextExpiry', { name: info.next.name, d: info.next.days }) : undefined}>
         <span className={cx(icon, info.expired > 0 ? 'bg-wh-rose-wash text-wh-rose' : info.soon > 0 ? 'bg-wh-amber-wash text-wh-amber' : 'bg-wh-teal-wash text-wh-teal')}>
           <CalendarClock aria-hidden className="size-3.5" />
@@ -356,9 +367,9 @@ export function SalesWorkspace({
 
   return (
     <div className="flex flex-col gap-3 p-3 md:p-4 lg:min-h-0 lg:flex-1">
-      <div className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-stretch">
+      <div className="flex shrink-0 flex-col gap-3 2xl:flex-row 2xl:items-stretch">
       {/* customer bar */}
-      <div className={cx(card, 'justify-center p-1 xl:flex-1')}>
+      <div className={cx(card, 'justify-center p-1 2xl:flex-1')}>
         {current && !changing ? (
           <div className="flex items-center gap-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-wh-blue-wash text-wh-blue">
@@ -457,7 +468,7 @@ export function SalesWorkspace({
           </div>
         )}
       </div>
-      <InfoStrip info={info} t={t} debtCount={debts.length} onDebts={() => setDebtsOpen(true)} />
+      <InfoStrip info={info} rates={rates} t={t} debtCount={debts.length} onDebts={() => setDebtsOpen(true)} />
       </div>
 
       <div className="grid gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_30rem]">
