@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { toast } from 'sonner';
 import { cancelSale, collectPayment, postSale } from '@/app/wholesale/_actions/company';
 import { describeFailure } from '@/studio/errors';
-import { printSaleReceipt, readPrinter } from './receipt-printer';
+import { openDrawer, printSaleReceipt, readPrinter } from './receipt-printer';
 import { useLocale, useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
 import { Button, cx } from '@/studio/ui';
@@ -229,10 +229,10 @@ export function SalesWorkspace({
     window.dispatchEvent(new Event('wh-autoprint'));
   };
   // With a printer set up in Settings the receipt goes straight to it (no dialog); otherwise, or if that fails, the browser's print window opens.
-  const printReceipt = (saleId: string) => {
+  const printReceipt = (saleId: string, cash: boolean) => {
     const device = readPrinter();
     if (device) {
-      void printSaleReceipt(saleId, device).then((r) => {
+      void printSaleReceipt(saleId, device, cash).then((r) => {
         if (r.ok) return;
         toast.error(t(r.reason === 'printer' ? 'wh.printer.failedPrinter' : 'wh.printer.failedBridge'));
         printInBrowser(saleId);
@@ -446,7 +446,15 @@ export function SalesWorkspace({
       }
       toast.success(held ? t('wh.sales.held') : t('wh.sales.posted'));
       setLastSale({ id: result.data.saleId, held });
-      if (!held && autoPrint) printReceipt(result.data.saleId);
+      if (!held) {
+        const cash = payment === 'CASH' || paid > 0;
+        if (autoPrint) printReceipt(result.data.saleId, cash);
+        else {
+          // no receipt wanted, but the drawer still opens for cash
+          const device = readPrinter();
+          if (device && cash && device.drawerOnCash && device.drawerPin !== null) void openDrawer(device);
+        }
+      }
       setPaidNow('');
       setLines([]);
       setEditing(null);
