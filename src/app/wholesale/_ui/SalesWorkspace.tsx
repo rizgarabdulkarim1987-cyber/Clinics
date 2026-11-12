@@ -290,25 +290,33 @@ export function SalesWorkspace({
     let last = 0;
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+      const typing = Boolean(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable));
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const now = Date.now();
-      if (now - last > 120) buf = '';
+      // inside a field only a scanner-fast burst counts (a person types slower than 50 ms a key)
+      if (now - last > (typing ? 50 : 120)) buf = '';
       last = now;
       if (e.key === 'Enter') {
         const code = buf;
         buf = '';
-        if (code.length < 3) return;
+        if (code.length < (typing ? 6 : 3)) return;
         const { items: all, addItem: add } = scanRef.current;
         const hit = all.find((i) => i.units.some((u) => u.barcode === code));
         if (hit) {
           e.preventDefault();
+          e.stopPropagation();
+          // the digits were typed into whatever field had focus (customer search...): take them back out
+          if (typing && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) {
+            const proto = el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
+            Object.getOwnPropertyDescriptor(proto, 'value')?.set?.call(el, '');
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+          }
           add(hit, hit.units.find((u) => u.barcode === code)?.unit);
-        } else toast.error(code);
+        } else if (!typing) toast.error(code);
       } else if (e.key.length === 1) buf += e.key;
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 
   const patch = (key: string, p: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...p } : l)));
