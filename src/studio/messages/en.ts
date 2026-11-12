@@ -301,7 +301,10 @@ const en: Messages = {
   'nav.language': 'Language',
 
   // Signing in and the pages around it
-  'auth.aside': 'Restaurant menus in English, Arabic and Sorani, kept in one place.',
+  'auth.aside': "The control room that keeps every customer's plan, payments and access in order across all Buzzify products.",
+  'auth.stage.line1': 'Never lose track of',
+  'auth.stage.line2': 'a client or a payment.',
+  'auth.stage.products': 'One control room for',
   'auth.backToSignIn': 'Back to sign in',
   'auth.passwordHint': 'At least 12 characters. Common passwords are refused.',
   'auth.passwordMismatch': 'The two passwords are not the same',
