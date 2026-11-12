@@ -243,6 +243,37 @@ export function SalesWorkspace({
       return [...ls, { key: `l${seq.current}`, itemId: item.id, unit: u, qty: '1', mode: 'OFFICIAL', value: '' }];
     });
   };
+  // A barcode scanner types like a keyboard: digits in a burst, then Enter. With no field focused, collect the burst and add the item.
+  const scanRef = useRef({ items, addItem });
+  useEffect(() => {
+    scanRef.current = { items, addItem };
+  });
+  useEffect(() => {
+    let buf = '';
+    let last = 0;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const now = Date.now();
+      if (now - last > 120) buf = '';
+      last = now;
+      if (e.key === 'Enter') {
+        const code = buf;
+        buf = '';
+        if (code.length < 3) return;
+        const { items: all, addItem: add } = scanRef.current;
+        const hit = all.find((i) => i.units.some((u) => u.barcode === code));
+        if (hit) {
+          e.preventDefault();
+          add(hit, hit.units.find((u) => u.barcode === code)?.unit);
+        } else toast.error(code);
+      } else if (e.key.length === 1) buf += e.key;
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const patch = (key: string, p: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...p } : l)));
   const inCart = (id: string) => lines.filter((l) => l.itemId === id).reduce((s, l) => s + num(l.qty), 0);
 
