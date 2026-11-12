@@ -135,7 +135,6 @@ function InfoStrip({ info, rates, t, debtCount, onDebts }: { info: SellInfo; rat
         <span className={label}>{t('wh.sw.debts')}</span>
         <span className={value}>{debtCount > 0 ? t('wh.sw.debtsN', { n: debtCount }) : t('wh.sw.debtsNone')}</span>
       </button>
-      <PoweredBy className="ms-auto" />
     </div>
   );
 }
@@ -460,6 +459,9 @@ export function SalesWorkspace({
 
   return (
     <div className="flex flex-col gap-3 p-3 md:p-4 lg:min-h-0 lg:flex-1">
+      <div className="flex shrink-0 justify-end">
+        <PoweredBy className="px-0 py-0" />
+      </div>
       <div className="flex shrink-0 flex-col gap-3 2xl:flex-row 2xl:items-stretch">
       {/* customer bar */}
       <div className={cx(card, 'justify-center p-1 2xl:flex-1')}>
