@@ -13,6 +13,7 @@ export default async function RatesPage() {
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
   const { today, rates } = await queryWh(ratesQuery);
+  const usdOf = new Map(rates.filter((r) => r.currency === 'USD').map((r) => [r.date, Number(r.iqdPer)]));
   const haveToday = new Set(rates.filter((r) => r.date === today).map((r) => r.currency));
   return (
     <>
@@ -24,7 +25,7 @@ export default async function RatesPage() {
           </p>
         )}
         <section className="rounded-xl border border-line bg-raised p-4">
-          <RateForm today={today} />
+          <RateForm today={today} usdByDate={Object.fromEntries(rates.filter((r) => r.currency === 'USD').map((r) => [r.date, String(r.iqdPer)]))} />
         </section>
         {rates.length === 0 ? (
           <EmptyState title={t('wh.rates.empty')} />
@@ -36,7 +37,7 @@ export default async function RatesPage() {
                 <tr>
                   <th scope="col" className="px-4 py-2 text-start font-medium">{t('wh.rates.date')}</th>
                   <th scope="col" className="px-4 py-2 text-start font-medium">{t('wh.rates.currency')}</th>
-                  <th scope="col" className="px-4 py-2 text-end font-medium">{t('wh.rates.iqdPer')}</th>
+                  <th scope="col" className="px-4 py-2 text-end font-medium">{t('wh.rates.rate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -45,7 +46,13 @@ export default async function RatesPage() {
                     <td className="px-4 py-2" dir="ltr">{r.date}</td>
                     <td className="px-4 py-2">{t(`wh.currency.${r.currency}`)}</td>
                     <td className="px-4 py-2 text-end tabular-nums" dir="ltr">
-                      {Number(r.iqdPer).toLocaleString('en-US', { maximumFractionDigits: 8 })}
+                      {r.currency === 'IRT' && usdOf.get(r.date) ? (
+                        <>
+                          {Math.round(usdOf.get(r.date)! / Number(r.iqdPer)).toLocaleString('en-US')} <span className="text-muted">{t('wh.rates.irtPerUsdShort')}</span>
+                        </>
+                      ) : (
+                        Number(r.iqdPer).toLocaleString('en-US', { maximumFractionDigits: 8 })
+                      )}
                     </td>
                   </tr>
                 ))}
