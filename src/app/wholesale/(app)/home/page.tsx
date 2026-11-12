@@ -15,6 +15,7 @@ import { getStudioTranslator } from '@/studio/messages';
 import { Alert } from '@/studio/ui';
 import { LiveRefresh } from '../../_ui/LiveRefresh';
 import { PageHeader } from '../../_ui/PageHeader';
+import { PoweredBy } from '@/studio/shell/PoweredBy';
 import { SetupButton } from '../../_ui/PeopleForms';
 
 export const metadata: Metadata = { title: 'Home' };
@@ -154,7 +155,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <PageHeader title={t('wh.home.hello', { name: actor!.name })} description={isRep ? t('wh.home.repHint') : today} />
+      <PageHeader title={t('wh.home.hello', { name: actor!.name })} description={isRep ? t('wh.home.repHint') : today} actions={<PoweredBy className="px-0" />} />
       <div className="flex flex-col gap-2.5 px-4 pb-3 md:min-h-0 md:flex-1 md:px-6">
         <LiveRefresh />
         {needsSetup && (

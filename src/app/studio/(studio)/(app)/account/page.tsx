@@ -11,6 +11,7 @@ import { getStudioTranslator } from '@/studio/messages';
 import { isOwnerOnly } from '@/studio/nav';
 import { requestStudioLocale } from '@/studio/request-locale';
 import { isolated } from '@/studio/ui/isolate';
+import { PoweredBy } from '@/studio/shell/PoweredBy';
 import { PageHeader } from '@/studio/ui/PageHeader';
 import { EmailChangeForm, LanguageForm, PasswordForm } from './AccountForms';
 import { AppearanceForm } from './AppearanceForm';
@@ -68,7 +69,7 @@ export default async function AccountPage() {
 
   return (
     <>
-      <PageHeader title={t('account.title')} description={t('account.description')} />
+      <PageHeader title={t('account.title')} description={t('account.description')} actions={<PoweredBy className="px-0" />} />
       <div className="max-w-6xl px-8 pb-16">
         <Section id="profile" title={t('account.profile.title')} intro={t('account.profile.intro')}>
           <dl className="grid max-w-xl grid-cols-[8rem_minmax(0,1fr)] gap-x-6 gap-y-2.5 text-base">
