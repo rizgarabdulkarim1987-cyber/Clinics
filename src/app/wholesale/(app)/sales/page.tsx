@@ -12,6 +12,7 @@ import { customerStatementQuery, dayRatesQuery, debtsListQuery, pendingSalesQuer
 import { getStudioTranslator } from '@/studio/messages';
 import { cx } from '@/studio/ui';
 import { ApproveButtons, CancelSaleForm, CollectForm, ReturnSaleForm } from '../../_ui/SaleForms';
+import { PoweredBy } from '@/studio/shell/PoweredBy';
 import { SalesWorkspace } from '../../_ui/SalesWorkspace';
 import { RepAccounts } from '../../_ui/RepAccounts';
 import { TargetBars } from '../../_ui/TargetBars';
@@ -103,8 +104,9 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
 
   return (
     <>
-      {!isRep && (
-        <div className="flex flex-wrap items-center gap-2 px-3 pb-1 pt-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 pb-1 pt-2">
+        {!isRep && (
+          <>
           <Link href="/wholesale/agency" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-line-strong bg-raised px-3 text-sm font-semibold hover:bg-wh-violet-wash">
             <Handshake aria-hidden className="size-4 text-wh-violet" />
             {t('wh.agency.title')}
@@ -115,8 +117,10 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
               {t('wh.nav.rates')}
             </Link>
           )}
-        </div>
-      )}
+          </>
+        )}
+        <PoweredBy className="ms-auto px-0 py-0" />
+      </div>
     <SalesWorkspace
       today={today}
       isRep={isRep}

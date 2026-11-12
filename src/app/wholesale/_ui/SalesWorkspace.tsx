@@ -7,7 +7,6 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransiti
 import { toast } from 'sonner';
 import { cancelSale, collectPayment, postSale } from '@/app/wholesale/_actions/company';
 import { describeFailure } from '@/studio/errors';
-import { PoweredBy } from '@/studio/shell/PoweredBy';
 import { printSaleReceipt, readPrinter } from './receipt-printer';
 import { useLocale, useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
@@ -459,9 +458,6 @@ export function SalesWorkspace({
 
   return (
     <div className="flex flex-col gap-3 p-3 md:p-4 lg:min-h-0 lg:flex-1">
-      <div className="flex shrink-0 justify-end">
-        <PoweredBy className="px-0 py-0" />
-      </div>
       <div className="flex shrink-0 flex-col gap-3 2xl:flex-row 2xl:items-stretch">
       {/* customer bar */}
       <div className={cx(card, 'justify-center p-1 2xl:flex-1')}>

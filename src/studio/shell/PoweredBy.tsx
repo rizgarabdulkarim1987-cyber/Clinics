@@ -5,7 +5,7 @@ export function PoweredBy({ className }: { className?: string }) {
   return (
     <span dir="ltr" className={`inline-flex items-center gap-2.5 px-3 py-1 text-base font-medium text-muted ${className ?? ''}`}>
       Powered by
-      <Image src="/brand/buzzify-square.png" alt="Buzzify" width={80} height={80} unoptimized className="size-20 shrink-0 rounded-xl" />
+      <Image src="/brand/buzzify-square.png" alt="Buzzify" width={64} height={64} unoptimized className="size-16 shrink-0 rounded-xl" />
     </span>
   );
 }
