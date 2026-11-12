@@ -18,15 +18,16 @@ function who(ctx: { wh: import('@/server/wholesale/actor').WhActor | null; scope
 
 const idInput = whPlaceInput.extend({ id: z.string().min(1).max(64) });
 
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const salesQuery = defineQuery({
   name: 'wh.sales',
   permission: null,
   wh: 'sale.create',
-  input: whPlaceInput,
+  input: whPlaceInput.extend({ from: day.optional(), to: day.optional(), sellerId: z.string().max(64).optional() }),
   target: whTargetOf,
-  run: async (ctx) => {
+  run: async (ctx, input) => {
     const { user, scoped } = who(ctx);
-    return plain(await listSales(scoped, user));
+    return plain(await listSales(scoped, user, { from: input.from, to: input.to, sellerId: input.sellerId }));
   },
 });
 

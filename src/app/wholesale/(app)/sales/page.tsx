@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Handshake, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { canWh } from '@/server/domain/wholesale/permissions';
+import { addDays } from '@/server/domain/wholesale/forecast';
 import { baghdadDate } from '@/server/domain/wholesale/rates';
 import { getWhAccess, queryWh } from '@/server/wholesale/access';
 import { customersQuery, itemsQuery, stockQuery } from '@/server/wholesale/queries/catalog';
@@ -21,14 +22,15 @@ const money = (v: string) => Number(v).toLocaleString('en-US', { maximumFraction
 type Names = { ckb: string; ar: string; en: string };
 const nameOf = (names: Names, locale: string) => (locale === 'ar' ? names.ar : locale === 'ckb' ? names.ckb : names.en) || names.ckb || names.ar || names.en;
 
-type Search = Promise<{ c?: string; s?: string }>;
+type Search = Promise<{ c?: string; s?: string; p?: string; from?: string; to?: string; by?: string }>;
+const isoDay = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
 /**
  * Sales: the one screen the day runs on. The invoice is built on the start side; the chosen customer's account, collecting, recent
  * sales, returns and cancelling open in the side panel (`?c=` the customer, `?s=` the sale shown), never on another page.
  */
 export default async function SalesPage({ searchParams }: { searchParams: Search }) {
-  const { c, s } = await searchParams;
+  const { c, s, p, from: fromParam, to: toParam, by } = await searchParams;
   const { actor } = await getWhAccess();
   const t = getStudioTranslator(actor!.locale);
   const locale = actor!.locale;
@@ -70,12 +72,28 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
     s ? queryWh(saleQuery, { id: s }).catch(() => null) : Promise.resolve(null),
   ]);
   const today = baghdadDate();
+  const period = p === 'week' || p === 'month' || p === 'year' || p === 'custom' ? p : 'today';
+  const range =
+    period === 'week'
+      ? { from: addDays(today, -6), to: today }
+      : period === 'month'
+        ? { from: `${today.slice(0, 7)}-01`, to: today }
+        : period === 'year'
+          ? { from: `${today.slice(0, 4)}-01-01`, to: today }
+          : period === 'custom'
+            ? { from: isoDay(fromParam) ?? today, to: isoDay(toParam) ?? today }
+            : { from: today, to: today };
+  const sellerPick = by && by.length <= 64 ? by : undefined;
+  const rangeSales = period === 'today' && !sellerPick ? sales.filter((x) => x.date === today) : await queryWh(salesQuery, { ...range, ...(sellerPick ? { sellerId: sellerPick } : {}) });
+  const sellerOptions = [...new Map(sales.flatMap((x) => (x.seller ? [[x.userId, `${x.seller.name} (${t(`wh.role.${x.seller.role}`)})`] as const] : []))).entries()].map(([id, label]) => ({ id, label }));
+  const rangeTotals: Record<string, number> = {};
+  for (const x of rangeSales) if (x.status === 'POSTED') rangeTotals[x.currency] = (rangeTotals[x.currency] ?? 0) + Number(x.totalFinal);
   const owed = statement ? Object.entries(statement.balances).filter(([, v]) => Number(v) !== 0) : [];
   const shownSales = (customerId ? sales.filter((x) => x.customer.id === customerId) : sales).slice(0, 12);
   const sellerOf = (x: { seller: { name: string; role: string } | null }) => (x.seller ? `${x.seller.name} (${t(`wh.role.${x.seller.role}`)})` : '');
   const canOverride = canWh(actor!.role, 'sale.override');
   const usable = items.filter((i) => i.active);
-  const todayPosted = canOverride ? sales.filter((x) => x.date === today && x.status === 'POSTED') : [];
+  const todayPosted = canOverride ? rangeSales.filter((x) => x.date === today && x.status === 'POSTED') : [];
   const detailRows = await Promise.all(todayPosted.map((x) => queryWh(saleQuery, { id: x.id }).catch(() => null)));
   const editable = new Map(detailRows.flatMap((d) => (d && d.payments.length === 0 ? [[d.id, d] as const] : [])));
   const soldToday = sales.filter((x) => x.status === 'POSTED' && x.date === today);
@@ -100,7 +118,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
       debt={owed.map(([cur, v]) => `${money(v!)} ${cur}`).join(' · ')}
       attention={pending.length}
       debts={debtList?.rows ?? []}
-      todaySales={sales.filter((x) => x.date === today).map((x) => ({ id: x.id, number: x.number === null ? null : Number(x.number), customer: x.customer.name, total: x.totalFinal, currency: x.currency, mode: x.paymentMode, status: x.status, seller: sellerOf(x), edit: editable.has(x.id) ? { customerId: x.customer.id, currency: x.currency, payment: x.paymentMode, warehouseId: editable.get(x.id)!.warehouse.id, lines: editable.get(x.id)!.lines.map((l) => ({ itemId: l.itemId, unit: l.unit, qty: String(l.qty), mode: l.priceMode, value: l.priceMode === 'PERCENT' ? String(l.percent ?? '') : l.priceMode === 'MANUAL' ? String(l.manualPrice ?? '') : '' })) } : null }))}
+      period={period}
+      range={range}
+      by={sellerPick ?? ''}
+      sellerOptions={sellerOptions}
+      rangeTotals={Object.entries(rangeTotals).map(([currency, amount]) => ({ currency, amount }))}
+      todaySales={rangeSales.map((x) => ({ id: x.id, number: x.number === null ? null : Number(x.number), customer: x.customer.name, total: x.totalFinal, currency: x.currency, mode: x.paymentMode, status: x.status, seller: sellerOf(x), edit: editable.has(x.id) ? { customerId: x.customer.id, currency: x.currency, payment: x.paymentMode, warehouseId: editable.get(x.id)!.warehouse.id, lines: editable.get(x.id)!.lines.map((l) => ({ itemId: l.itemId, unit: l.unit, qty: String(l.qty), mode: l.priceMode, value: l.priceMode === 'PERCENT' ? String(l.percent ?? '') : l.priceMode === 'MANUAL' ? String(l.manualPrice ?? '') : '' })) } : null }))}
       info={{
         todayCount: soldToday.length,
         todayTotals: Object.entries(todayTotals).map(([currency, amount]) => ({ currency, amount })),
@@ -255,10 +278,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Search
                           </li>
                         ))}
                       </ul>
-                      <Link href={`/wholesale/sales/${sale.id}/print`} target="_blank" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-wh-blue px-3 text-base font-semibold text-white">
-                        <Printer aria-hidden className="size-4" />
-                        {t('wh.print.open')}
-                      </Link>
+                      {sale.status === 'POSTED' && (
+                        <Link href={`/wholesale/sales/${sale.id}/print`} target="_blank" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-wh-blue px-3 text-base font-semibold text-white">
+                          <Printer aria-hidden className="size-4" />
+                          {t('wh.print.open')}
+                        </Link>
+                      )}
                       {sale.status === 'POSTED' && canWh(actor!.role, 'sale.return') && (
                         <details className="rounded-md border border-line bg-raised">
                           <summary className="flex min-h-11 cursor-pointer items-center px-3 text-base font-semibold">{t('wh.sales.returnButton')}</summary>

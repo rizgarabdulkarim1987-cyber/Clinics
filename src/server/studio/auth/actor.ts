@@ -16,6 +16,8 @@ export interface Actor {
   /** The one account that sells and alone changes plans; true only while the person is also a Super Admin. */
   isPlatformOwner: boolean;
   twoFactorEnabled: boolean;
+  /** Present (true) for the agency's accountant: reads the books and enters movements, nothing more. */
+  isAccountant?: true;
   locale: Locale;
   /** The person's own look (the default until they choose); applied by the Studio and till layouts. */
   appearance?: Appearance;
@@ -33,6 +35,7 @@ export async function loadActor(prisma: PrismaClient, userId: string): Promise<A
     include: { memberships: { select: { restaurantId: true, role: true }, orderBy: { createdAt: 'asc' } } },
   });
   if (!user || user.deactivatedAt) return null;
+  const accountant = user.isSuperAdmin ? null : await prisma.accountAccess.findUnique({ where: { userId: user.id }, select: { userId: true } });
   return {
     userId: user.id,
     email: user.email,
@@ -44,6 +47,7 @@ export async function loadActor(prisma: PrismaClient, userId: string): Promise<A
     appearance: parseStoredAppearance(user.appearance),
     memberships: user.memberships,
     ...(user.identityOnly ? { identityOnly: true as const } : {}),
+    ...(accountant ? { isAccountant: true as const } : {}),
   };
 }
 

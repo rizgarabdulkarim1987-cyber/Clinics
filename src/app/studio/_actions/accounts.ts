@@ -34,3 +34,35 @@ export async function setAccountRate(input: unknown) {
 export async function archiveAccountAttachment(input: unknown) {
   return invoke(accounts.archiveAccountAttachment, input);
 }
+
+export async function addAccountRecurring(input: unknown) {
+  return invoke(accounts.addAccountRecurring, input);
+}
+
+export async function archiveAccountRecurring(input: unknown) {
+  return invoke(accounts.archiveAccountRecurring, input);
+}
+
+export async function setAccountBudget(input: unknown) {
+  return invoke(accounts.setAccountBudget, input);
+}
+
+export async function removeAccountBudget(input: unknown) {
+  return invoke(accounts.removeAccountBudget, input);
+}
+
+export async function createAccountQuote(input: unknown) {
+  return invoke(accounts.createAccountQuote, input);
+}
+
+export async function decideAccountQuote(input: unknown) {
+  return invoke(accounts.decideAccountQuote, input);
+}
+
+export async function archiveAccountQuote(input: unknown) {
+  return invoke(accounts.archiveAccountQuote, input);
+}
+
+export async function setAccountAccountant(input: unknown) {
+  return invoke(accounts.setAccountAccountant, input);
+}

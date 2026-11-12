@@ -10,7 +10,7 @@ import { clientInvoiceNumber, escapeHtml as esc, formatInvoiceMoney, INVOICE_STY
  * dinars and dollars are never added together.
  */
 
-function periodText(key: string, t: Translate, locale: Locale): string {
+export function periodText(key: string, t: Translate, locale: Locale): string {
   const period = parsePeriod(key);
   if (!period || period.kind === 'all') return t('accounts.period.kind.all');
   if (period.kind === 'year') return String(period.year);

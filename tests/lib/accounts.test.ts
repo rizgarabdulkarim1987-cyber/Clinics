@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { byClient, byMonth, byService, hasInvoiceActivity, isLate, owedTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, remainingMinor, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
+import { byClient, byMonth, byService, hasInvoiceActivity, isLate, monthlyCommitments, percentChange, previousPeriod, owedTotals, parseRate, inPeriod, nextSlug, parsePeriod, periodKey, remainingMinor, slugFromName, summarize, type AccountMovement } from '@/lib/accounts';
 
 const move = (over: Partial<AccountMovement>): AccountMovement => ({
   kind: 'INCOME',
@@ -244,5 +244,29 @@ describe('hasInvoiceActivity', () => {
     expect(hasInvoiceActivity([row({ owed: true, payments: [{ paidOn: '2026-12-01' }] })], 'a', nov)).toBe(false);
     expect(hasInvoiceActivity([row({ payments: [{ paidOn: '2026-11-10' }] })], 'a', nov)).toBe(false);
     expect(hasInvoiceActivity([row({})], 'a', { kind: 'all' })).toBe(true);
+  });
+});
+
+describe('comparing periods and monthly commitments', () => {
+  it('finds the period before', () => {
+    expect(previousPeriod({ kind: 'month', year: 2026, month: 11 })).toEqual({ kind: 'month', year: 2026, month: 10 });
+    expect(previousPeriod({ kind: 'month', year: 2026, month: 1 })).toEqual({ kind: 'month', year: 2025, month: 12 });
+    expect(previousPeriod({ kind: 'year', year: 2026 })).toEqual({ kind: 'year', year: 2025 });
+    expect(previousPeriod({ kind: 'all' })).toBeNull();
+  });
+  it('gives the change in percent, and nothing to compare with from zero', () => {
+    expect(percentChange(150, 100)).toBe(50);
+    expect(percentChange(50, 100)).toBe(-50);
+    expect(percentChange(5, 0)).toBeNull();
+    expect(percentChange(-50, -100)).toBe(50);
+  });
+  it('adds contracts against recurring expenses, each currency apart', () => {
+    const totals = monthlyCommitments([
+      { kind: 'INCOME', amountMinor: 500_000, currency: 'IQD' },
+      { kind: 'EXPENSE', amountMinor: 200_000, currency: 'IQD' },
+      { kind: 'EXPENSE', amountMinor: 2_000, currency: 'USD' },
+    ]);
+    expect(totals.IQD).toEqual({ income: 500_000, expense: 200_000, net: 300_000 });
+    expect(totals.USD).toEqual({ income: 0, expense: 2_000, net: -2_000 });
   });
 });
