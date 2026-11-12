@@ -6,7 +6,9 @@ import {
   createCustomer,
   createItem,
   createSupplier,
+  deleteItem,
   seedCities,
+  setItemActive,
   setItemPrices,
   updateCustomer,
   updateItem,
@@ -88,7 +90,35 @@ export const updateItemAction = defineAction({
     }),
 });
 
-export const setPricesAction = defineAction({
+export const setItemActiveAction = defineAction({
+  name: 'wh.item.setActive',
+  permission: null,
+  wh: 'catalog.manage',
+  input: whPlaceInput.extend({ itemId: z.string().min(1).max(64), active: z.boolean() }),
+  target: whTargetOf,
+  run: (ctx, { restaurantId, itemId, active }) =>
+    ctx.transaction(async (tx) => {
+      const done = await refusing(() => setItemActive(tx, restaurantId, itemId, active));
+      ctx.audit({ action: 'wh.item.set_active', entityType: 'WhItem', entityId: itemId, changes: { active: { before: done.before, after: active } } });
+      return { id: itemId };
+    }),
+});
+
+export const deleteItemAction = defineAction({
+  name: 'wh.item.delete',
+  permission: null,
+  wh: 'catalog.manage',
+  input: whPlaceInput.extend({ itemId: z.string().min(1).max(64) }),
+  target: whTargetOf,
+  run: (ctx, { restaurantId, itemId }) =>
+    ctx.transaction(async (tx) => {
+      const gone = await refusing(() => deleteItem(tx, restaurantId, itemId));
+      ctx.audit({ action: 'wh.item.delete', entityType: 'WhItem', entityId: itemId, changes: { code: { before: gone.code, after: null } } });
+      return { id: itemId };
+    }),
+});
+
+export const setPricesAction =defineAction({
   name: 'wh.item.setPrices',
   permission: null,
   wh: 'catalog.manage',

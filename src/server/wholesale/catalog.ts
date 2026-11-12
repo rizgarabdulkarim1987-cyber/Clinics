@@ -204,6 +204,37 @@ export async function updateItem(tx: Db, rid: string, id: string, input: ItemInp
   };
 }
 
+/** Disables (archives) or re-enables an item. A disabled item leaves the sell and buy screens but keeps its stock and history. */
+export async function setItemActive(tx: Db, rid: string, id: string, active: boolean): Promise<{ code: string; before: boolean }> {
+  const item = await tx.whItem.findFirst({ where: { id, restaurantId: rid }, select: { code: true, active: true } });
+  if (!item) throw new InvalidCatalogError('item not found');
+  await tx.whItem.update({ where: { id }, data: { active } });
+  return { code: item.code, before: item.active };
+}
+
+/**
+ * Deletes an item that was never used: no stock row, movement, batch, purchase, sale, count or rep target. Its units and prices go
+ * with it. An item with any history is refused (disable it instead), so the books never point at a missing item.
+ */
+export async function deleteItem(tx: Db, rid: string, id: string): Promise<{ code: string }> {
+  // eslint-disable-next-line no-restricted-properties -- a row lock on one item, matched only inside this company
+  const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "WhItem" WHERE id = ${id} AND "restaurantId" = ${rid} FOR UPDATE`;
+  if (!locked.length) throw new InvalidCatalogError('item not found');
+  const item = await tx.whItem.findFirstOrThrow({ where: { id, restaurantId: rid }, select: { code: true } });
+  const [stock, purchase, sale, target, count] = await Promise.all([
+    hasStock(tx, rid, id),
+    tx.whPurchaseLine.findFirst({ where: { itemId: id }, select: { id: true } }),
+    tx.whSaleLine.findFirst({ where: { itemId: id }, select: { id: true } }),
+    tx.whRepItemTarget.findFirst({ where: { itemId: id }, select: { id: true } }),
+    tx.whStockCountLine.findFirst({ where: { itemId: id }, select: { id: true } }),
+  ]);
+  if (stock || purchase || sale || target || count) throw new ItemLockedError(id, 'the item has history; disable it instead of deleting it');
+  await tx.whPriceListEntry.deleteMany({ where: { restaurantId: rid, itemId: id } });
+  await tx.whItemUnit.deleteMany({ where: { restaurantId: rid, itemId: id } });
+  await tx.whItem.delete({ where: { id } });
+  return { code: item.code };
+}
+
 export type PriceInput = { unit: Unit; priceIqd: string; marketPriceIqd?: string | null };
 
 /** One IQD price per unit. A blank price removes that unit's entry. Units the item does not have are refused. */
