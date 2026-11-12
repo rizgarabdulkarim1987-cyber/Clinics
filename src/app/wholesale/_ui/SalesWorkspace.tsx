@@ -254,7 +254,7 @@ export function SalesWorkspace({
         w.focus();
         w.print();
         setTimeout(() => frame.remove(), 60_000);
-      }, 400);
+      }, 800);
     };
     document.body.appendChild(frame);
   };
