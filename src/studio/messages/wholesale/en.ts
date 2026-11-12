@@ -72,6 +72,10 @@ const wholesale: Messages = {
   'wh.unit.CARTON': 'Carton',
   'wh.unit.TON': 'Ton',
   'wh.unit.KG': 'Kilo',
+  'wh.unit.SACK_5': "Sack 5 kg",
+  'wh.unit.SACK_10': "Sack 10 kg",
+  'wh.unit.SACK_15': "Sack 15 kg",
+  'wh.unit.SACK_25': "Sack 25 kg",
 
   'wh.stock.title': 'Stock',
   'wh.stock.description': 'What is on hand in each warehouse.',

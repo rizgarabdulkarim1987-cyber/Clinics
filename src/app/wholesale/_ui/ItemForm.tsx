@@ -8,7 +8,8 @@ import { useT } from '@/studio/i18n';
 import { settle } from '@/studio/settle';
 import { Button, Field, FormError, Input, Select } from '@/studio/ui';
 
-const UNITS = ['PIECE', 'KG', 'TON', 'CARTON'] as const;
+const BASE_UNITS = ['PIECE', 'KG', 'TON', 'CARTON'] as const;
+const UNITS = [...BASE_UNITS, 'SACK_5', 'SACK_10', 'SACK_15', 'SACK_25'] as const;
 type Unit = (typeof UNITS)[number];
 
 export interface ItemRow {
@@ -79,7 +80,7 @@ export function ItemForm({ item, onDone }: { item?: ItemRow; onDone?: () => void
           <Input name="reorderPoint" inputMode="decimal" defaultValue={form.value('reorderPoint') ?? item?.reorderPoint ?? ''} dir="ltr" />
         </Field>
         <Field label={t('wh.catalog.baseUnit')} error={form.fieldError('baseUnit')}>
-          <Select name="baseUnit" defaultValue={form.value('baseUnit') ?? item?.baseUnit ?? 'PIECE'} options={UNITS.map((u) => ({ value: u, label: t(`wh.unit.${u}`) }))} />
+          <Select name="baseUnit" defaultValue={form.value('baseUnit') ?? item?.baseUnit ?? 'PIECE'} options={BASE_UNITS.map((u) => ({ value: u, label: t(`wh.unit.${u}`) }))} />
         </Field>
       </div>
       <fieldset className="flex flex-col gap-3 rounded-md border border-line p-3">
