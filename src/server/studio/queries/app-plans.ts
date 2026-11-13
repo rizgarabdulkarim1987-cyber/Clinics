@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { pharmacyLimitsSchema, type AppPlanRow, type PharmacyLimits, type RetailAppPlanRow } from '@/server/domain/pharmacy/limits';
 import { retailLimitsSchema } from '@/server/domain/retail/limits';
+import { clinicLimitsSchema } from '@/server/domain/clinic/limits';
 import { wholesaleLimitsSchema } from '@/server/domain/wholesale/limits';
 import { defineQuery } from '@/server/studio/framework/query';
 
@@ -15,7 +16,7 @@ const PLATFORM = { kind: 'platform' } as const;
 export const appPlansList = defineQuery({
   name: 'appPlans.list',
   permission: 'platform.settings',
-  input: z.object({ applicationId: z.enum(['pharmacy', 'retail', 'wholesale']).default('pharmacy') }),
+  input: z.object({ applicationId: z.enum(['pharmacy', 'retail', 'wholesale', 'clinic']).default('pharmacy') }),
   target: () => PLATFORM,
   run: async (ctx, input) => {
     const applicationId = input.applicationId;
@@ -25,7 +26,7 @@ export const appPlansList = defineQuery({
     ]);
     const used = new Map(counts.map((row) => [row.planCode, row._count._all]));
     const rows: Array<AppPlanRow<PharmacyLimits> | RetailAppPlanRow> = plans.map((plan) => {
-      const limits = (applicationId === 'retail' ? retailLimitsSchema : applicationId === 'wholesale' ? wholesaleLimitsSchema : pharmacyLimitsSchema).safeParse(plan.limits);
+      const limits = (applicationId === 'retail' ? retailLimitsSchema : applicationId === 'wholesale' ? wholesaleLimitsSchema : applicationId === 'clinic' ? clinicLimitsSchema : pharmacyLimitsSchema).safeParse(plan.limits);
       return {
         code: plan.code,
         name: plan.name as AppPlanRow['name'],

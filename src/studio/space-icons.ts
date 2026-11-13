@@ -1,4 +1,4 @@
-import { Layers, Pill, Shirt, ShoppingCart, Smartphone, UtensilsCrossed, Warehouse, type LucideIcon } from 'lucide-react';
+import { Layers, Pill, Shirt, ShoppingCart, Smartphone, Stethoscope, UtensilsCrossed, Warehouse, type LucideIcon } from 'lucide-react';
 import type { SpaceId } from '@/studio/spaces';
 
 /**
@@ -12,5 +12,6 @@ export const SPACE_ICONS: Record<SpaceId, LucideIcon> = {
   electronics: Smartphone,
   clothing: Shirt,
   wholesale: Warehouse,
+  clinic: Stethoscope,
   platform: Layers,
 };

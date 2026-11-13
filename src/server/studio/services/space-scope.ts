@@ -17,7 +17,7 @@ import { StudioError } from '@/server/studio/framework/result';
  */
 
 const RETAIL_SPACES = ['supermarket', 'electronics', 'clothing'] as const;
-const BUSINESS_SPACES = ['food', 'pharmacy', ...RETAIL_SPACES, 'wholesale'] as const;
+const BUSINESS_SPACES = ['food', 'pharmacy', ...RETAIL_SPACES, 'wholesale', 'clinic'] as const;
 
 /** The `space` input of a query: Menu and Cashier unless the page names another space. */
 export const businessSpace = z.enum(BUSINESS_SPACES).default('food');
@@ -26,7 +26,7 @@ export type RetailSpace = (typeof RETAIL_SPACES)[number];
 /** A Retail product's space, for what only those spaces read. */
 export const retailSpace = z.enum(RETAIL_SPACES);
 
-const SECTORS: Record<BusinessSpace, BusinessSector> = { food: 'FOOD', pharmacy: 'PHARMACY', supermarket: 'RETAIL', electronics: 'RETAIL', clothing: 'RETAIL', wholesale: 'WHOLESALE' };
+const SECTORS: Record<BusinessSpace, BusinessSector> = { food: 'FOOD', pharmacy: 'PHARMACY', supermarket: 'RETAIL', electronics: 'RETAIL', clothing: 'RETAIL', wholesale: 'WHOLESALE', clinic: 'CLINIC' };
 const ACTIVITY: Record<RetailSpace, RetailActivity> = { supermarket: 'SUPERMARKET', electronics: 'ELECTRONICS', clothing: 'CLOTHING' };
 
 export const isRetailSpace = (space: string): space is RetailSpace => (RETAIL_SPACES as readonly string[]).includes(space);
@@ -45,11 +45,12 @@ export const APPLICATIONS_OF: Record<BusinessSpace, readonly string[]> = {
   electronics: ['retail'],
   clothing: ['retail'],
   wholesale: ['wholesale'],
+  clinic: ['clinic'],
 };
 
 /** The products a business of a sector may be billed for. */
 export const applicationsOfSector = (sector: BusinessSector): readonly string[] =>
-  sector === 'RETAIL' ? ['retail'] : sector === 'WHOLESALE' ? ['wholesale'] : sector === 'PHARMACY' ? ['pharmacy'] : ['menu', 'cashier'];
+  sector === 'RETAIL' ? ['retail'] : sector === 'WHOLESALE' ? ['wholesale'] : sector === 'CLINIC' ? ['clinic'] : sector === 'PHARMACY' ? ['pharmacy'] : ['menu', 'cashier'];
 
 export const sectorOf = (space: BusinessSpace): BusinessSector => SECTORS[space];
 
@@ -57,6 +58,7 @@ export const sectorOf = (space: BusinessSpace): BusinessSector => SECTORS[space]
 export function spaceOfBusiness(sector: BusinessSector, activity?: RetailActivity | null): BusinessSpace {
   if (sector === 'PHARMACY') return 'pharmacy';
   if (sector === 'WHOLESALE') return 'wholesale';
+  if (sector === 'CLINIC') return 'clinic';
   if (sector !== 'RETAIL') return 'food';
   const wanted = activity ?? DEFAULT_RETAIL_ACTIVITY;
   return RETAIL_SPACES.find((space) => ACTIVITY[space] === wanted) ?? 'supermarket';
@@ -104,19 +106,22 @@ export async function sectorRestaurantIds(db: PrismaClient, space: BusinessSpace
  * are in more than one space.
  */
 export async function auditSpaceWhere(db: PrismaClient, space: BusinessSpace): Promise<Prisma.AuditLogWhereInput> {
-  const [pharmacyIds, retailIds, wholesaleIds, ownRetailIds, retailPlans, wholesalePlans, notes] = await Promise.all([
+  const [pharmacyIds, retailIds, wholesaleIds, clinicIds, ownRetailIds, retailPlans, wholesalePlans, clinicPlans, notes] = await Promise.all([
     sectorRestaurantIds(db, 'pharmacy'),
     db.restaurant.findMany({ where: { sector: 'RETAIL' }, select: { id: true } }).then((rows) => rows.map((row) => row.id)),
     sectorRestaurantIds(db, 'wholesale'),
+    sectorRestaurantIds(db, 'clinic'),
     isRetailSpace(space) ? sectorRestaurantIds(db, space) : Promise.resolve<string[]>([]),
     // Plans are only taken off sale, never deleted, so a plan row's id still names its product.
     db.appPlan.findMany({ where: { applicationId: 'retail' }, select: { id: true } }),
     db.appPlan.findMany({ where: { applicationId: 'wholesale' }, select: { id: true } }),
+    db.appPlan.findMany({ where: { applicationId: 'clinic' }, select: { id: true } }),
     db.announcement.findMany({ where: { space: { not: 'food' } }, select: { id: true, space: true } }),
   ]);
   const retailPlanIds = retailPlans.map((row) => row.id);
   const wholesalePlanIds = wholesalePlans.map((row) => row.id);
-  const otherPlanIds = [...retailPlanIds, ...wholesalePlanIds];
+  const clinicPlanIds = clinicPlans.map((row) => row.id);
+  const otherPlanIds = [...retailPlanIds, ...wholesalePlanIds, ...clinicPlanIds];
   const notesOf = (spaces: readonly string[]) => notes.filter((row) => spaces.includes(row.space)).map((row) => row.id);
   // Each exclusion is spelled out because `NOT (x IN ...)` is unknown, not true, for the null restaurant of a platform event.
   const notIn = (ids: string[]): Prisma.AuditLogWhereInput => ({ OR: [{ restaurantId: null }, { restaurantId: { notIn: ids } }] });
@@ -140,8 +145,17 @@ export async function auditSpaceWhere(db: PrismaClient, space: BusinessSpace): P
       ],
     };
   }
+  if (space === 'clinic') {
+    return {
+      OR: [
+        { restaurantId: { in: clinicIds } },
+        { entityType: 'AppPlan', entityId: { in: clinicPlanIds } },
+        { entityType: 'Announcement', entityId: { in: notesOf(['clinic']) } },
+      ],
+    };
+  }
   if (space === 'pharmacy') {
-    // Its businesses, every plan that is not Retail's or Wholesale's, and its announcements; never a retail or wholesale row.
+    // Its businesses, every plan that is not Retail's, Wholesale's or Clinics', and its announcements; never a retail or wholesale row.
     return {
       AND: [
         {
@@ -151,13 +165,13 @@ export async function auditSpaceWhere(db: PrismaClient, space: BusinessSpace): P
             { entityType: 'Announcement', entityId: { in: notesOf(['pharmacy']) } },
           ],
         },
-        notIn([...retailIds, ...wholesaleIds]),
+        notIn([...retailIds, ...wholesaleIds, ...clinicIds]),
       ],
     };
   }
   // Everything else: no business of another space, no plan, and no announcement written in another space.
   return {
-    AND: [notIn([...pharmacyIds, ...retailIds, ...wholesaleIds]), { entityType: { not: 'AppPlan' } }, notNote(notes.map((row) => row.id))],
+    AND: [notIn([...pharmacyIds, ...retailIds, ...wholesaleIds, ...clinicIds]), { entityType: { not: 'AppPlan' } }, notNote(notes.map((row) => row.id))],
   };
 }
 

@@ -10,6 +10,7 @@ import {
   LogOut,
   Megaphone,
   Pill,
+  Stethoscope,
   Settings,
   Shirt,
   ShoppingBag,
@@ -56,6 +57,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   electronics: Smartphone,
   clothing: Shirt,
   wholesale: Warehouse,
+  clinic: Stethoscope,
 };
 
 /** A navigation item as the layout hands it over: its label already in the person's language. */

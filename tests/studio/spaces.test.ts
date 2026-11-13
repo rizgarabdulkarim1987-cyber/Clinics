@@ -135,17 +135,17 @@ describe('sectorOfSpace and activityOfSpace', () => {
 });
 
 describe('the registry', () => {
-  it('has six big icons, the three Retail products and Wholesale apart, and Platform small', () => {
-    expect(bigSpaces().map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'wholesale']);
+  it('has seven big icons, the three Retail products, Wholesale and Clinics apart, and Platform small', () => {
+    expect(bigSpaces().map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'wholesale', 'clinic']);
     expect(SPACES.find((space) => space.id === 'platform')?.big).toBe(false);
     expect(new Set(SPACES.map((space) => space.icon)).size).toBe(SPACES.length);
   });
 
   it('gives a new project its own icon and path without touching the others', () => {
-    const extra: Space = { id: 'clinic' as never, nameKey: 'hub.clinic', icon: 'pharmacy', home: '/studio/clinic', sectors: [], prefix: '/studio/clinic', big: true };
+    const extra: Space = { id: 'beauty' as never, nameKey: 'hub.beauty', icon: 'pharmacy', home: '/studio/beauty', sectors: [], prefix: '/studio/beauty', big: true };
     const registry = [...SPACES, extra];
-    expect(bigSpaces(registry).map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'wholesale', 'clinic']);
-    expect(spaceOfPath('/studio/clinic/x', registry)).toBe('clinic');
+    expect(bigSpaces(registry).map((space) => space.id)).toEqual(['food', 'pharmacy', 'supermarket', 'electronics', 'clothing', 'wholesale', 'clinic', 'beauty']);
+    expect(spaceOfPath('/studio/beauty/x', registry)).toBe('beauty');
     expect(spaceOfPath('/studio/pharmacy/x', registry)).toBe('pharmacy');
     expect(spaceOfPath('/studio/restaurants', registry)).toBe('food');
   });

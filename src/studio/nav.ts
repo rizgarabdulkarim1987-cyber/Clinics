@@ -16,9 +16,10 @@ export type NavIcon =
   | 'pharmacy'
   | 'retail'
   | 'wholesale'
+  | 'clinic'
   | RetailSpaceId;
 
-export type NavKey = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'platformIntro' | 'activity' | 'settings' | 'myRestaurant' | 'myMenu' | 'cashier' | 'cashierOverview' | 'pharmacies' | 'pharmacyOverview' | 'pharmacyBilling' | 'pharmacyPeople' | 'pharmacyAnnouncements' | 'pharmacyActivity' | 'pharmacySettings' | 'team' | 'teamSettings' | 'retail' | 'retailOverview' | 'retailBilling' | 'retailPeople' | 'retailAnnouncements' | 'retailActivity' | 'retailSettings' | 'wholesale' | 'wholesaleOverview' | 'wholesaleBilling' | 'wholesalePeople' | 'wholesaleAnnouncements' | 'wholesaleActivity' | 'wholesaleSettings' | 'openRetail' | 'openPharmacy' | 'openWholesale';
+export type NavKey = 'overview' | 'restaurants' | 'billing' | 'menus' | 'media' | 'people' | 'announcements' | 'platformIntro' | 'activity' | 'settings' | 'myRestaurant' | 'myMenu' | 'cashier' | 'cashierOverview' | 'pharmacies' | 'pharmacyOverview' | 'pharmacyBilling' | 'pharmacyPeople' | 'pharmacyAnnouncements' | 'pharmacyActivity' | 'pharmacySettings' | 'team' | 'teamSettings' | 'retail' | 'retailOverview' | 'retailBilling' | 'retailPeople' | 'retailAnnouncements' | 'retailActivity' | 'retailSettings' | 'wholesale' | 'wholesaleOverview' | 'wholesaleBilling' | 'wholesalePeople' | 'wholesaleAnnouncements' | 'wholesaleActivity' | 'wholesaleSettings' | 'clinic' | 'clinicOverview' | 'clinicBilling' | 'clinicPeople' | 'clinicAnnouncements' | 'clinicActivity' | 'clinicSettings' | 'openRetail' | 'openPharmacy' | 'openWholesale';
 
 export interface NavItem {
   key: NavKey;
@@ -54,6 +55,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: 'retail', href: '/studio/retail', labelKey: 'nav.retail', icon: 'retail' },
   // Every WHOLESALE-sector company and the address of its own separate Wholesale system (the Wholesale space's list).
   { key: 'wholesale', href: '/studio/wholesale', labelKey: 'nav.wholesale', icon: 'wholesale' },
+  // Every CLINIC-sector business (the Clinics space's list).
+  { key: 'clinic', href: '/studio/clinic', labelKey: 'nav.clinic', icon: 'clinic' },
   { key: 'menus', href: '/studio/menus', labelKey: 'nav.menus', icon: 'menus' },
   // The libraries a person manages: Super Admins and designers (spec refinement 20); an owner's pictures are picked in the editor.
   { key: 'media', href: '/studio/media', labelKey: 'nav.media', icon: 'media' },
@@ -104,7 +107,7 @@ export function spaceNav(space: SpaceId): NavItem[] {
     case 'food':
       return [
         entry('overview', '/studio/overview', 'nav.overview', 'overview', { exact: true }),
-        ...NAV_ITEMS.filter((item) => item.key !== 'overview' && item.key !== 'pharmacies' && item.key !== 'retail' && item.key !== 'wholesale').map((item) => ({ ...item })),
+        ...NAV_ITEMS.filter((item) => item.key !== 'overview' && item.key !== 'pharmacies' && item.key !== 'retail' && item.key !== 'wholesale' && item.key !== 'clinic').map((item) => ({ ...item })),
       ];
     case 'pharmacy':
       return [
@@ -137,6 +140,19 @@ export function spaceNav(space: SpaceId): NavItem[] {
         entry('wholesaleActivity', '/studio/wholesale/activity', 'nav.activity', 'activity'),
         entry('wholesaleSettings', '/studio/wholesale/settings', 'nav.settings', 'settings'),
       ];
+    case 'clinic':
+      return [
+        entry('clinicOverview', '/studio/clinic/overview', 'nav.overview', 'overview', { exact: true }),
+        entry('clinic', '/studio/clinic', 'nav.clinic', 'clinic', {
+          // Its own pages are everything under the prefix that the neighbouring items do not claim: new, and one clinic's tabs.
+          exclude: ['overview', 'billing', 'people', 'announcements', 'activity', 'settings'].map((page) => `/studio/clinic/${page}`),
+        }),
+        entry('clinicBilling', '/studio/clinic/billing', 'nav.billing', 'billing'),
+        entry('clinicPeople', '/studio/clinic/people', 'nav.people', 'people'),
+        entry('clinicAnnouncements', '/studio/clinic/announcements', 'nav.announcements', 'announcements'),
+        entry('clinicActivity', '/studio/clinic/activity', 'nav.activity', 'activity'),
+        entry('clinicSettings', '/studio/clinic/settings', 'nav.settings', 'settings'),
+      ];
     case 'platform':
       return [entry('team', '/studio/team', 'nav.team', 'people', { exact: true }), entry('teamSettings', '/studio/team/settings', 'nav.teamSettings', 'settings')];
   }
@@ -147,7 +163,7 @@ export function spaceNav(space: SpaceId): NavItem[] {
  * allowed to invite does that from their restaurant's People tab. Billing, Activity and Settings need `platform.settings`
  * or `audit.view`, which no client policy can grant.
  */
-const SUPER_ADMIN_AREAS: ReadonlySet<NavKey> = new Set<NavKey>(['billing', 'cashierOverview', 'pharmacies', 'retail', 'wholesale', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
+const SUPER_ADMIN_AREAS: ReadonlySet<NavKey> = new Set<NavKey>(['billing', 'cashierOverview', 'pharmacies', 'retail', 'wholesale', 'clinic', 'people', 'announcements', 'platformIntro', 'activity', 'settings']);
 
 /** What the navigation needs to know about a restaurant an owner holds: its name and its menus. */
 export interface OwnedRestaurant {
@@ -155,7 +171,7 @@ export interface OwnedRestaurant {
   name: string;
   menuIds: string[];
   /** A pharmacy's owner has no menus to manage: the second item opens the pharmacy instead. */
-  sector?: 'FOOD' | 'PHARMACY' | 'RETAIL' | 'WHOLESALE';
+  sector?: 'FOOD' | 'PHARMACY' | 'RETAIL' | 'WHOLESALE' | 'CLINIC';
 }
 
 /** Whether the person works in the Studio only as the owner of one or more restaurants. */
@@ -204,9 +220,9 @@ export function visibleNav(actor: Actor, owned: readonly OwnedRestaurant[] = [])
       key: 'myRestaurant',
       href: restaurantPath,
       // A pharmacy is never called a restaurant.
-      labelKey: known?.sector === 'PHARMACY' ? 'nav.myPharmacy' : known?.sector === 'WHOLESALE' ? 'nav.myWholesale' : 'nav.myRestaurant',
+      labelKey: known?.sector === 'PHARMACY' ? 'nav.myPharmacy' : known?.sector === 'WHOLESALE' ? 'nav.myWholesale' : known?.sector === 'CLINIC' ? 'nav.myClinic' : 'nav.myRestaurant',
       ...(name ? { label: name } : {}),
-      icon: known?.sector === 'PHARMACY' ? 'pharmacy' : known?.sector === 'WHOLESALE' ? 'wholesale' : 'store',
+      icon: known?.sector === 'PHARMACY' ? 'pharmacy' : known?.sector === 'WHOLESALE' ? 'wholesale' : known?.sector === 'CLINIC' ? 'clinic' : 'store',
       match: [restaurantPath],
       // The Menus tab belongs to the menu item below.
       exclude: [menusPath],
@@ -218,6 +234,8 @@ export function visibleNav(actor: Actor, owned: readonly OwnedRestaurant[] = [])
     if (known?.sector === 'WHOLESALE') {
       return [restaurantItem, { key: 'openWholesale', href: '/wholesale/home', labelKey: 'nav.openWholesale', ...(name ? { scope: name } : {}), icon: 'wholesale' }];
     }
+    // A clinic has no menus either; its own app comes with the staff app (plan 2), so for now the owner has the profile item only.
+    if (known?.sector === 'CLINIC') return [restaurantItem];
     // Two items so the owner reaches the restaurant's own pages without going back through the menu: the restaurant
     // (profile, branches, plan...) and the menu's settings. One menu opens at once; otherwise the Menus tab does.
     return [

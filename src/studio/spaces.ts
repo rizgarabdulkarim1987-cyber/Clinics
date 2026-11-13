@@ -13,7 +13,7 @@ import { DEFAULT_RETAIL_ACTIVITY, type RetailActivity } from '@/server/domain/re
 export const RETAIL_SPACE_IDS = ['supermarket', 'electronics', 'clothing'] as const;
 export type RetailSpaceId = (typeof RETAIL_SPACE_IDS)[number];
 
-export type SpaceId = 'food' | 'pharmacy' | RetailSpaceId | 'wholesale' | 'platform';
+export type SpaceId = 'food' | 'pharmacy' | RetailSpaceId | 'wholesale' | 'clinic' | 'platform';
 
 /** A space that works on businesses: every one but the platform. */
 export type BusinessSpaceId = Exclude<SpaceId, 'platform'>;
@@ -55,6 +55,8 @@ export const SPACES: readonly Space[] = [
   // Buzzify Wholesale's companies. Each company's accounting runs in its own separate copy of the Wholesale system; this space
   // only lists, bills and opens them. /studio/wholesale/open/[id] under the same prefix is the handoff to that copy, not a page.
   { id: 'wholesale', nameKey: 'hub.wholesale', icon: 'wholesale', home: '/studio/wholesale', sectors: ['WHOLESALE'], prefix: '/studio/wholesale', big: true },
+  // Buzzify Clinics: clinics are in-repo businesses of the CLINIC sector, closed to every other space. Beauty centres are a project of their own.
+  { id: 'clinic', nameKey: 'hub.clinic', icon: 'clinic', home: '/studio/clinic', sectors: ['CLINIC'], prefix: '/studio/clinic', big: true },
   { id: 'platform', nameKey: 'hub.platform', icon: 'platform', home: '/studio/team', sectors: [], prefix: '/studio/team', big: false },
 ];
 
@@ -84,6 +86,7 @@ const BUSINESS_BASE: Record<BusinessSpaceId, string> = {
   electronics: '/studio/electronics',
   clothing: '/studio/clothing',
   wholesale: '/studio/wholesale',
+  clinic: '/studio/clinic',
 };
 
 const ACTIVITY_SPACE: Record<RetailActivity, RetailSpaceId> = { SUPERMARKET: 'supermarket', ELECTRONICS: 'electronics', CLOTHING: 'clothing' };
@@ -98,6 +101,7 @@ export const spaceOfActivity = (activity: RetailActivity): RetailSpaceId => ACTI
 export function spaceOfBusiness(sector: BusinessSector, activity?: RetailActivity | null): BusinessSpaceId {
   if (sector === 'RETAIL') return spaceOfActivity(activity ?? DEFAULT_RETAIL_ACTIVITY);
   if (sector === 'WHOLESALE') return 'wholesale';
+  if (sector === 'CLINIC') return 'clinic';
   return sector === 'PHARMACY' ? 'pharmacy' : 'food';
 }
 

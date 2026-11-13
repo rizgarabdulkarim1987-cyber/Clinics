@@ -25,6 +25,7 @@ const LIST_LABEL: Record<BusinessSpaceId, string> = {
   electronics: 'retail.title',
   clothing: 'retail.title',
   wholesale: 'wholesale.title',
+  clinic: 'clinic.title',
 };
 
 /**
