@@ -4,6 +4,7 @@ import { PLAN_TIERS } from '@/server/domain/entitlements';
 import { defineAction, type ActionContext } from '@/server/studio/framework/action';
 import { updateWithVersion } from '@/server/studio/framework/concurrency';
 import { describeError, StudioError } from '@/server/studio/framework/result';
+import { provisionClinic } from '@/server/clinic/provision';
 import { provisionPharmacy } from '@/server/pharmacy/provision';
 import { bumpRetailState, kickAfterCommit } from '@/server/retail/outbox';
 import { provisionRetail } from '@/server/retail/provision';
@@ -84,11 +85,12 @@ const createInput = restaurantInput
     const effective = input.space ? sectorOf(input.space) : input.sector;
     const retail = effective === 'RETAIL';
     const branches = input.branches ?? [];
-    if ((effective === 'PHARMACY' || retail) && branches.length === 0) {
+    const clinic = effective === 'CLINIC';
+    if ((effective === 'PHARMACY' || clinic || retail) && branches.length === 0) {
       ctx.addIssue({ code: 'custom', path: ['branches'], message: 'Add at least one branch' });
     }
     if (branches.length > 20) {
-      const message = retail ? 'A retail shop starts with at most 20 branches' : 'A pharmacy starts with at most 20 branches';
+      const message = retail ? 'A retail shop starts with at most 20 branches' : clinic ? 'A clinic starts with at most 20 branches' : 'A pharmacy starts with at most 20 branches';
       ctx.addIssue({ code: 'custom', path: ['branches'], message });
     }
     if (retail) {
@@ -129,7 +131,13 @@ export const createRestaurant = defineAction({
       // A Retail product's form makes a shop of that product; a retail shop made without one is a supermarket.
       const activity = (space ? activityOf(space) : null) ?? DEFAULT_RETAIL_ACTIVITY;
       const provisioned =
-        sector === 'PHARMACY' ? await provisionPharmacy(tx, provisioning) : sector === 'RETAIL' ? await provisionRetail(tx, { ...provisioning, activity }) : null;
+        sector === 'PHARMACY'
+          ? await provisionPharmacy(tx, provisioning)
+          : sector === 'CLINIC'
+            ? await provisionClinic(tx, provisioning)
+            : sector === 'RETAIL'
+              ? await provisionRetail(tx, { ...provisioning, activity })
+              : null;
       // A wholesale company's accounting lives in its own system; Studio keeps only the address of that system, empty at first.
       if (sector === 'WHOLESALE') await tx.wholesaleLink.create({ data: { restaurantId: created.id } });
       // A platform action has no restaurant of its own, so it names the one it made: its Activity tab starts here.

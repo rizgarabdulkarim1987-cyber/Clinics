@@ -737,6 +737,8 @@ const SWEPT: Record<string, Case[]> = {
   // A retail shop's Retail tab, read for B (B is no retail shop; the sweep also checks it is refused to A's people)
   'retail.detail': [c("B's retail tab", (w) => ({ restaurantId: w.b.restaurantId }))],
   // A wholesale company's own-system address, set or read for B (B is no wholesale company, and the permission is a Super Admin's)
+  // A clinic's settings, changed for B (B is no clinic, and the permission is a Super Admin's)
+  'clinic.updateSettings': [c("B's clinic settings", (w) => ({ restaurantId: w.b.restaurantId, sharePrivateNotes: true, version: 1 }))],
   'wholesale.setLink': [c("B's wholesale address", (w) => ({ restaurantId: w.b.restaurantId, adminUrl: 'https://planted.example.com' }))],
   'wholesale.detail': [c("B's wholesale tab", (w) => ({ restaurantId: w.b.restaurantId }))],
   'restaurants.delete': [c('B', (w) => ({ restaurantId: w.b.restaurantId, confirmName: w.b.restaurantName }))],
@@ -1023,6 +1025,7 @@ const PLATFORM_ONLY: Record<string, Case[]> = {
   'pos.overview': [c('the cashier overview', () => ({}), ONLY_FORBIDDEN)],
   // The platform's pharmacy list (`platform.settings`): it names no restaurant, so A's people are refused it outright.
   'pharmacies.list': [c('the pharmacy list', () => ({}), ONLY_FORBIDDEN)],
+  'clinics.list': [c('the clinic list', () => ({}), ONLY_FORBIDDEN)],
   // The retail list and a shop's Retail tab (`platform.settings`): refused outright to A's people, even naming B.
   'retail.list': [c('the retail list', () => ({ space: 'supermarket' }), ONLY_FORBIDDEN)],
   'wholesale.list': [c('the wholesale list', () => ({}), ONLY_FORBIDDEN)],
