@@ -1,12 +1,13 @@
 'use client';
 
-import { Pill, ShoppingBag, Warehouse } from 'lucide-react';
+import { Pill, ShoppingBag, Stethoscope, Warehouse } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { deactivateAppPlan, upsertAppPlan } from '@/app/studio/_actions/app-plans';
 import { direction, LOCALE_NAMES, LOCALES, type Locale } from '@/lib/locale';
 import type { AppPlanRow, PharmacyLimits, RetailAppPlanRow } from '@/server/domain/pharmacy/limits';
+import type { ClinicLimits } from '@/server/domain/clinic/limits';
 import type { WholesaleLimits } from '@/server/domain/wholesale/limits';
 import { describeFailure, type DescribedFailure } from '@/studio/errors';
 import { useLocale, useT } from '@/studio/i18n';
@@ -22,8 +23,8 @@ import { Switch } from '@/studio/ui/Switch';
 
 type Names = Record<Locale, string>;
 
-type ApplicationId = 'pharmacy' | 'retail' | 'wholesale';
-type PlanRow = AppPlanRow<PharmacyLimits> | RetailAppPlanRow | AppPlanRow<WholesaleLimits>;
+type ApplicationId = 'pharmacy' | 'retail' | 'wholesale' | 'clinic';
+type PlanRow = AppPlanRow<PharmacyLimits> | RetailAppPlanRow | AppPlanRow<WholesaleLimits> | AppPlanRow<ClinicLimits>;
 
 /** The limits each product's plans set, in the order the form lists them. */
 const LIMIT_KEYS: Record<ApplicationId, readonly string[]> = {
@@ -31,6 +32,8 @@ const LIMIT_KEYS: Record<ApplicationId, readonly string[]> = {
   retail: ['branches', 'users', 'terminals', 'storageMb', 'aiMonthly'],
   // A Wholesale plan is a name and a price: Core caps nothing of a company's own system.
   wholesale: [],
+  // 0 is no limit.
+  clinic: ['maxDoctors', 'maxBranches'],
 };
 
 interface Draft {
@@ -73,7 +76,7 @@ export function AppPlansEditor({ applicationId, plans, canEdit }: { applicationI
   return (
     <div className="flex max-w-4xl flex-col gap-10">
       {!canEdit && <Alert>{t('appPlans.readOnly')}</Alert>}
-      {plans.length === 0 && !canEdit && <EmptyState icon={applicationId === 'retail' ? <ShoppingBag aria-hidden /> : applicationId === 'wholesale' ? <Warehouse aria-hidden /> : <Pill aria-hidden />} title={t(`appPlans.${applicationId}.emptyTitle`)} body={t(`appPlans.${applicationId}.emptyBody`)} />}
+      {plans.length === 0 && !canEdit && <EmptyState icon={applicationId === 'retail' ? <ShoppingBag aria-hidden /> : applicationId === 'wholesale' ? <Warehouse aria-hidden /> : applicationId === 'clinic' ? <Stethoscope aria-hidden /> : <Pill aria-hidden />} title={t(`appPlans.${applicationId}.emptyTitle`)} body={t(`appPlans.${applicationId}.emptyBody`)} />}
       {plans.length === 0 && canEdit && <p className="max-w-[72ch] text-sm text-muted">{t(`appPlans.${applicationId}.emptyBody`)}</p>}
       {plans.map((plan) => (
         <PlanForm key={`${plan.code}:${plan.version}`} applicationId={applicationId} plan={plan} canEdit={canEdit} />

@@ -30,6 +30,10 @@ export default async function RestaurantLayout({ children, params }: { children:
     const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, 'wholesale');
     redirect(target ?? businessPath('wholesale', restaurant.id));
   }
+  if (actor.isSuperAdmin && restaurant.sector === 'CLINIC') {
+    const target = movedBusinessAddressOf((await headers()).get(REQUEST_PATH_HEADER) ?? '', restaurant.id, 'clinic');
+    redirect(target ?? businessPath('clinic', restaurant.id));
+  }
   return (
     <BusinessLayout space="food" params={params}>
       {children}

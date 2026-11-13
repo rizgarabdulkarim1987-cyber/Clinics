@@ -377,7 +377,7 @@ export function CreateRestaurantForm({
   const [ownerEmail, setOwnerEmail] = useState('');
   const retail = sector === 'RETAIL';
   // A pharmacy and a retail shop share the branches, currencies and owner fields; neither has a restaurant type or a menu plan.
-  const pharmacy = sector === 'PHARMACY' || retail;
+  const pharmacy = sector === 'PHARMACY' || sector === 'CLINIC' || retail;
   // A wholesale company is kept in its own Wholesale system: Studio holds only its profile, with no branches, currencies, type or menu plan.
   const wholesale = sector === 'WHOLESALE';
   const form = useActionForm(

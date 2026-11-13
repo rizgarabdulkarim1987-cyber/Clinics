@@ -9,12 +9,12 @@ describe('the limits a Clinics plan carries', () => {
     expect(clinicLimitsSchema.parse({})).toEqual({});
   });
 
-  it('accepts a positive count of doctors and of branches', () => {
+  it('accepts a count of doctors and of branches', () => {
     expect(clinicLimitsSchema.parse({ maxDoctors: 3, maxBranches: 2 })).toEqual({ maxDoctors: 3, maxBranches: 2 });
   });
 
-  it('refuses zero, a fraction, a negative number and an unknown limit', () => {
-    expect(() => clinicLimitsSchema.parse({ maxDoctors: 0 })).toThrow();
+  it('takes 0 as no limit, and refuses a fraction, a negative number and an unknown limit', () => {
+    expect(clinicLimitsSchema.parse({ maxDoctors: 0 })).toEqual({ maxDoctors: 0 });
     expect(() => clinicLimitsSchema.parse({ maxDoctors: 1.5 })).toThrow();
     expect(() => clinicLimitsSchema.parse({ maxBranches: -1 })).toThrow();
     expect(() => clinicLimitsSchema.parse({ maxPatients: 10 })).toThrow();

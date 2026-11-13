@@ -5,5 +5,6 @@ import { redirect } from 'next/navigation';
 export default async function AppPlansRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   if ((await searchParams).app === 'retail') redirect('/studio/supermarket/settings');
   if ((await searchParams).app === 'wholesale') redirect('/studio/wholesale/settings');
+  if ((await searchParams).app === 'clinic') redirect('/studio/clinic/settings');
   redirect('/studio/pharmacy/settings');
 }

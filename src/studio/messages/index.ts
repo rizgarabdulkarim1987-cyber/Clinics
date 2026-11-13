@@ -3,6 +3,9 @@ import type { Locale } from '@/lib/locale';
 import ar from './ar';
 import ckb from './ckb';
 import en from './en';
+import clinicAr from './clinic/ar';
+import clinicCkb from './clinic/ckb';
+import clinicEn from './clinic/en';
 import salesDishesAr from './sales-dishes/ar';
 import salesDishesCkb from './sales-dishes/ckb';
 import salesDishesEn from './sales-dishes/en';
@@ -12,9 +15,9 @@ import wholesaleEn from './wholesale/en';
 
 /** The Studio's own catalog, separate from the public menu's. Later tasks add their groups of keys to all three files. */
 export const STUDIO_MESSAGES: Record<Locale, Messages> = {
-  en: { ...en, ...salesDishesEn, ...wholesaleEn },
-  ar: { ...ar, ...salesDishesAr, ...wholesaleAr },
-  ckb: { ...ckb, ...salesDishesCkb, ...wholesaleCkb },
+  en: { ...en, ...salesDishesEn, ...wholesaleEn, ...clinicEn },
+  ar: { ...ar, ...salesDishesAr, ...wholesaleAr, ...clinicAr },
+  ckb: { ...ckb, ...salesDishesCkb, ...wholesaleCkb, ...clinicCkb },
 };
 
 export function getStudioTranslator(locale: Locale): Translate {
