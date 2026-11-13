@@ -28,6 +28,19 @@ const ask = (q: string) => askAssistant(run, { rid: A, user: PARTNER, locale: 'e
 
 const reply = (text: string): AiProvider => ({ name: 'fake', complete: vi.fn(async () => ({ stop: 'end' as const, content: [{ type: 'text' as const, text }], model: 'x', inputTokens: 1, outputTokens: 1 })) });
 
+/** A model that first asks for a tool, then words the answer from what the tool returned. */
+const usesTool = (tool: string, input: unknown, text: string): AiProvider => {
+  let round = 0;
+  return {
+    name: 'fake',
+    complete: vi.fn(async () =>
+      round++ === 0
+        ? { stop: 'tool_use' as const, content: [{ type: 'tool_use' as const, id: 't1', name: tool, input }], model: 'x', inputTokens: 1, outputTokens: 1 }
+        : { stop: 'end' as const, content: [{ type: 'text' as const, text }], model: 'x', inputTokens: 1, outputTokens: 1 },
+    ),
+  };
+};
+
 beforeAll(() => {
   requireTestDb();
   vi.stubEnv('DATABASE_URL', databaseUrl(TEST_DB));
@@ -77,29 +90,43 @@ describe('assistant answers', () => {
   });
 
   it('keeps the model phrasing when every figure is in the tables, and counts the question', async () => {
-    const p = reply('You hold 30,000 IQD in the dinar box.');
+    const p = usesTool('cash', {}, 'You hold 30,000 IQD in the dinar box.');
     setAiProviderForTests(p);
     const a = await ask('how much cash do we have');
     expect(a.text).toBe('You hold 30,000 IQD in the dinar box.');
     expect(a.degraded).toBeUndefined();
     expect(a.used).toBe(1);
-    expect(p.complete).toHaveBeenCalledTimes(1);
+    expect(p.complete).toHaveBeenCalledTimes(2);
+    expect(a.tables.length).toBeGreaterThan(0);
   });
 
   it('drops phrasing that holds a figure the tables do not', async () => {
-    setAiProviderForTests(reply('You hold 45,000 IQD.'));
+    setAiProviderForTests(usesTool('cash', {}, 'You hold 45,000 IQD.'));
     const a = await ask('how much cash do we have');
     expect(a.text).toBeNull();
     expect(a.degraded).toBe('UNGROUNDED');
     expect(a.tables).toHaveLength(1);
   });
 
-  it('a question that names nothing never reaches the model', async () => {
-    const p = reply('hi');
-    setAiProviderForTests(p);
-    const a = await ask('tell me a story');
-    expect(a.degraded).toBe('NO_TOOL');
-    expect(p.complete).not.toHaveBeenCalled();
+  it('a question about an item or about using the app goes to the model, which reads the books or teaches', async () => {
+    const stock = usesTool('find_items', { query: 'rice' }, 'Rice: 90 PIECE in the main warehouse.');
+    setAiProviderForTests(stock);
+    const a = await ask('how many pieces of rice are left?');
+    expect(a.degraded).toBeUndefined();
+    expect(a.tables[0].rows.some((r) => r.value.startsWith('90'))).toBe(true);
+    const how = reply('Open Stock, then Items, then New item. Fill the name and the unit.');
+    setAiProviderForTests(how);
+    const b = await ask('how do I add a new item?');
+    expect(b.text).toContain('New item');
+    expect(b.degraded).toBeUndefined();
+  });
+
+  it('a model that answers a book question without reading the books gets no say', async () => {
+    setAiProviderForTests(reply('You hold 30,000 IQD.'));
+    const a = await ask('how much cash do we have');
+    expect(a.text).toBeNull();
+    expect(a.degraded).toBe('UNGROUNDED');
+    expect(a.tables.length).toBeGreaterThan(0);
   });
 
   it('gives the allowance back when the model fails, and stops at the limit', async () => {
