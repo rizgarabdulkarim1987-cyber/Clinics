@@ -53,7 +53,7 @@ describe('billing tables', () => {
     expect(await prisma.subscription.count({ where: { restaurantId: restaurant.id } })).toBe(2);
   });
 
-  it('leaves exactly four applications however often the seed runs', async () => {
+  it('leaves exactly six applications however often the seed runs', async () => {
     await seedApplications(prisma);
     await seedApplications(prisma);
     const apps = await prisma.application.findMany({ orderBy: { sortOrder: 'asc' } });
@@ -62,6 +62,8 @@ describe('billing tables', () => {
       ['cashier', 'DISABLED'],
       ['pharmacy', 'DISABLED'],
       ['retail', 'DISABLED'],
+      ['wholesale', 'DISABLED'],
+      ['clinic', 'DISABLED'],
     ]);
   });
 

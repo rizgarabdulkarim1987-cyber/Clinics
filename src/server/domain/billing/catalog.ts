@@ -1,7 +1,7 @@
 import { PLAN_TIERS } from '@/server/domain/entitlements';
 
 /** The products a restaurant can subscribe to. */
-export const APPLICATION_IDS = ['menu', 'cashier', 'pharmacy', 'retail', 'wholesale'] as const;
+export const APPLICATION_IDS = ['menu', 'cashier', 'pharmacy', 'retail', 'wholesale', 'clinic'] as const;
 export type ApplicationId = (typeof APPLICATION_IDS)[number];
 
 /**
@@ -9,7 +9,7 @@ export type ApplicationId = (typeof APPLICATION_IDS)[number];
  * Pharmacy and Retail have no fixed codes: their plans are `AppPlan` rows (`sellablePlanCodes`, in the billing service).
  */
 export function planCodesFor(applicationId: ApplicationId): readonly string[] {
-  return applicationId === 'pharmacy' || applicationId === 'retail' || applicationId === 'wholesale' ? [] : PLAN_TIERS;
+  return applicationId === 'pharmacy' || applicationId === 'retail' || applicationId === 'wholesale' || applicationId === 'clinic' ? [] : PLAN_TIERS;
 }
 
 export interface DefaultApplication {
@@ -26,4 +26,5 @@ export const DEFAULT_APPLICATIONS: readonly DefaultApplication[] = [
   { id: 'pharmacy', name: { en: 'Pharmacy', ar: 'الصيدلية', ckb: 'دەرمانخانە' }, status: 'DISABLED', sortOrder: 3 },
   { id: 'retail', name: { en: 'Retail', ar: 'التجزئة', ckb: 'تاکفرۆشی' }, status: 'DISABLED', sortOrder: 4 },
   { id: 'wholesale', name: { en: 'Wholesale', ar: 'الجملة', ckb: 'کۆفرۆشی' }, status: 'DISABLED', sortOrder: 5 },
+  { id: 'clinic', name: { en: 'Clinics', ar: 'العيادات', ckb: 'کلینیکەکان' }, status: 'DISABLED', sortOrder: 6 },
 ];

@@ -153,6 +153,7 @@ model Restaurant {
   phSettings            PhSettings?
   retailLink            RetailLink?
   wholesaleLink         WholesaleLink?
+  clSettings            ClSettings?
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2574,6 +2575,23 @@ enum BusinessSector {
   PHARMACY
   RETAIL
   WHOLESALE
+  CLINIC
+}
+
+/// A clinic's settings: which currencies it trades in, its time zone, and whether doctors see each other's private notes.
+model ClSettings {
+  id                String     @id @default(cuid())
+  restaurantId      String     @unique
+  enabledCurrencies Currency[] @default([IQD, USD])
+  defaultCurrency   Currency   @default(IQD)
+  /// Off by default: a doctor's clinical note is private to the doctor who wrote it.
+  sharePrivateNotes Boolean    @default(false)
+  /// IANA time zone for what is printed; instants stay UTC.
+  timeZone          String     @default("Asia/Baghdad")
+  version           Int        @default(1)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
 /// Which Buzzify Retail product a RETAIL business is. Beside the sector, not in it: BusinessSector never grows.

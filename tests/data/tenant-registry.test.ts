@@ -129,6 +129,12 @@ describe('tenant scoping registry', () => {
     expect(PHARMACY_BRANCH_SCOPED_MODELS).toContain('PhDoctorLog');
   });
 
+  // A clinic's settings belong to one clinic: a client carrying another restaurant must never read them.
+  it('registers the clinic settings as restaurant-scoped', () => {
+    expect(models.has('ClSettings'), 'ClSettings is a model').toBe(true);
+    expect(RESTAURANT_SCOPED_MODELS as readonly string[]).toContain('ClSettings');
+  });
+
   it('classifies every model exactly once', () => {
     const all = [
       ...MENU_SCOPED_MODELS,
