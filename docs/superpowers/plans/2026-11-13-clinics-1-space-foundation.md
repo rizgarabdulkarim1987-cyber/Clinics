@@ -123,9 +123,11 @@
 ## Plans that follow (each its own plan, in this order)
 
 2. Staff app shell: sign-in of its own, branch selection, roles `ClRole`, staff management.
-3. Patients and doctors.
-4. The day board and booking.
-5. Visit, bill and cashier.
-6. Doctor share and statements.
-7. Till, daily close and reports.
+3. Patients, households and doctors (specialities, working hours, fee lists).
+4. Booking: calendars per doctor, services and slots, waiting list, no-show, booking page.
+5. The day board and distribution to doctors (routing rules, override, hand-over).
+6. Visit, bill and cashier (draft bill, split payments in two currencies, debts and instalments).
+7. Doctor share and statements; till, daily close and reports.
+8. Loyalty (stamps, households, rewards, referrals).
+9. Treatment courses, waiting-room screen and live queue page, recall list.
 Then Beauty, as its own spec.

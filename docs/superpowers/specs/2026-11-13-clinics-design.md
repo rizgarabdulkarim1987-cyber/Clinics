@@ -31,7 +31,7 @@ cashier and one or more doctors share the premises and each sees something diffe
 ## Non-goals (first slice)
 
 - Sending WhatsApp or SMS (the repo has none; it is a later project of its own).
-- Insurance, e-prescription to pharmacies, lab or imaging integrations, telemedicine, an online booking page, a patient app.
+- Insurance, e-prescription to pharmacies, lab or imaging integrations, telemedicine, a patient app (the booking page is in scope, see below).
 - Beauty features (packages, commission, before/after photos). They belong to the Beauty project.
 - Card payment gateways. Payments are recorded by hand, as everywhere else in Core.
 
@@ -76,6 +76,29 @@ cashier and one or more doctors share the premises and each sees something diffe
 7. **Till and reports:** shift, cash in and out, daily close with a cash count per currency, per-doctor and per-day reports.
 
 Order inside the slice is foundation first and each later step shippable on its own.
+
+## Added by the owner on 2026-11-13 (required, not optional)
+
+1. **Booking.** A real booking system, not only a day list: a calendar per doctor, services with durations, slots that cannot
+   be double booked, a waiting list that fills a cancelled slot, no-show state with an optional deposit, reschedule, and a
+   booking page a patient can open from a link or QR code (no sending; WhatsApp sending stays a later project).
+2. **Distribution to doctors.** A walk-in or a booking with "any doctor" is routed by a rule the clinic sets: the doctor with
+   the shortest wait, the patient's own doctor when they have one, the doctor of the right speciality, or turn by turn. The
+   receptionist can always override by moving the token. Doctors can hand a patient on to another doctor in the same file.
+3. **Loyalty.** A clinic's own loyalty programme, built in Clinics' own tables (never Menu's loyalty tables) on the idea
+   already shipped for menus (stamp card): visits or treatments earn stamps, a household shares them, a reward is a free
+   follow-up, a discount or a free item, and a referral earns the referrer a reward. Rewards are redeemed at the cashier.
+4. **More that is new (my call, from the research; each is a plan of its own, in this order after the first slice):**
+   - *Treatment courses:* a bought course of sessions (physio, dental stages, injections) with the sessions left shown as a
+     card; each visit ticks one; the same engine will serve Beauty's packages.
+   - *The waiting room as a screen:* a TV board of tokens and a live page a patient opens from a QR ("you are third, about
+     twenty minutes") that works without any message being sent.
+   - *Recall list:* patients who have not come back when they should (follow-up date passed, six months since a check-up),
+     one tap to call or open a chat.
+   - *Household account:* one phone, several family members, one balance and one stamp card.
+   - *Instalments and debts with a due date* and an aged-debts view for the owner.
+   - *Doctor's ten-second note:* tap-through templates by complaint so a simple visit takes no typing.
+   - *End-of-day ritual:* a guided close of the till per currency with the doctors' shares computed.
 
 ## Constraints
 
