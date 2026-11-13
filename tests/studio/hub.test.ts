@@ -25,7 +25,7 @@ describe('ProjectHub', () => {
 
   it('sits two to a row on a phone and keeps every tile one width from a tablet up', () => {
     const html = markup();
-    expect(html.match(/w-\[calc\(50%-0\.375rem\)\][^"]*sm:w-44/g)).toHaveLength(6);
+    expect(html.match(/w-\[calc\(50%-0\.375rem\)\][^"]*sm:w-44/g)).toHaveLength(7);
   });
 
   it('centres the icons on both axes of the screen', () => {
