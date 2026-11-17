@@ -1,16 +1,16 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { requireClScreen } from '@/server/clinic/access';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { navFor } from '@/server/clinic/roles';
-import { getStudioTranslator } from '@/studio/messages';
+import { spaceBase } from '@/server/clinic/space';
 import { SignOutButton } from '../SignOutButton';
 
 /** The clinic app's shell: the clinic's name, the screens this role may open, and sign-out. Every page behind it has already passed its own role check. */
 export default async function ClinicAppLayout({ children }: { children: ReactNode }) {
-  const { member, session } = await requireClScreen('home');
-  const t = getStudioTranslator(await requestClinicLocale());
-  const items = navFor(member.role);
+  const { member, session, space } = await requireClScreen('home');
+  const t = await clinicTranslator();
+  const items = navFor(member.role, spaceBase(space));
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col gap-4 px-4 pb-10">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-3">
@@ -20,7 +20,7 @@ export default async function ClinicAppLayout({ children }: { children: ReactNod
             {session.name} · {t(`clinic.app.role.${member.role}`)}
           </p>
         </div>
-        <SignOutButton />
+        <SignOutButton fallback={`${spaceBase(space)}/sign-in`} />
       </header>
       <nav aria-label={t('clinic.app.nav.label')} className="flex gap-1 overflow-x-auto">
         {items.map((item) => (

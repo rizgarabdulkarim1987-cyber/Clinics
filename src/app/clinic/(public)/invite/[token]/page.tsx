@@ -1,13 +1,12 @@
 import { getPrisma } from '@/server/data/prisma';
 import { inspectClInvitation } from '@/server/clinic/invitations';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { ClinicInviteForm } from './InviteForm';
 
 /** The page an invitation's link opens, on the clinic app: nothing about the Studio is shown or needed. */
 export default async function ClinicInvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   const view = await inspectClInvitation(getPrisma(), token, new Date());
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-4 py-10">

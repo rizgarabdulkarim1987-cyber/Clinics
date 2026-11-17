@@ -1,15 +1,15 @@
 import { redirect } from 'next/navigation';
 import { getClAccess } from '@/server/clinic/access';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { spaceBase } from '@/server/clinic/space';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { ClinicChooser } from './Chooser';
 
 /** A person who works in several clinics picks the one to open. */
 export default async function SelectClinicPage() {
-  const { entry } = await getClAccess();
+  const { entry, space } = await getClAccess();
   if (entry.kind === 'signIn') redirect(entry.to);
-  if (entry.kind !== 'choose') redirect('/clinic');
-  const t = getStudioTranslator(await requestClinicLocale());
+  if (entry.kind !== 'choose') redirect(spaceBase(space));
+  const t = await clinicTranslator();
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-4 py-10">
       <div className="flex flex-col gap-1">

@@ -5,7 +5,7 @@ import type { ClMembership } from '@/server/clinic/framework';
 
 /** What a clinic page does with a request, as data; and the signed cookie that remembers the clinic a person chose. */
 
-const session: ClSessionView = { sessionId: 's', accountId: 'acc1', name: 'Sara', email: 'sara@example.com' };
+const session: ClSessionView = { sessionId: 's', accountId: 'acc1', name: 'Sara', email: 'sara@example.com', space: 'CLINIC' };
 const member = (restaurantId: string, extra: Partial<ClMembership> = {}): ClMembership => ({
   memberId: `m-${restaurantId}`,
   restaurantId,

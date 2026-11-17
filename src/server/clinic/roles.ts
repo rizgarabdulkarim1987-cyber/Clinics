@@ -51,4 +51,6 @@ const NAV: readonly ClNavItem[] = [
   { screen: 'debts', href: '/clinic/debts', label: 'clinic.app.nav.debts' },
 ];
 
-export const navFor = (role: ClRole): ClNavItem[] => NAV.filter((item) => canSee(role, item.screen));
+/** The menu of a role. `base` is the product's path prefix (`/clinic` or `/beauty`); the screens are the same. */
+export const navFor = (role: ClRole, base = '/clinic'): ClNavItem[] =>
+  NAV.filter((item) => canSee(role, item.screen)).map((item) => (base === '/clinic' ? item : { ...item, href: item.href.replace(/^\/clinic/, base) }));

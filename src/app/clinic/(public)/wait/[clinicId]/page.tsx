@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { loadWaitingRoom } from '@/server/clinic/waiting-room';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { getPrisma } from '@/server/data/prisma';
-import { getStudioTranslator } from '@/studio/messages';
 import { AutoRefresh } from './AutoRefresh';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +11,7 @@ export default async function ClinicWaitPage({ params }: { params: Promise<{ cli
   const { clinicId } = await params;
   const view = await loadWaitingRoom(getPrisma(), clinicId);
   if (!view) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col gap-8 px-4 py-8">
       <AutoRefresh />

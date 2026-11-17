@@ -78,6 +78,8 @@ const createInput = restaurantInput
     branches: z.array(pharmacyBranch).optional(),
     currencies: z.array(z.enum(PH_CURRENCIES, 'Choose IQD, USD or both')).min(1, 'Choose at least one currency').default(['IQD']),
     ownerEmail: z.string().trim().email('Enter a valid email address').max(254).optional(),
+    // Read only for a clinic-engine business: a beauty centre is made in the Clinics space and runs on the same engine.
+    clinicKind: z.enum(['CLINIC', 'BEAUTY']).optional(),
     // The space the form is in: it decides the sector, so a form of one space cannot make a business of the other.
     space: optionalSpace,
   })
@@ -112,7 +114,7 @@ export const createRestaurant = defineAction({
   permission: 'restaurant.create',
   input: createInput,
   target: () => PLATFORM,
-  run: (ctx, { plan: chosen, sector: chosenSector, space, branches, currencies, ownerEmail, ...input }) =>
+  run: (ctx, { plan: chosen, sector: chosenSector, space, branches, currencies, ownerEmail, clinicKind, ...input }) =>
     ctx.transaction(async (tx) => {
       const sector = space ? sectorOf(space) : chosenSector;
       const plan = ctx.actor.isPlatformOwner ? (chosen ?? 'BASIC') : 'BASIC';
@@ -134,7 +136,7 @@ export const createRestaurant = defineAction({
         sector === 'PHARMACY'
           ? await provisionPharmacy(tx, provisioning)
           : sector === 'CLINIC'
-            ? await provisionClinic(tx, provisioning)
+            ? await provisionClinic(tx, { ...provisioning, kind: clinicKind ?? 'CLINIC' })
             : sector === 'RETAIL'
               ? await provisionRetail(tx, { ...provisioning, activity })
               : null;

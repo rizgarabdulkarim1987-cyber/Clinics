@@ -19,7 +19,7 @@ const clinic = (id: string, status: 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED' = 'ACTIV
 async function person(email: string, memberships: Array<[string, Role]>, memberStatus: 'ACTIVE' | 'DISABLED' = 'ACTIVE'): Promise<ClSessionView> {
   const { id } = await createClAccount(prisma(), { name: email, email, password: PASSWORD });
   for (const [restaurantId, role] of memberships) await prisma().clMember.create({ data: { accountId: id, restaurantId, role, status: memberStatus } });
-  return { sessionId: 's', accountId: id, name: email, email };
+  return { sessionId: 's', accountId: id, name: email, email, space: 'CLINIC' as const };
 }
 
 /** Counts the members the clinic's own client can see: a scoped client sees one clinic only. */

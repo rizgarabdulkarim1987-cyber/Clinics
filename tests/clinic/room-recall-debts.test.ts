@@ -22,7 +22,7 @@ const daysAhead = (n: number) => localDay(new Date(Date.now() + n * DAY));
 async function person(email: string, role: Role): Promise<ClSessionView & { memberId: string }> {
   const { id } = await createClAccount(prisma(), { name: email.split('@')[0]!, email, password: PASSWORD });
   const member = await prisma().clMember.create({ data: { accountId: id, restaurantId: 'clinic-a', role } });
-  return { sessionId: 's', accountId: id, name: email.split('@')[0]!, email, memberId: member.id };
+  return { sessionId: 's', accountId: id, name: email.split('@')[0]!, email, space: 'CLINIC' as const, memberId: member.id };
 }
 
 let owner: ClSessionView;

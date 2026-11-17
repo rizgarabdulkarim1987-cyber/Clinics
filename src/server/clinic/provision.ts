@@ -2,6 +2,7 @@ import type { ScopedTx } from '@/server/data/tenant-db';
 import type { PhCurrency } from '@/server/domain/restaurant-profile';
 import { StudioError } from '@/server/studio/framework/result';
 import { prepareClInvitation, queueClOwnerMail } from './invitations';
+import type { ClSpace } from './space';
 
 /**
  * Sets a new clinic up: its branches, its `ClSettings` row and, when an email is given, the invitation that makes that
@@ -23,6 +24,8 @@ export interface ClinicProvisionArgs {
   ownerEmail?: string;
   invitedById?: string;
   afterCommit?: (fn: () => void) => void;
+  /** Which product this business is: a clinic (the default) or a beauty centre. */
+  kind?: ClSpace;
 }
 
 export async function provisionClinic(tx: ScopedTx, args: ClinicProvisionArgs): Promise<{ branchIds: string[]; invitationId: string | null }> {
@@ -38,7 +41,7 @@ export async function provisionClinic(tx: ScopedTx, args: ClinicProvisionArgs): 
     if (!person || person.deactivatedAt) throw new StudioError('FORBIDDEN');
     inviter = person;
     // A clinic's owner is invited to Clinics' own sign-in, never to the Studio: no Studio user is made or looked at.
-    invitation = prepareClInvitation({ email: args.ownerEmail, role: 'OWNER', invitedById: args.invitedById, now: new Date() });
+    invitation = prepareClInvitation({ email: args.ownerEmail, role: 'OWNER', invitedById: args.invitedById, now: new Date(), space: args.kind ?? 'CLINIC' });
   }
 
   // One nested write on the business's own row: the platform's transaction refuses top-level writes of
@@ -48,7 +51,7 @@ export async function provisionClinic(tx: ScopedTx, args: ClinicProvisionArgs): 
     where: { id: args.restaurantId },
     data: {
       branches: { create: args.branches.map((branch, sortOrder) => ({ name: branch.name, city: branch.city ?? '', sortOrder })) },
-      clSettings: { create: { enabledCurrencies: currencies, defaultCurrency: currencies[0]! } },
+      clSettings: { create: { kind: args.kind ?? 'CLINIC', enabledCurrencies: currencies, defaultCurrency: currencies[0]! } },
       ...(invitation ? { clInvitations: { create: invitation.data } } : {}),
     },
     select: { name: true, branches: { select: { id: true }, orderBy: { sortOrder: 'asc' } }, clInvitations: { select: { id: true } } },

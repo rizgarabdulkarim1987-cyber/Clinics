@@ -156,6 +156,8 @@ export const endVisit = defineClAction({
   run: async (ctx, { ticketId, complaint, note, feeIds, packageId }) => {
     const ticket = await ticketFor(ctx, ticketId);
     if ((complaint || note) && ctx.member.role !== 'DOCTOR') throw new StudioError('FORBIDDEN');
+    // A beauty centre keeps no clinical text at all: an appointment ends with its price lines only.
+    if ((complaint || note) && ctx.account.space === 'BEAUTY') throw new StudioError('FORBIDDEN');
     const ids = [...new Set(feeIds ?? [])];
     const fees = ids.length > 0 ? await ctx.db.clDoctorFee.findMany({ where: { id: { in: ids }, doctorId: ticket.doctorId }, orderBy: { sortOrder: 'asc' } }) : [];
     if (fees.length !== ids.length) throw new StudioError('NOT_FOUND');

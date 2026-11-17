@@ -2,8 +2,7 @@ import { notFound } from 'next/navigation';
 import { invokeCl, requireClScreen } from '@/server/clinic/access';
 import { getRate, listBills } from '@/server/clinic/actions/bills';
 import { currentShift } from '@/server/clinic/actions/shifts';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { CashierScreen } from './CashierScreen';
 import { ShiftPanel } from './ShiftPanel';
 
@@ -12,7 +11,7 @@ export default async function ClinicCashierPage() {
   const { member } = await requireClScreen('cashier');
   const [bills, rate, shift] = await Promise.all([invokeCl(listBills, { status: 'OPEN' }), invokeCl(getRate, {}), invokeCl(currentShift, {})]);
   if (!bills.ok || !rate.ok || !shift.ok) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">

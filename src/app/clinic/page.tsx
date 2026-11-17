@@ -1,23 +1,25 @@
 import { redirect } from 'next/navigation';
 import { getClAccess } from '@/server/clinic/access';
+import { spaceBase } from '@/server/clinic/space';
 
-/** `/clinic` has nothing to show: it sends each person to the place their state calls for. */
+/** `/clinic` (and `/beauty`) has nothing to show: it sends each person to the place their state calls for. */
 export default async function ClinicEntryPage() {
-  const { entry } = await getClAccess();
+  const { entry, space } = await getClAccess();
+  const base = spaceBase(space);
   switch (entry.kind) {
     case 'signIn':
       redirect(entry.to);
-     
+
     case 'noClinic':
-      redirect('/clinic/no-clinic');
-     
+      redirect(`${base}/no-clinic`);
+
     case 'choose':
-      redirect('/clinic/select');
-     
+      redirect(`${base}/select`);
+
     case 'closed':
-      redirect('/clinic/closed');
-     
+      redirect(`${base}/closed`);
+
     case 'open':
-      redirect('/clinic/home');
+      redirect(`${base}/home`);
   }
 }

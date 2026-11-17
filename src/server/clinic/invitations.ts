@@ -7,6 +7,7 @@ import { sendAfterResponse } from '@/server/studio/auth/auth';
 import { checkPasswordPolicy } from '@/server/studio/auth/password-policy';
 import { StudioError } from '@/server/studio/framework/result';
 import { checkClPassword, CL_SESSION_DAYS, normalizeClEmail } from './auth/sign-in';
+import { spaceBase, type ClSpace } from './space';
 
 /**
  * Invitations to work in a clinic. Clinics' own (`ClInvitation`): accepted on the clinic app's page, an invitation makes
@@ -32,7 +33,7 @@ type InviteDb = PrismaClient | ScopedTx;
  * Makes an invitation and returns the link for it. The link is not stored anywhere, so this is the only time it can be
  * shown; only a hash of its token is kept. One pending invitation per address and clinic.
  */
-export function prepareClInvitation(args: { email: string; role: ClRole; invitedById: string; now: Date }): {
+export function prepareClInvitation(args: { email: string; role: ClRole; invitedById: string; now: Date; space?: ClSpace }): {
   data: { email: string; role: ClRole; tokenHash: string; expiresAt: Date; invitedById: string };
   url: string;
 } {
@@ -45,7 +46,7 @@ export function prepareClInvitation(args: { email: string; role: ClRole; invited
       expiresAt: new Date(args.now.getTime() + CL_INVITATION_DAYS * 86_400_000),
       invitedById: args.invitedById,
     },
-    url: `${clinicBaseUrl()}/clinic/invite/${token}`,
+    url: `${clinicBaseUrl()}${spaceBase(args.space ?? 'CLINIC')}/invite/${token}`,
   };
 }
 
@@ -64,7 +65,7 @@ export async function createClInvitation(
   options: { afterCommit?: (fn: () => void) => void } = {},
 ): Promise<{ invitationId: string; url: string }> {
   const db = database as PrismaClient;
-  const clinic = await db.restaurant.findUnique({ where: { id: args.restaurantId }, select: { sector: true, name: true } });
+  const clinic = await db.restaurant.findUnique({ where: { id: args.restaurantId }, select: { sector: true, name: true, clSettings: { select: { kind: true } } } });
   if (clinic?.sector !== 'CLINIC') throw new StudioError('NOT_FOUND', 'This clinic does not exist');
   const email = normalizeClEmail(args.email);
   const pending = await db.clInvitation.findFirst({
@@ -72,7 +73,7 @@ export async function createClInvitation(
     select: { id: true },
   });
   if (pending) throw new StudioError('CONFLICT', 'This address already has a pending invitation. Resend it instead', { email: 'This address already has a pending invitation. Resend it instead' });
-  const prepared = prepareClInvitation({ email, role: args.role, invitedById: args.invitedById, now: args.now });
+  const prepared = prepareClInvitation({ email, role: args.role, invitedById: args.invitedById, now: args.now, space: clinic.clSettings?.kind ?? 'CLINIC' });
   const created = await db.clInvitation.create({ data: { ...prepared.data, restaurantId: args.restaurantId }, select: { id: true } });
   const { url } = prepared;
   const { mail } = args;
@@ -100,16 +101,16 @@ function statusOf(row: { acceptedAt: Date | null; revokedAt: Date | null; expire
 
 /** What the invitation page shows for a token: the status alone for one that cannot be used, the details for one that can. */
 export async function inspectClInvitation(prisma: PrismaClient, token: string, now: Date): Promise<ClInvitationView> {
-  const row = await prisma.clInvitation.findUnique({ where: { tokenHash: hashToken(token) }, include: { restaurant: { select: { name: true } } } });
+  const row = await prisma.clInvitation.findUnique({ where: { tokenHash: hashToken(token) }, include: { restaurant: { select: { name: true, clSettings: { select: { kind: true } } } } } });
   if (!row) return { status: 'unknown' };
   const status = statusOf(row, now);
   if (status !== 'valid') return { status };
-  const account = await prisma.clAccount.findUnique({ where: { email: row.email }, select: { id: true } });
+  const account = await prisma.clAccount.findUnique({ where: { email_space: { email: row.email, space: row.restaurant.clSettings?.kind ?? 'CLINIC' } }, select: { id: true } });
   return { status, email: row.email, clinicName: row.restaurant.name, role: row.role, accountExists: account !== null };
 }
 
 export type ClAccept =
-  | { ok: true; sessionToken: string; expiresAt: Date; restaurantId: string }
+  | { ok: true; sessionToken: string; expiresAt: Date; restaurantId: string; space: ClSpace }
   | { ok: false; reason: 'expired' | 'used' | 'revoked' | 'unknown' | 'password' | 'weak' };
 
 /**
@@ -118,12 +119,14 @@ export type ClAccept =
  * happens in one transaction: a refusal leaves the invitation open.
  */
 export async function acceptClInvitation(prisma: PrismaClient, input: { token: string; name: string; password: string; now: Date }): Promise<ClAccept> {
-  const row = await prisma.clInvitation.findUnique({ where: { tokenHash: hashToken(input.token) } });
+  const row = await prisma.clInvitation.findUnique({ where: { tokenHash: hashToken(input.token) }, include: { restaurant: { select: { clSettings: { select: { kind: true } } } } } });
   if (!row) return { ok: false, reason: 'unknown' };
+  // The account the invitation makes or uses belongs to the product of the business that sent it.
+  const space: ClSpace = row.restaurant.clSettings?.kind ?? 'CLINIC';
   const status = statusOf(row, input.now);
   if (status !== 'valid') return { ok: false, reason: status as 'expired' | 'used' | 'revoked' | 'unknown' };
 
-  const existing = await prisma.clAccount.findUnique({ where: { email: row.email } });
+  const existing = await prisma.clAccount.findUnique({ where: { email_space: { email: row.email, space } } });
   if (existing) {
     // The sign-in's own check, lock included: an invitation link is no way round the lock on a password.
     if (existing.status !== 'ACTIVE' || (await checkClPassword(prisma, existing, input.password, input.now)) !== 'ok') return { ok: false, reason: 'password' };
@@ -144,7 +147,7 @@ export async function acceptClInvitation(prisma: PrismaClient, input: { token: s
     if (existing) await tx.clAccount.update({ where: { id: existing.id }, data: { failedSignIns: 0, lockedUntil: null } });
     const accountId = existing
       ? existing.id
-      : (await tx.clAccount.create({ data: { name: input.name.trim() || row.email, email: row.email, passwordHash: passwordHash! }, select: { id: true } })).id;
+      : (await tx.clAccount.create({ data: { name: input.name.trim() || row.email, email: row.email, space, passwordHash: passwordHash! }, select: { id: true } })).id;
     await tx.clMember.upsert({
       where: { accountId_restaurantId: { accountId, restaurantId: row.restaurantId } },
       create: { accountId, restaurantId: row.restaurantId, role: row.role },
@@ -154,5 +157,5 @@ export async function acceptClInvitation(prisma: PrismaClient, input: { token: s
     return true;
   });
   if (!claimed) return { ok: false, reason: 'used' };
-  return { ok: true, sessionToken, expiresAt, restaurantId: row.restaurantId };
+  return { ok: true, sessionToken, expiresAt, restaurantId: row.restaurantId, space };
 }

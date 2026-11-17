@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from '@/generated/prisma/client';
 import { restaurantDb, type RestaurantDb } from '@/server/data/tenant-db';
 import { expectedFailure, failure, invalidInput, type ActionResult } from '@/server/studio/framework/result';
 import type { ClSessionView } from './auth/sign-in';
+import type { ClSpace } from './space';
 
 /**
  * Clinics' own small action framework. It does not use the Studio's: that one is built on Studio users and the
@@ -25,9 +26,11 @@ export interface ClMembership {
 }
 
 /** Every clinic the account works in: active memberships only, in businesses that are clinics. */
-export async function loadClMemberships(prisma: PrismaClient, accountId: string): Promise<ClMembership[]> {
+export async function loadClMemberships(prisma: PrismaClient, accountId: string, space: ClSpace = 'CLINIC'): Promise<ClMembership[]> {
+  // A business with no settings row is a clinic; only a beauty centre says so. An account sees the businesses of its own space.
+  const ownKind = space === 'BEAUTY' ? { clSettings: { kind: 'BEAUTY' as const } } : { NOT: { clSettings: { kind: 'BEAUTY' as const } } };
   const rows = await prisma.clMember.findMany({
-    where: { accountId, status: 'ACTIVE', restaurant: { sector: 'CLINIC' } },
+    where: { accountId, status: 'ACTIVE', restaurant: { sector: 'CLINIC', ...ownKind } },
     include: { restaurant: { select: { name: true, status: true } } },
     orderBy: { createdAt: 'asc' },
   });
@@ -96,7 +99,7 @@ export async function runClAction<I, O>(
   meta: ClRequestMeta = {},
 ): Promise<ActionResult<O>> {
   if (!session) return failure('UNAUTHENTICATED');
-  const memberships = await loadClMemberships(prisma, session.accountId);
+  const memberships = await loadClMemberships(prisma, session.accountId, session.space);
   let member: ClMembership | undefined;
   if (options.restaurantId !== undefined) member = memberships.find((m) => m.restaurantId === options.restaurantId);
   else if (memberships.length === 1) member = memberships[0];

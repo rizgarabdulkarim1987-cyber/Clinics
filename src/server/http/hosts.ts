@@ -42,12 +42,12 @@ const NEXT: HostDecision = { action: 'next' };
 const NOT_FOUND: HostDecision = { action: 'notFound' };
 
 /** Paths that exist only on the Studio host. `/api/retail` is what Buzzify Retail calls (signed, server to server); `/api/v1` is what separate products call (a service secret). */
-const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/wholesale', '/agency', '/clinic', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail', '/api/v1'];
+const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/wholesale', '/agency', '/clinic', '/beauty', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail', '/api/v1'];
 /**
  * What belongs to the clinic host once it is set. Unlike the other product hosts it serves none of the Studio's shared
  * account pages or `/api/auth`: Clinics has its own sign-in, so nothing of the Studio is reachable there.
  */
-const CLINIC_ONLY = ['/clinic', '/api/clinic'];
+const CLINIC_ONLY = ['/clinic', '/beauty', '/api/clinic'];
 const CLINIC_SERVES = [...CLINIC_ONLY, '/_next'];
 /** What the Studio host serves besides `/`. */
 const STUDIO_SERVES = [...STUDIO_ONLY, '/_next'];

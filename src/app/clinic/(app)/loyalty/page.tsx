@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { invokeCl, requireClScreen } from '@/server/clinic/access';
 import { getLoyaltySettings } from '@/server/clinic/actions/loyalty';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { LoyaltyScreen } from './LoyaltyScreen';
 
 /** The owner's loyalty settings: the household stamp card and the referral bonus. */
@@ -10,7 +9,7 @@ export default async function ClinicLoyaltyPage() {
   await requireClScreen('loyalty');
   const settings = await invokeCl(getLoyaltySettings, {});
   if (!settings.ok) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">

@@ -2,6 +2,7 @@
 
 import { chooseClinic, invokeCl } from '@/server/clinic/access';
 import * as staff from '@/server/clinic/actions/staff';
+import { spaceHome } from '@/server/clinic/space';
 import { failure } from '@/server/studio/framework/result';
 
 export async function inviteStaff(input: unknown) {
@@ -23,5 +24,6 @@ export async function setStaffActive(input: unknown) {
 /** Remembers the clinic a person with several chose. */
 export async function chooseClinicAction(input: unknown) {
   const restaurantId = typeof input === 'object' && input !== null && 'restaurantId' in input ? String((input as { restaurantId: unknown }).restaurantId) : '';
-  return (await chooseClinic(restaurantId)) ? ({ ok: true, data: { next: '/clinic/home' } } as const) : failure('NOT_FOUND');
+  const chosen = await chooseClinic(restaurantId);
+  return chosen.ok ? ({ ok: true, data: { next: spaceHome(chosen.space) } } as const) : failure('NOT_FOUND');
 }

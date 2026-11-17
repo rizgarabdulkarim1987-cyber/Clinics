@@ -3,13 +3,12 @@ import { z } from 'zod';
 import { setClSessionCookie, clearClSessionCookie } from '@/server/clinic/auth/cookie';
 import { normalizeClEmail, signInClinic } from '@/server/clinic/auth/sign-in';
 import { acceptClInvitation } from '@/server/clinic/invitations';
+import { requestSpace } from '@/server/clinic/request-space';
+import { spaceHome, spaceSignIn } from '@/server/clinic/space';
 import { checkPasswordPolicy, passwordProblemMessage } from '@/server/studio/auth/password-policy';
 import { addressKey, RATE_RULES } from '@/server/studio/auth/rate-limit';
 import { definePublicAction } from '@/server/studio/framework/public';
 import { StudioError } from '@/server/studio/framework/result';
-
-/** The clinic app's home: where a person lands once signed in. */
-export const CLINIC_HOME = '/clinic/home';
 
 /** The one answer to a failed sign-in or a locked account: it must not say which of the two, or which field, was wrong. */
 const SIGN_IN_FAILED = 'Wrong email or password';
@@ -23,10 +22,12 @@ export const clinicSignIn = definePublicAction({
     { key: `clsignin:email:${normalizeClEmail(input.email)}`, rule: RATE_RULES['signin:email'] },
   ],
   run: async ({ prisma }, { email, password }) => {
-    const result = await signInClinic(prisma, { email, password });
+    // The product is the one whose sign-in page the person is on.
+    const space = await requestSpace();
+    const result = await signInClinic(prisma, { email, password, space });
     if (!result.ok) throw new StudioError('INVALID', SIGN_IN_FAILED);
-    await setClSessionCookie(result.token, result.expiresAt);
-    return { next: CLINIC_HOME };
+    await setClSessionCookie(result.token, result.expiresAt, space);
+    return { next: spaceHome(space) };
   },
 });
 
@@ -56,8 +57,8 @@ export const clinicAcceptInvitation = definePublicAction({
       }
       throw new StudioError('INVALID', INVITATION_REFUSALS[result.reason]);
     }
-    await setClSessionCookie(result.sessionToken, result.expiresAt);
-    return { next: CLINIC_HOME };
+    await setClSessionCookie(result.sessionToken, result.expiresAt, result.space);
+    return { next: spaceHome(result.space) };
   },
 });
 
@@ -65,7 +66,8 @@ export const clinicSignOut = definePublicAction({
   name: 'clinic.signOut',
   input: z.object({}),
   run: async () => {
+    const space = await requestSpace();
     await clearClSessionCookie();
-    return { next: '/clinic/sign-in' };
+    return { next: spaceSignIn(space) };
   },
 });

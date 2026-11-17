@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { invokeCl, requireClScreen } from '@/server/clinic/access';
 import { agedDebts } from '@/server/clinic/actions/reports';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { DebtsScreen } from './DebtsScreen';
 
 /** What is still owed, by how late it is. */
@@ -10,7 +9,7 @@ export default async function ClinicDebtsPage() {
   await requireClScreen('debts');
   const result = await invokeCl(agedDebts, {});
   if (!result.ok) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">

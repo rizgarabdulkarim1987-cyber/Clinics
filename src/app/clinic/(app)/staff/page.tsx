@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import { invokeCl, requireClScreen } from '@/server/clinic/access';
 import { listStaff } from '@/server/clinic/actions/staff';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { StaffScreen } from './StaffScreen';
 
 /** The owner's staff screen. The role check is the server's: any other role gets "not found", with or without the link. */
@@ -10,7 +9,7 @@ export default async function ClinicStaffPage() {
   await requireClScreen('staff');
   const result = await invokeCl(listStaff, {});
   if (!result.ok) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">

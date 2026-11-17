@@ -2,8 +2,7 @@ import { notFound } from 'next/navigation';
 import { invokeCl, requireClScreen } from '@/server/clinic/access';
 import { listDoctors } from '@/server/clinic/actions/doctors';
 import { listPackages } from '@/server/clinic/actions/packages';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { PackagesScreen } from './PackagesScreen';
 
 /** Courses: the owner defines them, the desk sells them. */
@@ -11,7 +10,7 @@ export default async function ClinicPackagesPage() {
   const { member } = await requireClScreen('packages');
   const [packages, doctors] = await Promise.all([invokeCl(listPackages, {}), invokeCl(listDoctors, {})]);
   if (!packages.ok) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">

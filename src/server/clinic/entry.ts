@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { ClSessionView } from './auth/sign-in';
 import type { ClMembership } from './framework';
+import { spaceSignIn, type ClSpace } from './space';
 
 /** Where Clinics sends a person who is not signed in: its own sign-in, never the Studio's. */
 export const CL_SIGN_IN = '/clinic/sign-in';
@@ -17,8 +18,8 @@ export type ClEntry =
  * to sign-in, which would send them straight back and loop. One clinic opens by itself; two or more ask, unless the
  * person's chosen clinic is still one of theirs.
  */
-export function clEntry(input: { session: ClSessionView | null; memberships: readonly ClMembership[]; chosen: string | null }): ClEntry {
-  if (!input.session) return { kind: 'signIn', to: CL_SIGN_IN };
+export function clEntry(input: { session: ClSessionView | null; memberships: readonly ClMembership[]; chosen: string | null; space?: ClSpace }): ClEntry {
+  if (!input.session) return { kind: 'signIn', to: spaceSignIn(input.space ?? 'CLINIC') };
   const { memberships } = input;
   if (memberships.length === 0) return { kind: 'noClinic' };
   const current = memberships.length === 1 ? memberships[0] : memberships.find((m) => m.restaurantId === input.chosen);
@@ -30,6 +31,9 @@ export function clEntry(input: { session: ClSessionView | null; memberships: rea
 
 /** The cookie that remembers which clinic the person chose. HttpOnly; its value is signed for one account. */
 export const CL_PLACE_COOKIE = 'bz_cl_place';
+/** A beauty centre's own, on its own path. */
+export const BT_PLACE_COOKIE = 'bz_bt_place';
+export const placeCookieName = (space: ClSpace): string => (space === 'BEAUTY' ? BT_PLACE_COOKIE : CL_PLACE_COOKIE);
 
 const ID = /^[A-Za-z0-9_-]+$/;
 

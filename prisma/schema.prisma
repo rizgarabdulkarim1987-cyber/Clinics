@@ -2595,10 +2595,18 @@ enum BusinessSector {
   CLINIC
 }
 
+/// Which product a clinic-engine business is. A beauty centre runs on the same tables as a clinic but has its own logins (ClAccount.space).
+enum ClKind {
+  CLINIC
+  BEAUTY
+}
+
 /// A clinic's settings: which currencies it trades in, its time zone, and whether doctors see each other's private notes.
 model ClSettings {
   id                String     @id @default(cuid())
   restaurantId      String     @unique
+  /// CLINIC or BEAUTY: the sector stays CLINIC, this says which product the business is.
+  kind              ClKind     @default(CLINIC)
   enabledCurrencies Currency[] @default([IQD, USD])
   defaultCurrency   Currency   @default(IQD)
   /// Off by default: a doctor's clinical note is private to the doctor who wrote it.
@@ -2671,8 +2679,10 @@ model ClTicket {
 model ClAccount {
   id            String          @id @default(cuid())
   name          String
-  /// Lower case and trimmed, unique.
-  email         String          @unique
+  /// Lower case and trimmed; unique inside its space, so one address may hold a clinic account and a beauty account that never meet.
+  email         String
+  /// The product this login is for. A clinic account never opens a beauty centre, and the other way round.
+  space         ClKind          @default(CLINIC)
   passwordHash  String
   status        ClAccountStatus @default(ACTIVE)
   /// Failed sign-ins in a row; five lock the account until `lockedUntil`.
@@ -2682,6 +2692,8 @@ model ClAccount {
   updatedAt     DateTime        @updatedAt
   members       ClMember[]
   sessions      ClSession[]
+
+  @@unique([email, space])
 }
 
 enum ClAccountStatus {

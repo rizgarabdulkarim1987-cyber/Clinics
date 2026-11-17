@@ -6,7 +6,7 @@ import { navigateAway } from '@/studio/navigate';
 import { Button } from '@/studio/ui/Button';
 
 /** Ends the clinic session and goes to the clinic sign-in. */
-export function SignOutButton({ className }: { className?: string }) {
+export function SignOutButton({ className, fallback = '/clinic/sign-in' }: { className?: string; fallback?: string }) {
   const t = useT();
   return (
     <Button
@@ -15,7 +15,7 @@ export function SignOutButton({ className }: { className?: string }) {
       className={className}
       onClick={async () => {
         const result = await clinicSignOut({});
-        navigateAway(result.ok ? result.data.next : '/clinic/sign-in');
+        navigateAway(result.ok ? result.data.next : fallback);
       }}
     >
       {t('clinic.app.signOut')}

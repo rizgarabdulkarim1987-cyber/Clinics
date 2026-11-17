@@ -52,12 +52,15 @@ export function BoardScreen({
   initialArrivals,
   doctors,
   wait,
+  clinical,
 }: {
   role: 'OWNER' | 'RECEPTION' | 'DOCTOR' | 'CASHIER';
   initial: BoardData;
   initialArrivals: Arrival[];
   doctors: { doctorId: string; name: string }[];
   wait: { url: string; qr: string } | null;
+  /** False in a beauty centre: it keeps no complaint or note. */
+  clinical: boolean;
 }) {
   const t = useT();
   const desk = role === 'OWNER' || role === 'RECEPTION';
@@ -275,7 +278,7 @@ export function BoardScreen({
                           ticketId={ticket.ticketId}
                           fees={ending.fees}
                           packages={ending.packages}
-                          canWrite={role === 'DOCTOR'}
+                          canWrite={role === 'DOCTOR' && clinical}
                           onCancel={() => setEnding(null)}
                           onDone={() => {
                             setEnding(null);

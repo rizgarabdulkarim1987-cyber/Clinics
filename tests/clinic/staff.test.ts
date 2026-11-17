@@ -16,7 +16,7 @@ type Role = 'OWNER' | 'RECEPTION' | 'DOCTOR' | 'CASHIER';
 async function person(email: string, restaurantId: string, role: Role): Promise<ClSessionView & { memberId: string }> {
   const { id } = await createClAccount(prisma(), { name: email.split('@')[0]!, email, password: PASSWORD });
   const member = await prisma().clMember.create({ data: { accountId: id, restaurantId, role } });
-  return { sessionId: 's', accountId: id, name: email, email, memberId: member.id };
+  return { sessionId: 's', accountId: id, name: email, email, space: 'CLINIC' as const, memberId: member.id };
 }
 
 const code = (result: { ok: boolean; error?: { code: string } }) => (result.ok ? 'OK' : result.error!.code);

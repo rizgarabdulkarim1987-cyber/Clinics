@@ -22,7 +22,7 @@ beforeEach(async () => {
 
 describe('creating an account', () => {
   it('stores the email lower case and trimmed, and never the password', async () => {
-    const row = await prisma().clAccount.findUniqueOrThrow({ where: { email: 'sara@example.com' } });
+    const row = await prisma().clAccount.findUniqueOrThrow({ where: { email_space: { email: 'sara@example.com', space: 'CLINIC' } } });
     expect(row.passwordHash).not.toContain(PASSWORD);
     expect(row.passwordHash.length).toBeGreaterThan(20);
   });
@@ -67,11 +67,11 @@ describe('signing in', () => {
   it('clears the failure count after a good sign-in', async () => {
     await signInClinic(prisma(), { email: 'sara@example.com', password: 'wrong wrong wrong', now: NOW });
     await signInClinic(prisma(), { email: 'sara@example.com', password: PASSWORD, now: NOW });
-    expect((await prisma().clAccount.findUniqueOrThrow({ where: { email: 'sara@example.com' } })).failedSignIns).toBe(0);
+    expect((await prisma().clAccount.findUniqueOrThrow({ where: { email_space: { email: 'sara@example.com', space: 'CLINIC' } } })).failedSignIns).toBe(0);
   });
 
   it('refuses a disabled account with the same answer as a wrong password', async () => {
-    await prisma().clAccount.update({ where: { email: 'sara@example.com' }, data: { status: 'DISABLED' } });
+    await prisma().clAccount.update({ where: { email_space: { email: 'sara@example.com', space: 'CLINIC' } }, data: { status: 'DISABLED' } });
     expect(await signInClinic(prisma(), { email: 'sara@example.com', password: PASSWORD, now: NOW })).toEqual({ ok: false, reason: 'invalid' });
   });
 });
@@ -88,9 +88,9 @@ describe('the session', () => {
   it('ends on sign-out and is refused for a disabled account', async () => {
     const result = await signInClinic(prisma(), { email: 'sara@example.com', password: PASSWORD, now: NOW });
     if (!result.ok) throw new Error('expected sign-in');
-    await prisma().clAccount.update({ where: { email: 'sara@example.com' }, data: { status: 'DISABLED' } });
+    await prisma().clAccount.update({ where: { email_space: { email: 'sara@example.com', space: 'CLINIC' } }, data: { status: 'DISABLED' } });
     expect(await readClSession(prisma(), result.token, NOW)).toBeNull();
-    await prisma().clAccount.update({ where: { email: 'sara@example.com' }, data: { status: 'ACTIVE' } });
+    await prisma().clAccount.update({ where: { email_space: { email: 'sara@example.com', space: 'CLINIC' } }, data: { status: 'ACTIVE' } });
     expect(await readClSession(prisma(), result.token, NOW)).not.toBeNull();
     await signOutClinic(prisma(), result.token);
     expect(await readClSession(prisma(), result.token, NOW)).toBeNull();

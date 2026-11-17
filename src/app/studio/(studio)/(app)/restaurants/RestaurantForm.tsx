@@ -375,6 +375,7 @@ export function CreateRestaurantForm({
   const [branches, setBranches] = useState<BranchRow[]>([{ name: '', city: '' }]);
   const [currencies, setCurrencies] = useState<readonly PhCurrency[]>(['IQD']);
   const [ownerEmail, setOwnerEmail] = useState('');
+  const [clinicKind, setClinicKind] = useState<'CLINIC' | 'BEAUTY'>('CLINIC');
   const retail = sector === 'RETAIL';
   // A pharmacy and a retail shop share the branches, currencies and owner fields; neither has a restaurant type or a menu plan.
   const pharmacy = sector === 'PHARMACY' || sector === 'CLINIC' || retail;
@@ -393,6 +394,7 @@ export function CreateRestaurantForm({
               branches: branches.map(({ name, city }) => ({ name, ...(city.trim() ? { city } : {}) })),
               currencies: PH_CURRENCIES.filter((currency) => currencies.includes(currency)),
               ...(ownerEmail.trim() ? { ownerEmail } : {}),
+              ...(sector === 'CLINIC' ? { clinicKind } : {}),
             }
           : wholesale
             ? { type: 'OTHER', sector }
@@ -423,6 +425,16 @@ export function CreateRestaurantForm({
             options={BUSINESS_SECTORS.map((value) => ({ value, label: t(`restaurants.sector.${value}`) }))}
           />
         </Field>
+        )}
+        {sector === 'CLINIC' && (
+          <Field label={t('restaurants.form.clinicKind')} hint={t('restaurants.form.clinicKindHint')} className="sm:col-span-2">
+            <Select
+              name="clinicKind"
+              value={clinicKind}
+              onChange={(event) => setClinicKind(event.target.value as 'CLINIC' | 'BEAUTY')}
+              options={(['CLINIC', 'BEAUTY'] as const).map((value) => ({ value, label: t(`restaurants.clinicKind.${value}`) }))}
+            />
+          </Field>
         )}
         {planNames && !pharmacy && !wholesale && (
           <Field label={t('restaurants.form.plan')} hint={t('restaurants.form.planHint')} error={form.errors.plan} className="sm:col-span-2 sm:max-w-xs">

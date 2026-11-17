@@ -1,9 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getPrisma } from '@/server/data/prisma';
 import { loadPublicClinic } from '@/server/clinic/public-actions/booking';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { localDay } from '@/server/clinic/time';
-import { getStudioTranslator } from '@/studio/messages';
 import { BookForm } from './BookForm';
 
 /** The page a patient opens from a link or a QR code. It shows the clinic's doctors and free times and never a patient. */
@@ -11,7 +10,7 @@ export default async function ClinicBookPage({ params }: { params: Promise<{ cli
   const { clinicId } = await params;
   const view = await loadPublicClinic(getPrisma(), clinicId);
   if (!view) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-4 py-8">
       <div className="flex flex-col gap-1">

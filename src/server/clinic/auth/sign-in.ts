@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { hashPassword, verifyPassword } from 'better-auth/crypto';
 import type { PrismaClient } from '@/generated/prisma/client';
 import { checkPasswordPolicy, PasswordPolicyError } from '@/server/studio/auth/password-policy';
+import type { ClSpace } from '../space';
 
 /**
  * Clinic sign-in. Clinics keeps its own accounts and sessions (`ClAccount`, `ClSession`): nothing here reads a Studio
@@ -28,11 +29,11 @@ let dummyHash: Promise<string> | undefined;
 const dummy = (): Promise<string> => (dummyHash ??= hashPassword(randomUUID()));
 
 /** Makes a clinic account. Throws `PasswordPolicyError` for a weak password; a duplicate email throws the database's error. */
-export async function createClAccount(prisma: PrismaClient, input: { name: string; email: string; password: string }): Promise<{ id: string }> {
+export async function createClAccount(prisma: PrismaClient, input: { name: string; email: string; password: string; space?: ClSpace }): Promise<{ id: string }> {
   const problem = checkPasswordPolicy(input.password);
   if (problem) throw new PasswordPolicyError(problem);
   return prisma.clAccount.create({
-    data: { name: input.name.trim(), email: normalizeClEmail(input.email), passwordHash: await hashPassword(input.password) },
+    data: { name: input.name.trim(), email: normalizeClEmail(input.email), space: input.space ?? 'CLINIC', passwordHash: await hashPassword(input.password) },
     select: { id: true },
   });
 }
@@ -67,9 +68,10 @@ export type ClSignIn = { ok: true; token: string; expiresAt: Date } | { ok: fals
  * Checks an email and password and opens a session. A wrong password, an unknown email and a disabled account all
  * answer `invalid`; only an account that has been locked by failures answers `locked`.
  */
-export async function signInClinic(prisma: PrismaClient, input: { email: string; password: string; now?: Date }): Promise<ClSignIn> {
+export async function signInClinic(prisma: PrismaClient, input: { email: string; password: string; space?: ClSpace; now?: Date }): Promise<ClSignIn> {
   const now = input.now ?? new Date();
-  const account = await prisma.clAccount.findUnique({ where: { email: normalizeClEmail(input.email) } });
+  // The address is looked up inside the product the sign-in page belongs to: a clinic login never opens a beauty centre.
+  const account = await prisma.clAccount.findUnique({ where: { email_space: { email: normalizeClEmail(input.email), space: input.space ?? 'CLINIC' } } });
   if (!account || account.status !== 'ACTIVE') {
     await verifyPassword({ hash: await dummy(), password: input.password });
     return { ok: false, reason: 'invalid' };
@@ -90,6 +92,7 @@ export interface ClSessionView {
   accountId: string;
   name: string;
   email: string;
+  space: ClSpace;
 }
 
 /** The person a session token belongs to, or null when it is unknown, expired, or its account is disabled. */
@@ -97,7 +100,7 @@ export async function readClSession(prisma: PrismaClient, token: string | undefi
   if (!token) return null;
   const row = await prisma.clSession.findUnique({ where: { tokenHash: tokenHash(token) }, include: { account: true } });
   if (!row || row.expiresAt <= now || row.account.status !== 'ACTIVE') return null;
-  return { sessionId: row.id, accountId: row.accountId, name: row.account.name, email: row.account.email };
+  return { sessionId: row.id, accountId: row.accountId, name: row.account.name, email: row.account.email, space: row.account.space };
 }
 
 /** Ends the session a token opened. Silent for a token that is not one. */

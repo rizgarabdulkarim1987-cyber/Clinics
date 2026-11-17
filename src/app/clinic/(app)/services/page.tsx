@@ -2,16 +2,16 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { invokeCl, requireClScreen } from '@/server/clinic/access';
 import { listServices } from '@/server/clinic/actions/services';
-import { requestClinicLocale } from '@/server/clinic/request-locale';
-import { getStudioTranslator } from '@/studio/messages';
+import { spaceBase } from '@/server/clinic/space';
+import { clinicTranslator } from '@/server/clinic/translator';
 import { ServicesScreen } from './ServicesScreen';
 
 /** The services a patient can book. The owner's; any other role gets "not found". */
 export default async function ClinicServicesPage() {
-  const { member } = await requireClScreen('services');
+  const { member, space } = await requireClScreen('services');
   const result = await invokeCl(listServices, {});
   if (!result.ok) notFound();
-  const t = getStudioTranslator(await requestClinicLocale());
+  const t = await clinicTranslator();
   // The address this page is served from, so the link is right on whichever host the clinic app has.
   const sent = await headers();
   const host = sent.get('x-forwarded-host') ?? sent.get('host') ?? '';
@@ -22,7 +22,7 @@ export default async function ClinicServicesPage() {
         <h1 className="text-2xl font-semibold">{t('clinic.app.services.title')}</h1>
         <p className="text-muted">{t('clinic.app.services.intro')}</p>
       </div>
-      <ServicesScreen services={result.data} bookingUrl={`${origin}/clinic/book/${member.restaurantId}`} />
+      <ServicesScreen services={result.data} bookingUrl={`${origin}${spaceBase(space)}/book/${member.restaurantId}`} />
     </section>
   );
 }

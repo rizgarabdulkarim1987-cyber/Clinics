@@ -3,6 +3,9 @@ import type { Locale } from '@/lib/locale';
 import ar from './ar';
 import ckb from './ckb';
 import en from './en';
+import beautyAr from './beauty/ar';
+import beautyCkb from './beauty/ckb';
+import beautyEn from './beauty/en';
 import clinicAr from './clinic/ar';
 import clinicCkb from './clinic/ckb';
 import clinicEn from './clinic/en';
@@ -19,6 +22,28 @@ export const STUDIO_MESSAGES: Record<Locale, Messages> = {
   ar: { ...ar, ...salesDishesAr, ...wholesaleAr, ...clinicAr },
   ckb: { ...ckb, ...salesDishesCkb, ...wholesaleCkb, ...clinicCkb },
 };
+
+/**
+ * A beauty centre runs on the clinic's screens with its own words: the same keys as the clinic's (a doctor is a
+ * specialist, a patient a client), laid over the catalog. Only the words that differ are listed.
+ */
+const BEAUTY_OVERLAY: Record<Locale, Messages> = { en: beautyEn, ar: beautyAr, ckb: beautyCkb };
+let beautyCatalog: Record<Locale, Messages> | undefined;
+
+/** The catalog of one product on the clinic engine. */
+export function spaceCatalog(space: 'CLINIC' | 'BEAUTY'): Record<Locale, Messages> {
+  if (space === 'CLINIC') return STUDIO_MESSAGES;
+  return (beautyCatalog ??= {
+    en: { ...STUDIO_MESSAGES.en, ...BEAUTY_OVERLAY.en },
+    ar: { ...STUDIO_MESSAGES.ar, ...BEAUTY_OVERLAY.ar },
+    ckb: { ...STUDIO_MESSAGES.ckb, ...BEAUTY_OVERLAY.ckb },
+  });
+}
+
+/** What the client components of a clinic or beauty page receive. */
+export function clientSpaceMessages(locale: Locale, space: 'CLINIC' | 'BEAUTY'): Messages {
+  return Object.fromEntries(Object.entries(spaceCatalog(space)[locale]).filter(([key]) => !key.startsWith('email.')));
+}
 
 export function getStudioTranslator(locale: Locale): Translate {
   return createTranslator(locale, STUDIO_MESSAGES);
