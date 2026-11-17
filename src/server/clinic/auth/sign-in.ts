@@ -37,6 +37,30 @@ export async function createClAccount(prisma: PrismaClient, input: { name: strin
   });
 }
 
+/**
+ * The one password check for an existing clinic account, used by sign-in and by accepting an invitation, so neither is a
+ * way round the lock. A locked account is refused whatever the password; a wrong password counts, and the fifth in a row
+ * locks the account. The caller clears the counters in its own transaction once it has acted on `ok`.
+ */
+export async function checkClPassword(
+  prisma: PrismaClient,
+  account: { id: string; passwordHash: string; failedSignIns: number; lockedUntil: Date | null },
+  password: string,
+  now: Date,
+): Promise<'ok' | 'invalid' | 'locked'> {
+  // The same work whatever the answer, so the time taken does not tell a locked account from the rest.
+  const matches = await verifyPassword({ hash: account.passwordHash, password });
+  if (account.lockedUntil && account.lockedUntil > now) return 'locked';
+  if (matches) return 'ok';
+  const failures = (account.lockedUntil && account.lockedUntil <= now ? 0 : account.failedSignIns) + 1;
+  const lock = failures >= CL_LOCK_AFTER;
+  await prisma.clAccount.update({
+    where: { id: account.id },
+    data: { failedSignIns: lock ? 0 : failures, lockedUntil: lock ? new Date(now.getTime() + CL_LOCK_MINUTES * 60_000) : null },
+  });
+  return 'invalid';
+}
+
 export type ClSignIn = { ok: true; token: string; expiresAt: Date } | { ok: false; reason: 'invalid' | 'locked' };
 
 /**
@@ -50,22 +74,8 @@ export async function signInClinic(prisma: PrismaClient, input: { email: string;
     await verifyPassword({ hash: await dummy(), password: input.password });
     return { ok: false, reason: 'invalid' };
   }
-  if (account.lockedUntil && account.lockedUntil > now) {
-    // The same work as any other refusal, so the time taken does not tell a locked account from the rest. The public
-    // action also gives `locked` and `invalid` one answer.
-    await verifyPassword({ hash: account.passwordHash, password: input.password });
-    return { ok: false, reason: 'locked' };
-  }
-  const matches = await verifyPassword({ hash: account.passwordHash, password: input.password });
-  if (!matches) {
-    const failures = (account.lockedUntil && account.lockedUntil <= now ? 0 : account.failedSignIns) + 1;
-    const lock = failures >= CL_LOCK_AFTER;
-    await prisma.clAccount.update({
-      where: { id: account.id },
-      data: { failedSignIns: lock ? 0 : failures, lockedUntil: lock ? new Date(now.getTime() + CL_LOCK_MINUTES * 60_000) : null },
-    });
-    return { ok: false, reason: 'invalid' };
-  }
+  const verdict = await checkClPassword(prisma, account, input.password, now);
+  if (verdict !== 'ok') return { ok: false, reason: verdict };
   const token = randomBytes(32).toString('base64url');
   const expiresAt = new Date(now.getTime() + CL_SESSION_DAYS * DAY);
   await prisma.$transaction([

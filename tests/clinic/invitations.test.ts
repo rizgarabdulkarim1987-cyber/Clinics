@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPrisma } from '@/server/data/prisma';
-import { createClAccount, readClSession } from '@/server/clinic/auth/sign-in';
+import { createClAccount, readClSession, signInClinic, CL_LOCK_AFTER } from '@/server/clinic/auth/sign-in';
 import { acceptClInvitation, createClInvitation, inspectClInvitation, CL_INVITATION_DAYS } from '@/server/clinic/invitations';
 import { databaseUrl, TEST_DB } from '../../scripts/db-config';
 import { requireTestDb, resetTestData } from '../helpers/db';
@@ -81,6 +81,18 @@ describe('accepting', () => {
     expect((await acceptClInvitation(prisma(), { token: tokenOf(url), name: 'x', password: PASSWORD, now: NOW })).ok).toBe(true);
     expect(await prisma().clAccount.count()).toBe(1);
     expect((await prisma().clMember.findFirstOrThrow()).role).toBe('DOCTOR');
+  });
+
+  it('counts wrong passwords at an invitation against the account’s lock, and sign-in is locked with it', async () => {
+    await createClAccount(prisma(), { name: 'Dr Sara', email: 'sara@example.com', password: PASSWORD });
+    const { url } = await invite('sara@example.com', 'clinic-b', 'DOCTOR');
+    for (let i = 0; i < CL_LOCK_AFTER; i += 1) {
+      expect(await acceptClInvitation(prisma(), { token: tokenOf(url), name: 'x', password: 'wrong wrong wrong', now: NOW })).toEqual({ ok: false, reason: 'password' });
+    }
+    // Locked: the right password is refused at the invitation and at sign-in until the lock ends.
+    expect(await acceptClInvitation(prisma(), { token: tokenOf(url), name: 'x', password: PASSWORD, now: NOW })).toEqual({ ok: false, reason: 'password' });
+    expect(await signInClinic(prisma(), { email: 'sara@example.com', password: PASSWORD, now: NOW })).toEqual({ ok: false, reason: 'locked' });
+    expect(await prisma().clMember.count()).toBe(0);
   });
 
   it('refuses a weak password for a new account and keeps the invitation open', async () => {

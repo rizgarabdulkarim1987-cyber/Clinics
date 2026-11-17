@@ -21,6 +21,7 @@ describe('parseHostEnv', () => {
       rootRedirect: 'https://buzzify.me',
       pharmacyHost: null,
       wholesaleHost: null,
+      clinicHost: null,
       agencyHost: null,
       coreHost: null,
       coreGatePath: null,
@@ -39,6 +40,7 @@ describe('parseHostEnv', () => {
     const env = parseHostEnv({
       PHARMACY_HOST: 'Leaf.Example.Test',
       WHOLESALE_HOST: 'Wholesales.Example.Test',
+      CLINIC_HOST: 'Clinics.Example.Test',
       CORE_HOST: 'core.example.test',
       CORE_GATE_PATH: '/7728914040/',
       APEX_HOST: 'buzzify.tech',
@@ -46,6 +48,7 @@ describe('parseHostEnv', () => {
     });
     expect(env.pharmacyHost).toBe('leaf.example.test');
     expect(env.wholesaleHost).toBe('wholesales.example.test');
+    expect(env.clinicHost).toBe('clinics.example.test');
     expect(env.coreHost).toBe('core.example.test');
     expect(env.coreGatePath).toBe('7728914040');
     expect(env.apexHost).toBe('buzzify.tech');
@@ -72,6 +75,7 @@ describe('parseHostEnv', () => {
       rootRedirect: 'https://example.com/welcome',
       pharmacyHost: null,
       wholesaleHost: null,
+      clinicHost: null,
       agencyHost: null,
       coreHost: null,
       coreGatePath: null,

@@ -67,6 +67,8 @@ const hostSchema = z.object({
   AGENCY_HOST: host,
   /** The wholesale company's own host. Unset: the Studio host still serves Wholesale. */
   WHOLESALE_HOST: host,
+  /** The clinic app's own host. Unset: the Studio host still serves `/clinic`. */
+  CLINIC_HOST: host,
   /** The super admin's host. Unset: the Studio host still serves the super admin's pages. */
   CORE_HOST: host,
   /** The super admin host's secret path. Set: the host answers 404 until the path is opened. Kept out of the repository. */
@@ -103,6 +105,7 @@ export interface HostEnv {
   studioHost: string | null;
   pharmacyHost: string | null;
   wholesaleHost: string | null;
+  clinicHost: string | null;
   agencyHost: string | null;
   coreHost: string | null;
   coreGatePath: string | null;
@@ -121,6 +124,7 @@ export function parseHostEnv(source: Source): HostEnv {
     studioHost: parsed.STUDIO_HOST,
     pharmacyHost: parsed.PHARMACY_HOST,
     wholesaleHost: parsed.WHOLESALE_HOST,
+    clinicHost: parsed.CLINIC_HOST,
     agencyHost: parsed.AGENCY_HOST,
     coreHost: parsed.CORE_HOST,
     coreGatePath: parsed.CORE_GATE_PATH,
@@ -431,6 +435,7 @@ const CHECKED_VARIABLES = [
   'STUDIO_HOST',
   'PHARMACY_HOST',
   'WHOLESALE_HOST',
+  'CLINIC_HOST',
   'AGENCY_HOST',
   'CORE_HOST',
   'CORE_GATE_PATH',
@@ -678,6 +683,10 @@ export function checkProductionEnv(source: Source = process.env): ProductionEnvC
   const wholesaleHost = text('WHOLESALE_HOST')?.toLowerCase();
   const coreHost = text('CORE_HOST')?.toLowerCase();
   const agencyHost = text('AGENCY_HOST')?.toLowerCase();
+  const clinicHost = text('CLINIC_HOST')?.toLowerCase();
+  if (clinicHost && clean('CLINIC_HOST') && [publicHost, studioHost, pharmacyHost, wholesaleHost, agencyHost, coreHost].includes(clinicHost)) {
+    report('CLINIC_HOST', 'must differ from PUBLIC_MENU_HOST, STUDIO_HOST, PHARMACY_HOST, WHOLESALE_HOST, AGENCY_HOST and CORE_HOST');
+  }
   if (agencyHost && clean('AGENCY_HOST') && [publicHost, studioHost, pharmacyHost, wholesaleHost, coreHost].includes(agencyHost)) {
     report('AGENCY_HOST', 'must differ from PUBLIC_MENU_HOST, STUDIO_HOST, PHARMACY_HOST, WHOLESALE_HOST and CORE_HOST');
   }
@@ -691,7 +700,7 @@ export function checkProductionEnv(source: Source = process.env): ProductionEnvC
     report('CORE_HOST', 'must differ from PUBLIC_MENU_HOST, STUDIO_HOST, PHARMACY_HOST and WHOLESALE_HOST');
   }
   // The main domain and the old hosts only redirect; one that is also a live host would redirect that host away or loop.
-  const liveHosts = [publicHost, studioHost, pharmacyHost, wholesaleHost, agencyHost, coreHost].filter((name): name is string => !!name);
+  const liveHosts = [publicHost, studioHost, pharmacyHost, wholesaleHost, clinicHost, agencyHost, coreHost].filter((name): name is string => !!name);
   const apexHost = text('APEX_HOST')?.toLowerCase();
   if (apexHost && clean('APEX_HOST') && liveHosts.includes(apexHost)) {
     report('APEX_HOST', 'must differ from PUBLIC_MENU_HOST, STUDIO_HOST, PHARMACY_HOST and CORE_HOST; it only redirects');

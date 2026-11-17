@@ -1,12 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { hashPassword, verifyPassword } from 'better-auth/crypto';
+import { hashPassword } from 'better-auth/crypto';
 import type { PrismaClient } from '@/generated/prisma/client';
 import type { ScopedTx } from '@/server/data/tenant-db';
 import { authEnv } from '@/server/env';
 import { sendAfterResponse } from '@/server/studio/auth/auth';
 import { checkPasswordPolicy } from '@/server/studio/auth/password-policy';
 import { StudioError } from '@/server/studio/framework/result';
-import { CL_SESSION_DAYS, normalizeClEmail } from './auth/sign-in';
+import { checkClPassword, CL_SESSION_DAYS, normalizeClEmail } from './auth/sign-in';
 
 /**
  * Invitations to work in a clinic. Clinics' own (`ClInvitation`): accepted on the clinic app's page, an invitation makes
@@ -125,7 +125,8 @@ export async function acceptClInvitation(prisma: PrismaClient, input: { token: s
 
   const existing = await prisma.clAccount.findUnique({ where: { email: row.email } });
   if (existing) {
-    if (existing.status !== 'ACTIVE' || !(await verifyPassword({ hash: existing.passwordHash, password: input.password }))) return { ok: false, reason: 'password' };
+    // The sign-in's own check, lock included: an invitation link is no way round the lock on a password.
+    if (existing.status !== 'ACTIVE' || (await checkClPassword(prisma, existing, input.password, input.now)) !== 'ok') return { ok: false, reason: 'password' };
   } else if (checkPasswordPolicy(input.password) !== null) {
     return { ok: false, reason: 'weak' };
   }
@@ -140,6 +141,7 @@ export async function acceptClInvitation(prisma: PrismaClient, input: { token: s
       data: { acceptedAt: input.now },
     });
     if (count === 0) return false;
+    if (existing) await tx.clAccount.update({ where: { id: existing.id }, data: { failedSignIns: 0, lockedUntil: null } });
     const accountId = existing
       ? existing.id
       : (await tx.clAccount.create({ data: { name: input.name.trim() || row.email, email: row.email, passwordHash: passwordHash! }, select: { id: true } })).id;

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { setClSessionCookie, clearClSessionCookie } from '@/server/clinic/auth/cookie';
 import { normalizeClEmail, signInClinic } from '@/server/clinic/auth/sign-in';
@@ -40,7 +41,11 @@ export const clinicAcceptInvitation = definePublicAction({
   name: 'clinic.acceptInvitation',
   input: z.object({ token: z.string().min(1).max(200), name: z.string().trim().max(120), password: z.string().min(1).max(1024) }),
   // Counted under the clinic's own keys; a link cannot be guessed, but the password it asks for can be.
-  rateLimit: (_input, { ip }) => [{ key: `clinvite:ip:${addressKey(ip)}`, rule: RATE_RULES['signin:ip'] }],
+  rateLimit: (input, { ip }) => [
+    { key: `clinvite:ip:${addressKey(ip)}`, rule: RATE_RULES['signin:ip'] },
+    // And one count for the invitation itself, so the password it asks for cannot be guessed from many addresses.
+    { key: `clinvite:token:${createHash('sha256').update(input.token).digest('hex')}`, rule: RATE_RULES['signin:email'] },
+  ],
   run: async ({ prisma }, { token, name, password }) => {
     const result = await acceptClInvitation(prisma, { token, name, password, now: new Date() });
     if (!result.ok) {

@@ -13,6 +13,8 @@ export interface HostConfig {
   agencyHost?: string | null;
   /** Wholesale's own host. While null, the Studio host still serves Wholesale. */
   wholesaleHost?: string | null;
+  /** The clinic app's own host. While null, the Studio host still serves `/clinic`. */
+  clinicHost?: string | null;
   /** The super admin's host. While null, the Studio host still serves the super admin's pages. */
   coreHost?: string | null;
   /**
@@ -40,7 +42,13 @@ const NEXT: HostDecision = { action: 'next' };
 const NOT_FOUND: HostDecision = { action: 'notFound' };
 
 /** Paths that exist only on the Studio host. `/api/retail` is what Buzzify Retail calls (signed, server to server); `/api/v1` is what separate products call (a service secret). */
-const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/wholesale', '/agency', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail', '/api/v1'];
+const STUDIO_ONLY = ['/studio', '/pos', '/pharmacy', '/wholesale', '/agency', '/clinic', '/api/auth', '/api/studio', '/api/pos', '/api/pharmacy', '/api/dev-intake', '/api/retail', '/api/v1'];
+/**
+ * What belongs to the clinic host once it is set. Unlike the other product hosts it serves none of the Studio's shared
+ * account pages or `/api/auth`: Clinics has its own sign-in, so nothing of the Studio is reachable there.
+ */
+const CLINIC_ONLY = ['/clinic', '/api/clinic'];
+const CLINIC_SERVES = [...CLINIC_ONLY, '/_next'];
 /** What the Studio host serves besides `/`. */
 const STUDIO_SERVES = [...STUDIO_ONLY, '/_next'];
 /** What belongs to the pharmacy host once it is set (sign-in is `/api/auth`, shared by every product host). */
@@ -149,6 +157,12 @@ const wholesaleRule: Rule = ({ req, path, cfg }) => {
   return serves(path, WHOLESALE_SERVES) ? NEXT : NOT_FOUND;
 };
 
+const clinicRule: Rule = ({ req, path, cfg }) => {
+  if (!isHost(req.host, cfg.clinicHost ?? null)) return null;
+  if (path === '/') return redirect('/clinic');
+  return serves(path, CLINIC_SERVES) ? NEXT : NOT_FOUND;
+};
+
 /** The super admin host: nothing answers until the secret path has been opened. */
 const coreRule: Rule = ({ req, path, cfg }) => {
   if (!isHost(req.host, cfg.coreHost ?? null)) return null;
@@ -168,6 +182,7 @@ const studioRule: Rule = ({ req, path, cfg }) => {
   if (cfg.pharmacyHost && PHARMACY_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
   if (cfg.agencyHost && AGENCY_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
   if (cfg.wholesaleHost && WHOLESALE_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
+  if (cfg.clinicHost && CLINIC_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
   if (cfg.coreHost && CORE_ONLY.some((prefix) => within(path, prefix))) return NOT_FOUND;
   return serves(path, STUDIO_SERVES) ? NEXT : NOT_FOUND;
 };
@@ -183,7 +198,7 @@ const wwwRule: Rule = ({ req, cfg }) =>
   cfg.publicHost && !cfg.publicHost.includes(':') && isHost(req.host, `www.${cfg.publicHost}`) ? redirect(sameRequestOn(cfg.publicHost, req)) : null;
 
 /** The first rule that knows the host decides. The order matters: the product hosts come before the shared Studio host. */
-const RULES: Rule[] = [apexRule, legacyRule, agencyRule, pharmacyRule, wholesaleRule, coreRule, studioRule, publicRule, wwwRule];
+const RULES: Rule[] = [apexRule, legacyRule, agencyRule, pharmacyRule, wholesaleRule, clinicRule, coreRule, studioRule, publicRule, wwwRule];
 
 /**
  * Which host a request belongs to, and what to do with the path. One deployment serves them all: the Studio keeps its
