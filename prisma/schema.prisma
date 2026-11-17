@@ -168,6 +168,7 @@ model Restaurant {
   clBillLines           ClBillLine[]
   clPayments            ClPayment[]
   clShifts              ClShift[]
+  clLoyaltyEntries      ClLoyaltyEntry[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2608,6 +2609,14 @@ model ClSettings {
   lastTurnDoctorId  String?
   /// Dinars per dollar, fixed on each payment when it is taken.
   usdRate           Int        @default(1500)
+  /// The stamp card, shared by a household. Off until the owner switches it on.
+  loyaltyEnabled    Boolean    @default(false)
+  /// Stamps that fill a card.
+  loyaltyEvery      Int        @default(5)
+  /// The discount a full card gives, in dinars.
+  loyaltyRewardIqd  Int        @default(5000)
+  /// Stamps the referrer's household gets when the referred patient's first bill is paid.
+  referralStamps    Int        @default(1)
   version           Int        @default(1)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
@@ -2762,6 +2771,8 @@ model ClPatient {
   name         String
   phone        String
   birthYear    Int?
+  /// The patient who brought this one in, for the referral bonus.
+  referredById String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
@@ -6525,4 +6536,26 @@ model ClShift {
   payments     ClPayment[]
 
   @@index([restaurantId, status])
+}
+
+enum ClLoyaltyKind {
+  VISIT
+  REFERRAL
+  REDEEM
+}
+
+/// The loyalty ledger of a household: +1 for a paid bill, + the bonus for a referral, - a full card for a reward.
+/// The balance is the sum; `refKey` is unique per clinic so one bill stamps once and one reward is spent once.
+model ClLoyaltyEntry {
+  id           String        @id @default(cuid())
+  restaurantId String
+  householdId  String
+  kind         ClLoyaltyKind
+  delta        Int
+  refKey       String
+  createdAt    DateTime      @default(now())
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, refKey])
+  @@index([restaurantId, householdId])
 }

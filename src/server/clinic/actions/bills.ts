@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { StudioError } from '@/server/studio/framework/result';
 import { defineClAction, type ClContext } from '../framework';
+import { earnForBill } from '../loyalty';
 import { isDay, localDay } from '../time';
 
 /**
@@ -58,14 +59,21 @@ export const listBills = defineClAction({
       where: { status: status ?? 'OPEN' },
       include: {
         lines: { orderBy: { sortOrder: 'asc' } },
-        patient: { select: { name: true, phone: true } },
+        patient: { select: { name: true, phone: true, householdId: true } },
         ticket: { select: { number: true, day: true } },
         doctor: { select: { member: { select: { account: { select: { name: true } } } } } },
       },
       orderBy: { createdAt: status === undefined || status === 'OPEN' ? 'asc' : 'desc' },
       take: 200,
     });
+    // The household cards of the open bills, in one query, so the till can offer a full card without asking per bill.
+    const settings = await ctx.db.clSettings.findFirst({});
+    const loyaltyOn = (settings?.loyaltyEnabled ?? false) && (status === undefined || status === 'OPEN');
+    const households = new Map(rows.map((b) => [b.patientId, b.patient.householdId]));
+    const sums = loyaltyOn ? await ctx.db.clLoyaltyEntry.groupBy({ by: ['householdId'], where: { householdId: { in: [...new Set(households.values())] } }, _sum: { delta: true } }) : [];
+    const stampsOf = new Map(sums.map((s) => [s.householdId, s._sum.delta ?? 0]));
     return rows.map((b) => ({
+      loyalty: loyaltyOn ? { stamps: stampsOf.get(b.patient.householdId) ?? 0, every: settings?.loyaltyEvery ?? 5, rewardIqd: settings?.loyaltyRewardIqd ?? 5000 } : null,
       billId: b.id,
       status: b.status,
       number: b.ticket.number,
@@ -103,6 +111,8 @@ export const removeBillLine = defineClAction({
   run: async (ctx, { lineId }) => {
     const line = await ctx.db.clBillLine.findFirst({ where: { id: lineId } });
     if (!line) throw new StudioError('NOT_FOUND');
+    // A spent loyalty reward is a negative line; taking it off would give the stamps away for nothing.
+    if (line.amount < 0) throw new StudioError('INVALID', 'This line cannot be removed');
     const bill = await billFor(ctx, line.billId);
     if (bill.total - line.amount < bill.paid) throw new StudioError('INVALID', 'The bill would be less than what was paid');
     const { count } = await ctx.db.clBill.updateMany({ where: { id: bill.id, status: 'OPEN', version: bill.version }, data: { total: { decrement: line.amount }, version: { increment: 1 } } });
@@ -141,7 +151,10 @@ export const takePayment = defineClAction({
     await ctx.db.clPayment.create({
       data: { restaurantId: ctx.restaurantId, billId, currency, tendered: amount, rate, appliedIqd: applied, changeIqd, takenById: ctx.member.memberId, shiftId: shift?.id ?? null },
     });
-    if (settled) await closeTicket(ctx, bill.ticketId);
+    if (settled) {
+      await closeTicket(ctx, bill.ticketId);
+      await earnForBill(ctx, { id: bill.id, patientId: bill.patientId, total: bill.total });
+    }
     ctx.audit({ action: 'clinic.payment_taken', entityType: 'ClBill', entityId: billId, changes: { paid: { before: bill.paid, after: paid } } });
     return { appliedIqd: applied, changeIqd, balance: bill.total - paid, status: settled ? ('PAID' as const) : bill.status };
   },

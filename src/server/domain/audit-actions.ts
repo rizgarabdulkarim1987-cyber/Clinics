@@ -44,6 +44,8 @@ export const AUDIT_ACTIONS = [
   'clinic.doctor_share_saved',
   'clinic.shift_opened',
   'clinic.shift_closed',
+  'clinic.loyalty_saved',
+  'clinic.loyalty_redeemed',
   'wholesale.client_created',
   'wholesale.client_revoked',
   'branch.created',

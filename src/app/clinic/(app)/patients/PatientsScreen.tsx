@@ -30,6 +30,7 @@ export function PatientsScreen({ initial }: { initial: Patient[] }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [year, setYear] = useState('');
+  const [referrer, setReferrer] = useState('');
 
   const search = (text: string) =>
     start(async () => {
@@ -57,11 +58,12 @@ export function PatientsScreen({ initial }: { initial: Patient[] }) {
           event.preventDefault();
           start(async () => {
             setProblem(false);
-            const result = await createPatient({ name, phone, birthYear: asYear(year) });
+            const result = await createPatient({ name, phone, birthYear: asYear(year), ...(referrer.trim() ? { referredByPhone: referrer } : {}) });
             if (!result.ok) return setProblem(true);
             setName('');
             setPhone('');
             setYear('');
+            setReferrer('');
             setQuery('');
             const list = await searchPatients({ query: '' });
             if (list.ok) setFound(list.data);
@@ -70,9 +72,12 @@ export function PatientsScreen({ initial }: { initial: Patient[] }) {
         }}
       >
         <h2 className="text-lg font-semibold">{t('clinic.app.patients.add.title')}</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-4">
           <Field label={t('clinic.app.patients.name')}>
             <Input size="lg" required value={name} onChange={(event) => setName(event.target.value)} />
+          </Field>
+          <Field label={t('clinic.app.patients.referredBy')}>
+            <Input size="lg" type="tel" dir="ltr" className="rtl:text-right" value={referrer} onChange={(event) => setReferrer(event.target.value)} />
           </Field>
           <Field label={t('clinic.app.patients.phone')}>
             <Input size="lg" type="tel" dir="ltr" className="rtl:text-right" required value={phone} onChange={(event) => setPhone(event.target.value)} />

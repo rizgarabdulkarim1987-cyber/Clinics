@@ -59,10 +59,17 @@ export const searchPatients = defineClAction({
 export const createPatient = defineClAction({
   name: 'clinic.patients.create',
   roles: [...ROLES],
-  input: z.object(patientFields),
-  run: async (ctx, { name, phone, birthYear }) => {
+  input: z.object({ ...patientFields, referredByPhone: z.string().trim().max(40).optional() }),
+  run: async (ctx, { name, phone, birthYear, referredByPhone }) => {
+    // The patient who brought this one in, found by their phone; an unknown number is refused rather than ignored.
+    let referredById: string | null = null;
+    if (referredByPhone) {
+      const referrer = await ctx.db.clPatient.findFirst({ where: { phone: normalizePhone(referredByPhone) } });
+      if (!referrer) throw new StudioError('INVALID', 'No patient has this phone number');
+      referredById = referrer.id;
+    }
     const householdId = await householdFor(ctx, phone);
-    const row = await ctx.db.clPatient.create({ data: { restaurantId: ctx.restaurantId, householdId, name, phone, birthYear: birthYear ?? null } });
+    const row = await ctx.db.clPatient.create({ data: { restaurantId: ctx.restaurantId, householdId, name, phone, birthYear: birthYear ?? null, referredById } });
     // The file's id only: a patient's details never enter the audit log.
     ctx.audit({ action: 'clinic.patient_created', entityType: 'ClPatient', entityId: row.id, changes: {} });
     return summary(row);

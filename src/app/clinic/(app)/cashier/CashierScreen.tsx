@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { addBillLine, leaveAsDebt, listBills, removeBillLine, saveRate, takePayment } from '@/app/clinic/_actions/bills';
+import { redeemReward } from '@/app/clinic/_actions/loyalty';
 import { useT } from '@/studio/i18n';
 import { Button } from '@/studio/ui/Button';
 import { Field } from '@/studio/ui/Field';
@@ -24,6 +25,8 @@ interface Bill {
   balance: number;
   dueDay: string | null;
   lines: Line[];
+  /** The household's stamp card, when loyalty is on and the bill is open. */
+  loyalty: { stamps: number; every: number; rewardIqd: number } | null;
 }
 
 const TABS: Status[] = ['OPEN', 'DEBT', 'PAID'];
@@ -182,6 +185,16 @@ function BillCard({ bill, rate, onChanged }: { bill: Bill; rate: number; onChang
           </dd>
         </div>
       </dl>
+      {open && bill.loyalty && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface px-3 py-2">
+          <span className="text-sm">{t('clinic.app.loyalty.card', { stamps: bill.loyalty.stamps, every: bill.loyalty.every })}</span>
+          {bill.loyalty.stamps >= bill.loyalty.every && (
+            <Button variant="primary" disabled={pending} onClick={() => run(() => redeemReward({ billId: bill.billId }))}>
+              {t('clinic.app.loyalty.redeem', { amount: money(bill.loyalty.rewardIqd) })}
+            </Button>
+          )}
+        </div>
+      )}
       {bill.dueDay && <p className="text-sm text-muted">{t('clinic.app.cashier.due', { day: bill.dueDay })}</p>}
       {bill.status === 'PAID' && <p className="text-sm text-muted">{t('clinic.app.cashier.settled')}</p>}
 

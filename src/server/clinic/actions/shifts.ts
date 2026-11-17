@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { StudioError } from '@/server/studio/framework/result';
+import { isUniqueViolation } from '../db-errors';
 import { defineClAction, type ClContext } from '../framework';
 
 /**
@@ -24,8 +25,6 @@ async function expectedFor(ctx: ClContext, shiftId: string, openingIqd: number) 
   }
   return { expectedIqd, expectedUsd, payments: rows.length };
 }
-
-const isUniqueViolation = (error: unknown) => /P2002|23505|ClShift_one_open/.test(`${(error as { code?: string })?.code ?? ''} ${(error as Error)?.message ?? ''}`);
 
 export const currentShift = defineClAction({
   name: 'clinic.shifts.current',
