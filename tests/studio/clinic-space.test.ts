@@ -67,6 +67,16 @@ describe('making a clinic', () => {
     expect(JSON.stringify(rows[0]!.changes)).not.toContain('doctor@example.com');
   });
 
+  it('invites the owner to Clinics’ own sign-in: a clinic invitation, and no Studio invitation or user', async () => {
+    const { restaurantId } = dataOf(await newClinic('Smile Clinic', { ownerEmail: 'doctor@example.com' }));
+    const invitations = await prisma().clInvitation.findMany({ where: { restaurantId } });
+    expect(invitations).toHaveLength(1);
+    expect(invitations[0]).toMatchObject({ email: 'doctor@example.com', role: 'OWNER', acceptedAt: null });
+    expect(await prisma().invitation.count({ where: { restaurantId } })).toBe(0);
+    const rows = await prisma().auditLog.findMany({ where: { restaurantId, action: 'invitation.created' } });
+    expect(rows.map((row) => row.entityType)).toEqual(['ClInvitation']);
+  });
+
   it('is made by the Clinics form alone: the space decides the sector, and another space cannot make one', async () => {
     const viaSpace = dataOf(await act(admin, restaurantActions.createRestaurant, { name: 'Via space', type: 'OTHER', space: 'clinic', branches: [{ name: 'Main' }] }));
     expect((await prisma().restaurant.findUniqueOrThrow({ where: { id: viaSpace.restaurantId } })).sector).toBe('CLINIC');

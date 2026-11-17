@@ -295,6 +295,7 @@ export const AUDIT_ENTITY_TYPES = [
   'RetailLink',
   'WholesaleLink',
   'ClSettings',
+  'ClInvitation',
   'ServiceClient',
   'Branch',
   'BranchOrder',

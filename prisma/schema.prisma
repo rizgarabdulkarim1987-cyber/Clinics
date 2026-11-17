@@ -155,6 +155,7 @@ model Restaurant {
   wholesaleLink         WholesaleLink?
   clSettings            ClSettings?
   clMembers             ClMember[]
+  clInvitations         ClInvitation[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2655,6 +2656,27 @@ model ClMember {
   restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([accountId, restaurantId])
+  @@index([restaurantId])
+}
+
+/// An invitation to work in one clinic. Clinics' own: accepted on the clinic app's page, it makes a ClAccount and a ClMember, never a Studio user.
+model ClInvitation {
+  id           String     @id @default(cuid())
+  /// Lower case and trimmed.
+  email        String
+  restaurantId String
+  role         ClRole
+  /// SHA-256 of the token, in hex.
+  tokenHash    String     @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+  /// The Super Admin or clinic owner who sent it; an id only, so a clinic invitation holds no link to a Studio user.
+  invitedById  String
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([email])
   @@index([restaurantId])
 }
 

@@ -50,7 +50,12 @@ export async function signInClinic(prisma: PrismaClient, input: { email: string;
     await verifyPassword({ hash: await dummy(), password: input.password });
     return { ok: false, reason: 'invalid' };
   }
-  if (account.lockedUntil && account.lockedUntil > now) return { ok: false, reason: 'locked' };
+  if (account.lockedUntil && account.lockedUntil > now) {
+    // The same work as any other refusal, so the time taken does not tell a locked account from the rest. The public
+    // action also gives `locked` and `invalid` one answer.
+    await verifyPassword({ hash: account.passwordHash, password: input.password });
+    return { ok: false, reason: 'locked' };
+  }
   const matches = await verifyPassword({ hash: account.passwordHash, password: input.password });
   if (!matches) {
     const failures = (account.lockedUntil && account.lockedUntil <= now ? 0 : account.failedSignIns) + 1;

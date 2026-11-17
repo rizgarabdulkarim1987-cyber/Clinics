@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { setClSessionCookie, clearClSessionCookie } from '@/server/clinic/auth/cookie';
 import { normalizeClEmail, signInClinic } from '@/server/clinic/auth/sign-in';
+import { acceptClInvitation } from '@/server/clinic/invitations';
+import { checkPasswordPolicy, passwordProblemMessage } from '@/server/studio/auth/password-policy';
 import { addressKey, RATE_RULES } from '@/server/studio/auth/rate-limit';
 import { definePublicAction } from '@/server/studio/framework/public';
 import { StudioError } from '@/server/studio/framework/result';
@@ -23,6 +25,33 @@ export const clinicSignIn = definePublicAction({
     const result = await signInClinic(prisma, { email, password });
     if (!result.ok) throw new StudioError('INVALID', SIGN_IN_FAILED);
     await setClSessionCookie(result.token, result.expiresAt);
+    return { next: CLINIC_HOME };
+  },
+});
+
+const INVITATION_REFUSALS = {
+  expired: 'This invitation has expired. Ask for a new one',
+  used: 'This invitation was already used',
+  revoked: 'This invitation is no longer valid',
+  unknown: 'This invitation link is not valid',
+} as const;
+
+export const clinicAcceptInvitation = definePublicAction({
+  name: 'clinic.acceptInvitation',
+  input: z.object({ token: z.string().min(1).max(200), name: z.string().trim().max(120), password: z.string().min(1).max(1024) }),
+  // Counted under the clinic's own keys; a link cannot be guessed, but the password it asks for can be.
+  rateLimit: (_input, { ip }) => [{ key: `clinvite:ip:${addressKey(ip)}`, rule: RATE_RULES['signin:ip'] }],
+  run: async ({ prisma }, { token, name, password }) => {
+    const result = await acceptClInvitation(prisma, { token, name, password, now: new Date() });
+    if (!result.ok) {
+      if (result.reason === 'password') throw new StudioError('INVALID', SIGN_IN_FAILED, { password: SIGN_IN_FAILED });
+      if (result.reason === 'weak') {
+        const message = passwordProblemMessage(checkPasswordPolicy(password) ?? 'TOO_SHORT');
+        throw new StudioError('INVALID', message, { password: message });
+      }
+      throw new StudioError('INVALID', INVITATION_REFUSALS[result.reason]);
+    }
+    await setClSessionCookie(result.sessionToken, result.expiresAt);
     return { next: CLINIC_HOME };
   },
 });

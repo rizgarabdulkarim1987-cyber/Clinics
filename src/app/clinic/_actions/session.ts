@@ -7,6 +7,10 @@ export async function clinicSignIn(input: unknown) {
   return invokePublic(session.clinicSignIn, input);
 }
 
+export async function clinicAcceptInvitation(input: unknown) {
+  return invokePublic(session.clinicAcceptInvitation, input);
+}
+
 export async function clinicSignOut(input: unknown) {
   return invokePublic(session.clinicSignOut, input);
 }

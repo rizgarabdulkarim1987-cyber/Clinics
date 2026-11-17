@@ -164,7 +164,7 @@ export const createRestaurant = defineAction({
         // The same entry the Studio's own owner invitations leave: the address and the role, never the link.
         ctx.audit({
           action: 'invitation.created',
-          entityType: 'Invitation',
+          entityType: sector === 'CLINIC' ? 'ClInvitation' : 'Invitation',
           entityId: provisioned.invitationId,
           restaurantId: created.id,
           changes: { email: { before: null, after: ownerEmail.toLowerCase() }, role: { before: null, after: 'OWNER' } },

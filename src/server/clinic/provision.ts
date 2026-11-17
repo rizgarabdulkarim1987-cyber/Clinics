@@ -1,6 +1,7 @@
 import type { ScopedTx } from '@/server/data/tenant-db';
 import type { PhCurrency } from '@/server/domain/restaurant-profile';
-import { createInvitation, type InvitationOptions } from '@/server/studio/services/invitations';
+import { StudioError } from '@/server/studio/framework/result';
+import { prepareClInvitation, queueClOwnerMail } from './invitations';
 
 /**
  * Sets a new clinic up: its branches, its `ClSettings` row and, when an email is given, the invitation that makes that
@@ -21,7 +22,7 @@ export interface ClinicProvisionArgs {
   /** The person to invite as owner. Needs `invitedById` (the Super Admin creating the clinic). */
   ownerEmail?: string;
   invitedById?: string;
-  afterCommit?: InvitationOptions['afterCommit'];
+  afterCommit?: (fn: () => void) => void;
 }
 
 export async function provisionClinic(tx: ScopedTx, args: ClinicProvisionArgs): Promise<{ branchIds: string[]; invitationId: string | null }> {
@@ -29,28 +30,33 @@ export async function provisionClinic(tx: ScopedTx, args: ClinicProvisionArgs): 
   if (args.currencies.length === 0) throw new Error('A clinic needs at least one currency');
   const currencies = [...new Set(args.currencies)];
 
+  let invitation: ReturnType<typeof prepareClInvitation> | null = null;
+  let inviter: { name: string; locale: string } | null = null;
+  if (args.ownerEmail !== undefined) {
+    if (!args.invitedById) throw new Error('An owner invitation needs the person sending it');
+    const person = await tx.user.findUnique({ where: { id: args.invitedById }, select: { name: true, locale: true, deactivatedAt: true } });
+    if (!person || person.deactivatedAt) throw new StudioError('FORBIDDEN');
+    inviter = person;
+    // A clinic's owner is invited to Clinics' own sign-in, never to the Studio: no Studio user is made or looked at.
+    invitation = prepareClInvitation({ email: args.ownerEmail, role: 'OWNER', invitedById: args.invitedById, now: new Date() });
+  }
+
   // One nested write on the business's own row: the platform's transaction refuses top-level writes of
-  // restaurant-scoped models (it has no restaurant yet), and this keeps the branches and the settings in the same
-  // statement set as the business the action just created.
+  // restaurant-scoped models (it has no restaurant yet), and this keeps the branches, the settings and the invitation in
+  // the same statement set as the business the action just created.
   const written = await tx.restaurant.update({
     where: { id: args.restaurantId },
     data: {
       branches: { create: args.branches.map((branch, sortOrder) => ({ name: branch.name, city: branch.city ?? '', sortOrder })) },
       clSettings: { create: { enabledCurrencies: currencies, defaultCurrency: currencies[0]! } },
+      ...(invitation ? { clInvitations: { create: invitation.data } } : {}),
     },
-    select: { branches: { select: { id: true }, orderBy: { sortOrder: 'asc' } } },
+    select: { name: true, branches: { select: { id: true }, orderBy: { sortOrder: 'asc' } }, clInvitations: { select: { id: true } } },
   });
   const branchIds = written.branches.map((branch) => branch.id);
 
-  let invitationId: string | null = null;
-  if (args.ownerEmail !== undefined) {
-    if (!args.invitedById) throw new Error('An owner invitation needs the person sending it');
-    const invitation = await createInvitation(
-      tx,
-      { email: args.ownerEmail, restaurantId: args.restaurantId, role: 'OWNER', asSuperAdmin: false, invitedById: args.invitedById, now: new Date() },
-      { afterCommit: args.afterCommit },
-    );
-    invitationId = invitation.invitationId;
+  if (invitation && inviter) {
+    queueClOwnerMail({ email: invitation.data.email, url: invitation.url, clinicName: written.name, inviterName: inviter.name, locale: inviter.locale }, args.afterCommit);
   }
-  return { branchIds, invitationId };
+  return { branchIds, invitationId: invitation ? (written.clInvitations[0]?.id ?? null) : null };
 }
