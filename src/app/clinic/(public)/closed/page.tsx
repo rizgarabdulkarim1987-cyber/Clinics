@@ -16,7 +16,7 @@ export default async function ClosedPage() {
         <h1 className="text-2xl font-semibold">{entry.member.clinicName}</h1>
         <p className="text-muted">{t(`clinic.app.closed.${entry.reason}`)}</p>
       </div>
-      <SignOutButton />
+      <SignOutButton fallback={`${spaceBase(space)}/sign-in`} />
     </main>
   );
 }

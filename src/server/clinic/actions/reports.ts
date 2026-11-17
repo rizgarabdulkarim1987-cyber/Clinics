@@ -52,9 +52,12 @@ export const doctorShares = defineClAction({
     const span = (Date.parse(`${toDay}T00:00:00Z`) - Date.parse(`${fromDay}T00:00:00Z`)) / DAY_MS;
     if (span < 0) throw new StudioError('INVALID', 'The range ends before it starts');
     if (span >= MAX_DAYS) throw new StudioError('INVALID', 'Choose a range of a year or less');
+    // A course sale is money for the course, not a visit: it earns no per-visit sum and is no day worked.
+    const sold = await ctx.db.clPatientPackage.findMany({ where: { billId: { not: null } }, select: { billId: true } });
+    const saleBillIds = sold.flatMap((s) => (s.billId ? [s.billId] : []));
     const [doctors, bills] = await Promise.all([
       ctx.db.clDoctor.findMany({ include: { member: { select: { account: { select: { name: true } } } } } }),
-      ctx.db.clBill.findMany({ where: { ticket: { day: { gte: fromDay, lte: toDay } } }, select: { doctorId: true, total: true, paid: true, ticket: { select: { day: true } } } }),
+      ctx.db.clBill.findMany({ where: { ticket: { day: { gte: fromDay, lte: toDay } }, id: { notIn: saleBillIds } }, select: { doctorId: true, total: true, paid: true, ticket: { select: { day: true } } } }),
     ]);
     return doctors.map((d) => {
       const own = bills.filter((b) => b.doctorId === d.id);
@@ -80,15 +83,17 @@ export const agedDebts = defineClAction({
   input: z.object({}),
   run: async (ctx) => {
     const today = localDay(new Date());
-    const debts = await ctx.db.clBill.findMany({ where: { status: 'DEBT' }, include: { patient: { select: { name: true, phone: true } } }, take: 500 });
-    const rows = debts
+    // Every debt feeds the buckets, so the totals are true; only the list shown is cut, oldest due day first.
+    const debts = await ctx.db.clBill.findMany({ where: { status: 'DEBT' }, include: { patient: { select: { name: true, phone: true } } }, orderBy: [{ dueDay: 'asc' }, { id: 'asc' }] });
+    const all = debts
       .map((b) => {
         const overdue = b.dueDay ? Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${b.dueDay}T00:00:00Z`)) / DAY_MS) : 0;
         return { billId: b.id, patientName: b.patient.name, patientPhone: b.patient.phone, balance: b.total - b.paid, dueDay: b.dueDay, daysOverdue: Math.max(0, overdue) };
       })
       .sort((a, b) => b.daysOverdue - a.daysOverdue);
+    const rows = all.slice(0, 500);
     const buckets = BUCKETS.map((key) => {
-      const own = rows.filter((r) => bucketOf(r.daysOverdue) === key);
+      const own = all.filter((r) => bucketOf(r.daysOverdue) === key);
       return { key, count: own.length, balance: own.reduce((sum, r) => sum + r.balance, 0) };
     });
     return { buckets, rows };

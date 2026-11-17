@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as bills from '@/server/clinic/actions/bills';
 import * as board from '@/server/clinic/actions/board';
 import * as doctors from '@/server/clinic/actions/doctors';
+import * as packages from '@/server/clinic/actions/packages';
 import * as reports from '@/server/clinic/actions/reports';
 import * as shifts from '@/server/clinic/actions/shifts';
 import { runClAction } from '@/server/clinic/framework';
@@ -163,6 +164,16 @@ describe('the doctor share report', () => {
     expect(await row()).toMatchObject({ collected: 25000, doctorShare: 5000, clinicShare: 20000 });
     await prisma().clDoctor.update({ where: { id: d.row.id }, data: { shareValue: 90000 } });
     expect(await row()).toMatchObject({ doctorShare: 0, clinicShare: 25000 });
+  });
+
+  it('does not count a course sale as a visit or a day worked', async () => {
+    const d = await doctor('d@a.test', 'FIXED', 5000);
+    const p = await patient('Buyer');
+    const course = await prisma().clPackage.create({ data: { restaurantId: 'clinic-a', name: 'Five sessions', sessions: 5, price: 100000 } });
+    const sold = await runClAction(prisma(), reception, packages.sellPackage, { patientId: p.id, packageId: course.id, doctorId: d.row.id });
+    const { billId } = data<{ billId: string }>(sold);
+    await runClAction(prisma(), cashier, bills.takePayment, { billId, currency: 'IQD', amount: 100000 });
+    expect(await row()).toMatchObject({ visits: 0, collected: 0, doctorShare: 0 });
   });
 
   it('refuses a range over a year, a backwards range and anyone but the owner', async () => {

@@ -186,6 +186,8 @@ export const rescheduleDebt = defineClAction({
     const bill = await billFor(ctx, billId);
     if (bill.status !== 'DEBT') throw new StudioError('INVALID', 'This bill is not a debt');
     if (dueDay < localDay(new Date())) throw new StudioError('INVALID', 'The due day has passed');
+    // Not parked years away as "not due".
+    if (dueDay > localDay(new Date(Date.now() + 5 * 366 * 86_400_000))) throw new StudioError('INVALID', 'The due day is too far away');
     const { count } = await ctx.db.clBill.updateMany({ where: { id: billId, status: 'DEBT' }, data: { dueDay } });
     if (count === 0) throw new StudioError('INVALID', 'This bill changed, check it and try again');
     ctx.audit({ action: 'clinic.debt_rescheduled', entityType: 'ClBill', entityId: billId, changes: { dueDay: { before: bill.dueDay, after: dueDay } } });
