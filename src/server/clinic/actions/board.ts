@@ -137,6 +137,15 @@ export const callTicket = defineClAction({
   },
 });
 
+/** Courses whose sale bill is still open: neither paid nor left as a debt, so no session of them is spent yet. */
+async function unpaidCourseIds(ctx: ClContext, courses: { id: string; billId: string | null }[]): Promise<Set<string>> {
+  const billIds = courses.flatMap((c) => (c.billId ? [c.billId] : []));
+  if (billIds.length === 0) return new Set();
+  const open = await ctx.db.clBill.findMany({ where: { id: { in: billIds }, status: 'OPEN' }, select: { id: true } });
+  const openIds = new Set(open.map((b) => b.id));
+  return new Set(courses.filter((c) => c.billId && openIds.has(c.billId)).map((c) => c.id));
+}
+
 /**
  * Ends a visit: the doctor's short complaint and note, and the fees to charge, picked from that doctor's own fee list (the
  * client sends ids, never amounts). The bill is made here. A visit with nothing to charge closes straight to Done. Only a
@@ -168,6 +177,7 @@ export const endVisit = defineClAction({
     if (packageId) {
       const owned = await ctx.db.clPatientPackage.findFirst({ where: { id: packageId, patientId: ticket.patientId } });
       if (!owned) throw new StudioError('NOT_FOUND');
+      if ((await unpaidCourseIds(ctx, [owned])).has(owned.id)) throw new StudioError('INVALID', 'This course has not been paid for yet');
       const { count } = await ctx.db.clPatientPackage.updateMany({ where: { id: packageId, patientId: ticket.patientId, sessionsLeft: { gt: 0 } }, data: { sessionsLeft: { decrement: 1 } } });
       if (count === 0) throw new StudioError('INVALID', 'No sessions are left on this course');
       sessionName = owned.name;
@@ -178,15 +188,25 @@ export const endVisit = defineClAction({
       if (packageId) await ctx.db.clPatientPackage.updateMany({ where: { id: packageId }, data: { sessionsLeft: { increment: 1 } } });
       throw error;
     }
-    const visit = await ctx.db.clVisit.create({ data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, complaint: complaint ?? '', note: note ?? '' } });
-    const bill = await ctx.db.clBill.create({
-      data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, total, status: total === 0 ? 'PAID' : 'OPEN', closedAt: total === 0 ? new Date() : null },
-    });
-    if (sessionName) await ctx.db.clBillLine.create({ data: { restaurantId: ctx.restaurantId, billId: bill.id, label: sessionName, amount: 0, sortOrder: -1 } });
-    for (const [index, fee] of fees.entries()) await ctx.db.clBillLine.create({ data: { restaurantId: ctx.restaurantId, billId: bill.id, label: fee.label, amount: fee.amount, sortOrder: index } });
-    if (ticket.bookingId) await ctx.db.clBooking.updateMany({ where: { id: ticket.bookingId }, data: { status: 'DONE' } });
-    ctx.audit({ action: 'clinic.visit_recorded', entityType: 'ClVisit', entityId: visit.id, changes: { total: { before: null, after: total } } });
-    return { billId: bill.id, total };
+    // If writing the visit or the bill fails half way, the session goes back and the token returns to the doctor, so a
+    // spent session never has no visit to show for it.
+    try {
+      const visit = await ctx.db.clVisit.create({ data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, complaint: complaint ?? '', note: note ?? '' } });
+      const bill = await ctx.db.clBill.create({
+        data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, total, status: total === 0 ? 'PAID' : 'OPEN', closedAt: total === 0 ? new Date() : null },
+      });
+      if (sessionName) await ctx.db.clBillLine.create({ data: { restaurantId: ctx.restaurantId, billId: bill.id, label: sessionName, amount: 0, sortOrder: -1 } });
+      for (const [index, fee] of fees.entries()) await ctx.db.clBillLine.create({ data: { restaurantId: ctx.restaurantId, billId: bill.id, label: fee.label, amount: fee.amount, sortOrder: index } });
+      if (ticket.bookingId) await ctx.db.clBooking.updateMany({ where: { id: ticket.bookingId }, data: { status: 'DONE' } });
+      ctx.audit({ action: 'clinic.visit_recorded', entityType: 'ClVisit', entityId: visit.id, changes: { total: { before: null, after: total } } });
+      return { billId: bill.id, total };
+    } catch (error) {
+      if (packageId) await ctx.db.clPatientPackage.updateMany({ where: { id: packageId }, data: { sessionsLeft: { increment: 1 } } });
+      await ctx.db.clBill.deleteMany({ where: { ticketId } }).catch(() => undefined);
+      await ctx.db.clVisit.deleteMany({ where: { ticketId } }).catch(() => undefined);
+      await ctx.db.clTicket.updateMany({ where: { id: ticketId, status: { in: ['TO_PAY', 'DONE'] } }, data: { status: 'WITH_DOCTOR', endedAt: null } });
+      throw error;
+    }
   },
 });
 
@@ -257,6 +277,7 @@ export const loadBoard = defineClAction({
         number: t.number,
         status: t.status,
         patientName: t.patient.name,
+        patientId: t.patientId,
         doctorId: t.doctorId,
         doctorName: names.get(t.doctorId) ?? '',
         handedFromName: t.handedFromDoctorId ? (names.get(t.handedFromDoctorId) ?? null) : null,
@@ -302,6 +323,7 @@ export const listTicketPackages = defineClAction({
   run: async (ctx, { ticketId }) => {
     const ticket = await ticketFor(ctx, ticketId);
     const rows = await ctx.db.clPatientPackage.findMany({ where: { patientId: ticket.patientId, sessionsLeft: { gt: 0 } }, orderBy: { createdAt: 'asc' } });
-    return rows.map((p) => ({ patientPackageId: p.id, name: p.name, sessionsLeft: p.sessionsLeft }));
+    const unpaid = await unpaidCourseIds(ctx, rows);
+    return rows.filter((p) => !unpaid.has(p.id)).map((p) => ({ patientPackageId: p.id, name: p.name, sessionsLeft: p.sessionsLeft }));
   },
 });

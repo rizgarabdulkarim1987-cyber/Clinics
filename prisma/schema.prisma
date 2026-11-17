@@ -6472,6 +6472,19 @@ model ClVisit {
   @@index([doctorId])
 }
 
+/// A short clinical alert for one patient (an allergy, a chronic condition): doctors only, never the desk, and never in a beauty centre.
+model ClPatientAlert {
+  id           String   @id @default(cuid())
+  restaurantId String
+  patientId    String   @unique
+  text         String
+  updatedById  String
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  @@index([restaurantId])
+}
+
 enum ClBillStatus {
   OPEN
   PAID

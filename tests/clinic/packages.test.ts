@@ -112,6 +112,8 @@ describe('spending a session', () => {
     const p = await patient('Sara');
     await runClAction(prisma(), reception, packages.sellPackage, { patientId: p.id, packageId: pack.id, doctorId: dr.row.id });
     const owned = await prisma().clPatientPackage.findFirstOrThrow({ where: { patientId: p.id } });
+    // A course can be spent once its sale is paid (or left as a debt), so the sale is settled first.
+    await prisma().clBill.updateMany({ where: { id: owned.billId! }, data: { status: 'PAID', paid: 90000, closedAt: new Date() } });
     return { p, owned };
   }
 

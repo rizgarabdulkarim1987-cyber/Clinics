@@ -6,6 +6,7 @@ import { useT } from '@/studio/i18n';
 import { Button } from '@/studio/ui/Button';
 import { Field } from '@/studio/ui/Field';
 import { Input } from '@/studio/ui/Input';
+import { PatientFile } from './PatientFile';
 
 interface Patient {
   patientId: string;
@@ -160,6 +161,7 @@ export function PatientsScreen({ initial }: { initial: Patient[] }) {
           <Button type="submit" variant="primary" size="lg" pending={pending} className="sm:self-start">
             {t('clinic.app.patients.save')}
           </Button>
+          <PatientFile patientId={opened.patientId} />
           {opened.household.length > 1 && (
             <div className="flex flex-col gap-2">
               <h3 className="text-sm font-semibold text-muted">{t('clinic.app.patients.household')}</h3>

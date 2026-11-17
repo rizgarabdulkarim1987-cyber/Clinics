@@ -7,6 +7,7 @@ import { Button } from '@/studio/ui/Button';
 import { Checkbox } from '@/studio/ui/Checkbox';
 import { Field } from '@/studio/ui/Field';
 import { Textarea } from '@/studio/ui/Textarea';
+import { PatientHistory } from './PatientHistory';
 
 export interface TicketFee {
   feeId: string;
@@ -30,6 +31,7 @@ const PHRASES = ['headache', 'fever', 'cough', 'stomach', 'back', 'checkup', 'fo
  */
 export function EndVisitPanel({
   ticketId,
+  patientId,
   fees,
   packages,
   canWrite,
@@ -37,6 +39,7 @@ export function EndVisitPanel({
   onCancel,
 }: {
   ticketId: string;
+  patientId: string;
   fees: TicketFee[];
   packages: OwnedPackage[];
   canWrite: boolean;
@@ -68,6 +71,7 @@ export function EndVisitPanel({
       <h3 className="font-semibold">{t('clinic.app.visit.title')}</h3>
       {canWrite && (
         <>
+          <PatientHistory patientId={patientId} />
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm text-muted">{t('clinic.app.visit.complaint')}</legend>
             <div className="flex flex-wrap gap-2">

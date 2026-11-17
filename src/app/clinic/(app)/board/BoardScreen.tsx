@@ -16,6 +16,7 @@ interface Ticket {
   number: number;
   status: Status;
   patientName: string;
+  patientId: string;
   doctorId: string;
   doctorName: string;
   handedFromName: string | null;
@@ -276,6 +277,7 @@ export function BoardScreen({
                       {ending?.ticketId === ticket.ticketId && (
                         <EndVisitPanel
                           ticketId={ticket.ticketId}
+                          patientId={ticket.patientId}
                           fees={ending.fees}
                           packages={ending.packages}
                           canWrite={role === 'DOCTOR' && clinical}

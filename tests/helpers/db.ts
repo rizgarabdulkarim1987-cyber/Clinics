@@ -49,6 +49,8 @@ export async function resetTestData(prisma: PrismaClient): Promise<void> {
   await prisma.clVisit.deleteMany();
   await prisma.clTicket.deleteMany();
   await prisma.clBooking.deleteMany();
+  // Alerts hang off no restaurant row, so nothing cascades to them.
+  await prisma.clPatientAlert.deleteMany();
   // Clinic accounts belong to no restaurant; their sessions and memberships go by cascade.
   await prisma.clAccount.deleteMany();
   await prisma.auditLog.deleteMany();

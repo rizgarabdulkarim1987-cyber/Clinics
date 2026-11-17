@@ -15,6 +15,8 @@ export const RESERVED_SLUGS: readonly string[] = [
   'agency',
   'pos',
   'pharmacy',
+  'clinic',
+  'beauty',
   'api',
   'auth',
   'admin',

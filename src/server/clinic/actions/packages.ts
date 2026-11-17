@@ -55,6 +55,9 @@ export const sellPackage = defineClAction({
     const pack = await ctx.db.clPackage.findFirst({ where: { id: packageId, active: true } });
     const doctor = await ctx.db.clDoctor.findFirst({ where: { id: doctorId, active: true, member: { status: 'ACTIVE' } } });
     if (!patient || !pack || !doctor) throw new StudioError('NOT_FOUND');
+    // A double tap must not sell the same course twice: a repeat within moments is refused.
+    const justSold = await ctx.db.clPatientPackage.findFirst({ where: { patientId, packageId, createdAt: { gte: new Date(Date.now() - 30_000) } }, select: { id: true } });
+    if (justSold) throw new StudioError('INVALID', 'This course was just sold to this patient');
     const free = pack.price === 0;
     const ticket = await createTicket(ctx.db, { restaurantId: ctx.restaurantId, day: localDay(new Date()), patientId, doctorId, status: free ? 'DONE' : 'TO_PAY' });
     const bill = await ctx.db.clBill.create({
