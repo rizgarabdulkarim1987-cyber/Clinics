@@ -2820,6 +2820,7 @@ model ClDoctor {
   restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   member       ClMember        @relation(fields: [memberId], references: [id], onDelete: Cascade)
   hours        ClDoctorHours[]
+  leaves       ClDoctorLeave[]
   fees         ClDoctorFee[]
   bookings     ClBooking[]
   tickets      ClTicket[]
@@ -2840,6 +2841,20 @@ model ClDoctorHours {
   doctor       ClDoctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@index([doctorId])
+  @@index([restaurantId])
+}
+
+/// Days a doctor is away (both ends included, clinic dates YYYY-MM-DD): no free times, and no walk-in goes to them.
+model ClDoctorLeave {
+  id           String   @id @default(cuid())
+  restaurantId String
+  doctorId     String
+  fromDay      String
+  toDay        String
+  createdAt    DateTime @default(now())
+  doctor       ClDoctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, fromDay])
   @@index([restaurantId])
 }
 

@@ -24,12 +24,16 @@ interface Candidate {
 }
 
 async function candidates(db: RestaurantDb, now: Date): Promise<Candidate[]> {
-  const doctors = await db.clDoctor.findMany({
+  const today = localDay(now);
+  const all = await db.clDoctor.findMany({
     where: { active: true, member: { status: 'ACTIVE' } },
-    include: { hours: true },
+    include: { hours: true, leaves: { where: { fromDay: { lte: today }, toDay: { gte: today } }, select: { id: true } } },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });
-  const weekday = weekdayOf(localDay(now));
+  // A doctor on leave takes no walk-in, unless every doctor is away: the desk is never left without an answer.
+  const present = all.filter((d) => d.leaves.length === 0);
+  const doctors = present.length > 0 ? present : all;
+  const weekday = weekdayOf(today);
   const minute = localMinutes(now);
   const onDuty = doctors.filter((d) => d.hours.some((h) => h.weekday === weekday && h.startMin <= minute && minute < h.endMin));
   return (onDuty.length > 0 ? onDuty : doctors).map((d) => ({ id: d.id, speciality: d.speciality }));

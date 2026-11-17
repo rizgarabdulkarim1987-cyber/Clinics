@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { StudioError } from '@/server/studio/framework/result';
 import { defineClAction, type ClContext } from '../framework';
+import { fromLocal, isDay, localDay } from '../time';
 
 /**
  * Doctors: a profile (speciality, whether they take patients), a working week and a fee list. A doctor is a person of
@@ -121,6 +122,59 @@ export const saveDoctorFees = defineClAction({
     await ctx.db.clDoctorFee.deleteMany({ where: { doctorId: doctor.id } });
     if (fees.length > 0) await ctx.db.clDoctorFee.createMany({ data: fees.map((f, sortOrder) => ({ restaurantId: ctx.restaurantId, doctorId: doctor.id, label: f.label, amount: f.amount, sortOrder })) });
     ctx.audit({ action: 'clinic.doctor_fees_saved', entityType: 'ClDoctor', entityId: doctor.id, changes: { fees: { before, after: fees.length } } });
+    return null;
+  },
+});
+
+const MAX_LEAVE_DAYS = 366;
+const DAY_MS = 86_400_000;
+const dayField = z.string().refine(isDay, 'A date as YYYY-MM-DD');
+
+/** Booked visits that fall inside a leave, which the desk has to move. */
+const bookedInside = (ctx: ClContext, doctorId: string, fromDay: string, toDay: string) =>
+  ctx.db.clBooking.count({ where: { doctorId, status: 'BOOKED', startsAt: { gte: fromLocal(fromDay, 0), lt: fromLocal(toDay, 1440) } } });
+
+export const listDoctorLeaves = defineClAction({
+  name: 'clinic.doctors.listLeaves',
+  roles: ['OWNER', 'RECEPTION'],
+  input: z.object({}),
+  run: async (ctx) => {
+    const rows = await ctx.db.clDoctorLeave.findMany({
+      where: { toDay: { gte: localDay(new Date()) } },
+      include: { doctor: { select: { id: true, member: { select: { id: true, account: { select: { name: true } } } } } } },
+      orderBy: [{ fromDay: 'asc' }, { id: 'asc' }],
+      take: 100,
+    });
+    return Promise.all(
+      rows.map(async (l) => ({ leaveId: l.id, memberId: l.doctor.member.id, doctorName: l.doctor.member.account.name, fromDay: l.fromDay, toDay: l.toDay, affected: await bookedInside(ctx, l.doctorId, l.fromDay, l.toDay) })),
+    );
+  },
+});
+
+export const addDoctorLeave = defineClAction({
+  name: 'clinic.doctors.addLeave',
+  roles: ['OWNER'],
+  input: z.object({ memberId: memberField, fromDay: dayField, toDay: dayField }),
+  run: async (ctx, { memberId, fromDay, toDay }) => {
+    if (toDay < fromDay) throw new StudioError('INVALID', 'The leave ends before it starts');
+    if (fromDay < localDay(new Date())) throw new StudioError('INVALID', 'The leave cannot start in the past');
+    if ((Date.parse(`${toDay}T00:00:00Z`) - Date.parse(`${fromDay}T00:00:00Z`)) / DAY_MS >= MAX_LEAVE_DAYS) throw new StudioError('INVALID', 'Choose a leave of a year or less');
+    const doctor = await doctorOf(ctx, memberId);
+    const leave = await ctx.db.clDoctorLeave.create({ data: { restaurantId: ctx.restaurantId, doctorId: doctor.id, fromDay, toDay } });
+    ctx.audit({ action: 'clinic.doctor_leave_added', entityType: 'ClDoctor', entityId: doctor.id, changes: { leave: { before: null, after: `${fromDay}..${toDay}` } } });
+    return { leaveId: leave.id, affected: await bookedInside(ctx, doctor.id, fromDay, toDay) };
+  },
+});
+
+export const removeDoctorLeave = defineClAction({
+  name: 'clinic.doctors.removeLeave',
+  roles: ['OWNER'],
+  input: z.object({ leaveId: memberField }),
+  run: async (ctx, { leaveId }) => {
+    const leave = await ctx.db.clDoctorLeave.findFirst({ where: { id: leaveId } });
+    if (!leave) throw new StudioError('NOT_FOUND');
+    await ctx.db.clDoctorLeave.deleteMany({ where: { id: leaveId } });
+    ctx.audit({ action: 'clinic.doctor_leave_removed', entityType: 'ClDoctor', entityId: leave.doctorId, changes: { leave: { before: `${leave.fromDay}..${leave.toDay}`, after: null } } });
     return null;
   },
 });

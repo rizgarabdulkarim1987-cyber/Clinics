@@ -37,6 +37,9 @@ export async function freeSlots(db: RestaurantDb, { doctorId, day, durationMin, 
   if (!doctor) return [];
   const hours = await db.clDoctorHours.findMany({ where: { doctorId, weekday: weekdayOf(day) } });
   if (hours.length === 0) return [];
+  // A day of leave has no free times, whatever the week says.
+  const away = await db.clDoctorLeave.findFirst({ where: { doctorId, fromDay: { lte: day }, toDay: { gte: day } }, select: { id: true } });
+  if (away) return [];
   const { start, end } = dayRange(day);
   const booked = await db.clBooking.findMany({
     where: { doctorId, status: { in: [...LIVE_STATUSES] }, startsAt: { lt: end }, endsAt: { gt: start }, ...(ignoreBookingId ? { id: { not: ignoreBookingId } } : {}) },

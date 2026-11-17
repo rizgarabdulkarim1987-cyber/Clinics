@@ -18,3 +18,15 @@ export async function saveDoctorFees(input: unknown) {
 export async function saveDoctorShare(input: unknown) {
   return invokeCl(doctors.saveDoctorShare, input);
 }
+
+export async function listDoctorLeaves(input: unknown) {
+  return invokeCl(doctors.listDoctorLeaves, input);
+}
+
+export async function addDoctorLeave(input: unknown) {
+  return invokeCl(doctors.addDoctorLeave, input);
+}
+
+export async function removeDoctorLeave(input: unknown) {
+  return invokeCl(doctors.removeDoctorLeave, input);
+}
