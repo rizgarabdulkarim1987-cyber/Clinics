@@ -19,6 +19,14 @@ const clinic: Messages = {
   'appPlans.clinic.emptyBody': 'پاکێجێک دروست بکە بۆ فرۆشتنی بەرهەمی کلینیکەکان. سنووری 0 واتە بێ سنوور.',
   'appPlans.limit.maxDoctors': 'دکتۆرەکان',
   'appPlans.limit.maxBranches': 'لقەکان',
+  'error.text.clinicBranchesMax': 'کلینیک بە زۆرترین بیست لق دەست پێ دەکات',
+  // ئەپی کلینیک (`/clinic`): چوونەژوورەوەی تایبەت بە خۆی.
+  'clinic.app.signIn.title': 'بچۆ ژوورەوە بۆ کلینیکەکەت',
+  'clinic.app.signIn.intro': 'ئیمەیڵ و وشەی نهێنی هەژماری کلینیک بەکاربهێنە. ئەم هەژمارە تەنها لێرە کار دەکات.',
+  'clinic.app.signIn.email': 'ئیمەیڵ',
+  'clinic.app.signIn.password': 'وشەی نهێنی',
+  'clinic.app.signIn.submit': 'چوونەژوورەوە',
+  'clinic.app.signIn.pending': 'چوونەژوورەوە…',
   // The shared Studio texts as the Clinics space says them (`clinic.as.<key>`; see src/studio/space-words.ts).
   'clinic.as.restaurants.tabs.label': 'بەشەکانی کلینیک',
   'clinic.as.restaurants.notice.SUSPENDED': 'ئەم کلینیکە ڕاگیراوە. هیچ شتێک ناسڕدرێتەوە. بیگەڕێنەرەوە بۆ گەڕاندنەوەی.',

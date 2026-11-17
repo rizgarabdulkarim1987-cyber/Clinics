@@ -19,6 +19,14 @@ const clinic: Messages = {
   'appPlans.clinic.emptyBody': 'Make a plan to sell the Clinics product. A limit of 0 means no limit.',
   'appPlans.limit.maxDoctors': 'Doctors',
   'appPlans.limit.maxBranches': 'Branches',
+  'error.text.clinicBranchesMax': 'A clinic starts with at most 20 branches',
+  // The clinic app (`/clinic`): its own sign-in.
+  'clinic.app.signIn.title': 'Sign in to your clinic',
+  'clinic.app.signIn.intro': 'Use the email and password of your clinic account. It works only here.',
+  'clinic.app.signIn.email': 'Email',
+  'clinic.app.signIn.password': 'Password',
+  'clinic.app.signIn.submit': 'Sign in',
+  'clinic.app.signIn.pending': 'Signing in…',
   // The shared Studio texts as the Clinics space says them (`clinic.as.<key>`; see src/studio/space-words.ts).
   'clinic.as.restaurants.tabs.label': 'Clinic sections',
   'clinic.as.restaurants.notice.SUSPENDED': 'This clinic is suspended. Nothing is deleted. Restore it to bring it back.',

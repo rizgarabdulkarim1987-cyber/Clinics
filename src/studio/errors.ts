@@ -122,6 +122,7 @@ export const SERVER_TEXT: Readonly<Record<string, string>> = {
   'Choose one of the sectors offered': 'error.text.sectorChoose',
   'Add at least one branch': 'error.text.branchRequired',
   'A pharmacy starts with at most 20 branches': 'error.text.pharmacyBranchesMax',
+  'A clinic starts with at most 20 branches': 'error.text.clinicBranchesMax',
   'Choose at least one currency': 'error.text.currencyRequired',
   'Choose IQD, USD or both': 'error.text.phCurrencyChoose',
   'Choose one of the statuses offered': 'error.text.statusChoose',

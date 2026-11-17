@@ -19,6 +19,14 @@ const clinic: Messages = {
   'appPlans.clinic.emptyBody': 'أنشئ باقة لتبيع منتج العيادات. الحد 0 يعني بلا حد.',
   'appPlans.limit.maxDoctors': 'الأطباء',
   'appPlans.limit.maxBranches': 'الفروع',
+  'error.text.clinicBranchesMax': 'تبدأ العيادة بعشرين فرعاً على الأكثر',
+  // تطبيق العيادة (`/clinic`): تسجيل الدخول الخاص به.
+  'clinic.app.signIn.title': 'تسجيل الدخول إلى عيادتك',
+  'clinic.app.signIn.intro': 'استخدم البريد الإلكتروني وكلمة مرور حساب العيادة. هذا الحساب يعمل هنا فقط.',
+  'clinic.app.signIn.email': 'البريد الإلكتروني',
+  'clinic.app.signIn.password': 'كلمة المرور',
+  'clinic.app.signIn.submit': 'تسجيل الدخول',
+  'clinic.app.signIn.pending': 'جارٍ تسجيل الدخول…',
   // النصوص المشتركة في الاستوديو كما تقولها مساحة العيادات (`clinic.as.<key>`؛ انظر src/studio/space-words.ts).
   'clinic.as.restaurants.tabs.label': 'أقسام العيادة',
   'clinic.as.restaurants.notice.SUSPENDED': 'هذه العيادة معلّقة. لا يُحذف شيء. استعدها لإرجاعها.',
