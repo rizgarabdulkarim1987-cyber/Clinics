@@ -34,6 +34,13 @@ const plainName = (name: string): string => {
   return cleaned === '' ? 'file' : cleaned;
 };
 
+/** A clinic's files are clinical, so they follow the same rule as visit notes: a doctor sees only what they saved unless the clinic shares notes. A beauty centre shares them across its team. */
+async function readFilter(ctx: ClContext): Promise<{ uploadedById?: string }> {
+  if (ctx.account.space === 'BEAUTY') return {};
+  const shared = (await ctx.db.clSettings.findFirst({}))?.sharePrivateNotes ?? false;
+  return shared ? {} : { uploadedById: ctx.member.memberId };
+}
+
 const ALL = ['OWNER', 'RECEPTION', 'DOCTOR', 'CASHIER'] as const;
 
 export const listFiles = defineClAction({
@@ -42,7 +49,7 @@ export const listFiles = defineClAction({
   input: z.object({ patientId: idField }),
   run: async (ctx, { patientId }) => {
     assertAllowed(ctx);
-    const rows = await ctx.db.clPatientFile.findMany({ where: { patientId }, select: { id: true, name: true, mime: true, bytes: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: MAX_FILES });
+    const rows = await ctx.db.clPatientFile.findMany({ where: { patientId, ...(await readFilter(ctx)) }, select: { id: true, name: true, mime: true, bytes: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: MAX_FILES });
     return rows.map((f) => ({ fileId: f.id, name: f.name, mime: f.mime, bytes: f.bytes, createdAt: f.createdAt.toISOString() }));
   },
 });
@@ -73,7 +80,7 @@ export const readFile = defineClAction({
   input: z.object({ fileId: idField }),
   run: async (ctx, { fileId }) => {
     assertAllowed(ctx);
-    const row = await ctx.db.clPatientFile.findFirst({ where: { id: fileId } });
+    const row = await ctx.db.clPatientFile.findFirst({ where: { id: fileId, ...(await readFilter(ctx)) } });
     if (!row) throw new StudioError('NOT_FOUND');
     ctx.audit({ action: 'clinic.file_read', entityType: 'ClPatientFile', entityId: row.id, changes: {} });
     return { name: row.name, mime: row.mime, data: Buffer.from(row.data).toString('base64') };
@@ -86,7 +93,7 @@ export const deleteFile = defineClAction({
   input: z.object({ fileId: idField }),
   run: async (ctx, { fileId }) => {
     assertAllowed(ctx);
-    const { count } = await ctx.db.clPatientFile.deleteMany({ where: { id: fileId } });
+    const { count } = await ctx.db.clPatientFile.deleteMany({ where: { id: fileId, ...(ctx.member.role === 'OWNER' ? {} : { uploadedById: ctx.member.memberId }) } });
     if (count === 0) throw new StudioError('NOT_FOUND');
     ctx.audit({ action: 'clinic.file_deleted', entityType: 'ClPatientFile', entityId: fileId, changes: {} });
     return null;

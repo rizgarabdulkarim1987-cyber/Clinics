@@ -7,8 +7,26 @@ const MAX_BODY = 4 * 1024 * 1024;
 export async function POST(request: Request) {
   const origin = request.headers.get('origin');
   if (!origin || new URL(origin).host !== request.headers.get('host')) return new Response(null, { status: 403 });
-  if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY) return Response.json({ ok: false, error: { code: 'INVALID' } }, { status: 413 });
-  const form = await request.formData().catch(() => null);
+  const declared = Number(request.headers.get('content-length'));
+  if (!Number.isFinite(declared) || declared <= 0 || declared > MAX_BODY) return Response.json({ ok: false, error: { code: 'INVALID' } }, { status: 413 });
+  // Count the bytes that actually arrive and stop at the cap, whatever the header claimed.
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  const reader = request.body?.getReader();
+  if (!reader) return Response.json({ ok: false, error: { code: 'INVALID' } }, { status: 400 });
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > MAX_BODY) {
+      await reader.cancel().catch(() => undefined);
+      return Response.json({ ok: false, error: { code: 'INVALID' } }, { status: 413 });
+    }
+    chunks.push(value);
+  }
+  const form = await new Response(new Blob(chunks as BlobPart[]), { headers: { 'content-type': request.headers.get('content-type') ?? '' } })
+    .formData()
+    .catch(() => null);
   const file = form?.get('file');
   const patientId = form?.get('patientId');
   if (!(file instanceof File) || typeof patientId !== 'string') return Response.json({ ok: false, error: { code: 'INVALID' } }, { status: 400 });

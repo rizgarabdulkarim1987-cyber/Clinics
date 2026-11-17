@@ -47,6 +47,18 @@ beforeEach(async () => {
 });
 
 describe('patient files in a clinic', () => {
+  it('keeps one doctor\'s files from another doctor unless the clinic shares notes, and lets only the uploader delete', async () => {
+    const other = await person('dr2@a.test', 'DOCTOR');
+    const saved = await runClAction(prisma(), doctor, files.saveFile, { patientId, name: 'xray.png', mime: 'image/png', data: PNG });
+    if (!saved.ok) throw new Error('expected a save');
+    expect(await runClAction(prisma(), other, files.listFiles, { patientId })).toMatchObject({ ok: true, data: [] });
+    expect(code(await runClAction(prisma(), other, files.readFile, { fileId: saved.data.fileId }))).toBe('NOT_FOUND');
+    await prisma().clSettings.update({ where: { restaurantId: 'clinic-a' }, data: { sharePrivateNotes: true } });
+    expect(code(await runClAction(prisma(), other, files.readFile, { fileId: saved.data.fileId }))).toBe('OK');
+    expect(code(await runClAction(prisma(), other, files.deleteFile, { fileId: saved.data.fileId }))).toBe('NOT_FOUND');
+    expect(code(await runClAction(prisma(), doctor, files.deleteFile, { fileId: saved.data.fileId }))).toBe('OK');
+  });
+
   it('lets a doctor save, list, read and delete a photo, and nobody else touch it', async () => {
     const saved = await runClAction(prisma(), doctor, files.saveFile, { patientId, name: 'xray.png', mime: 'image/png', data: PNG });
     if (!saved.ok) throw new Error('expected a save');
