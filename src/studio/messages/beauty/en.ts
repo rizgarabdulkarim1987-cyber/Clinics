@@ -29,6 +29,7 @@ const beauty: Messages = {
   'clinic.app.patients.referredBy': 'Brought by (phone, optional)',
   'clinic.app.doctors.title': 'Specialists',
   'clinic.app.doctors.intro': 'Each specialist’s speciality, working week and price list.',
+  'clinic.app.links.all': 'The whole centre',
   'clinic.app.doctors.empty': 'No specialists yet. Invite a person as a specialist on the Staff screen.',
   'clinic.app.doctors.active': 'Takes clients',
   'clinic.app.doctors.fees.title': 'Price list',

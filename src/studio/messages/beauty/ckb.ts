@@ -26,6 +26,7 @@ const beauty: Messages = {
   'clinic.app.patients.referredBy': 'کێ هێناوییەتی (تەلەفۆن، ئارەزوومەندانە)',
   'clinic.app.doctors.title': 'پسپۆڕەکان',
   'clinic.app.doctors.intro': 'پسپۆڕی و هەفتەی کار و لیستی نرخی هەر پسپۆڕێک.',
+  'clinic.app.links.all': 'هەموو ناوەندەکە',
   'clinic.app.doctors.empty': 'هێشتا پسپۆڕ نییە. کەسێک وەک پسپۆڕ لە شاشەی کارمەندان بانگهێشت بکە.',
   'clinic.app.doctors.active': 'کڕیار وەردەگرێت',
   'clinic.app.doctors.fees.title': 'لیستی نرخ',

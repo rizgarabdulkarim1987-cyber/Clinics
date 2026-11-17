@@ -18,18 +18,20 @@ const selectClass = 'h-12 w-full rounded-md border border-line bg-bg px-3';
 /** Doctor, visit, day, a free time, then name and phone. A slot taken meanwhile is refused and the times are shown again. */
 export function BookForm({
   clinicId,
+  initialDoctorId = '',
   doctors,
   services,
   today,
 }: {
   clinicId: string;
+  initialDoctorId?: string;
   doctors: { doctorId: string; name: string; speciality: string }[];
   services: { serviceId: string; name: string; durationMin: number }[];
   today: string;
 }) {
   const t = useT();
   const [pending, start] = useTransition();
-  const [doctorId, setDoctorId] = useState('');
+  const [doctorId, setDoctorId] = useState(initialDoctorId);
   const [serviceId, setServiceId] = useState('');
   const [day, setDay] = useState(today);
   const [slots, setSlots] = useState<string[]>([]);

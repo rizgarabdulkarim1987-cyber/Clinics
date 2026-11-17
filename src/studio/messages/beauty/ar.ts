@@ -26,6 +26,7 @@ const beauty: Messages = {
   'clinic.app.patients.referredBy': 'من أحضره (الهاتف، اختياري)',
   'clinic.app.doctors.title': 'الأخصائيون',
   'clinic.app.doctors.intro': 'اختصاص كل أخصائي وأسبوع عمله وقائمة أسعاره.',
+  'clinic.app.links.all': 'المركز كله',
   'clinic.app.doctors.empty': 'لا يوجد أخصائيون بعد. ادعُ شخصاً بصفة أخصائي من شاشة الموظفين.',
   'clinic.app.doctors.active': 'يستقبل العملاء',
   'clinic.app.doctors.fees.title': 'قائمة الأسعار',
