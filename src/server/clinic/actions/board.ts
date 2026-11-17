@@ -32,9 +32,9 @@ async function ticketFor(ctx: ClContext, ticketId: string) {
 
 const STALE = 'This token has already moved on';
 
-/** Moves a ticket from one of `from` to `to` only if it is still in that state. */
-async function step(ctx: ClContext, ticketId: string, from: readonly ('WAITING' | 'WITH_DOCTOR' | 'TO_PAY')[], to: 'WITH_DOCTOR' | 'TO_PAY' | 'DONE' | 'LEFT', extra: Record<string, unknown> = {}) {
-  const { count } = await ctx.db.clTicket.updateMany({ where: { id: ticketId, status: { in: [...from] } }, data: { status: to, ...extra } });
+/** Moves a ticket from one of `from` to `to` only if it is still in that state and still with the doctor the caller was checked against (a hand-over in between refuses the step). */
+async function step(ctx: ClContext, ticket: { id: string; doctorId: string }, from: readonly ('WAITING' | 'WITH_DOCTOR' | 'TO_PAY')[], to: 'WITH_DOCTOR' | 'TO_PAY' | 'DONE' | 'LEFT', extra: Record<string, unknown> = {}) {
+  const { count } = await ctx.db.clTicket.updateMany({ where: { id: ticket.id, doctorId: ticket.doctorId, status: { in: [...from] } }, data: { status: to, ...extra } });
   if (count === 0) throw new StudioError('INVALID', STALE);
 }
 
@@ -131,8 +131,8 @@ export const callTicket = defineClAction({
   roles: [...DESK, 'DOCTOR'],
   input: z.object({ ticketId: idField }),
   run: async (ctx, { ticketId }) => {
-    await ticketFor(ctx, ticketId);
-    await step(ctx, ticketId, ['WAITING'], 'WITH_DOCTOR', { calledAt: new Date() });
+    const ticket = await ticketFor(ctx, ticketId);
+    await step(ctx, ticket, ['WAITING'], 'WITH_DOCTOR', { calledAt: new Date() });
     return null;
   },
 });
@@ -143,7 +143,7 @@ export const endVisit = defineClAction({
   input: z.object({ ticketId: idField }),
   run: async (ctx, { ticketId }) => {
     const ticket = await ticketFor(ctx, ticketId);
-    await step(ctx, ticketId, ['WITH_DOCTOR'], 'TO_PAY', { endedAt: new Date() });
+    await step(ctx, ticket, ['WITH_DOCTOR'], 'TO_PAY', { endedAt: new Date() });
     if (ticket.bookingId) await ctx.db.clBooking.updateMany({ where: { id: ticket.bookingId }, data: { status: 'DONE' } });
     return null;
   },
@@ -172,8 +172,8 @@ export const markLeft = defineClAction({
   roles: [...DESK],
   input: z.object({ ticketId: idField }),
   run: async (ctx, { ticketId }) => {
-    await ticketFor(ctx, ticketId);
-    await step(ctx, ticketId, ['WAITING'], 'LEFT');
+    const ticket = await ticketFor(ctx, ticketId);
+    await step(ctx, ticket, ['WAITING'], 'LEFT');
     ctx.audit({ action: 'clinic.ticket_left', entityType: 'ClTicket', entityId: ticketId, changes: {} });
     return null;
   },
@@ -185,8 +185,8 @@ export const finishTicket = defineClAction({
   roles: [...DESK, 'CASHIER'],
   input: z.object({ ticketId: idField }),
   run: async (ctx, { ticketId }) => {
-    await ticketFor(ctx, ticketId);
-    await step(ctx, ticketId, ['TO_PAY'], 'DONE');
+    const ticket = await ticketFor(ctx, ticketId);
+    await step(ctx, ticket, ['TO_PAY'], 'DONE');
     return null;
   },
 });
