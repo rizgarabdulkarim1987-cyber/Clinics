@@ -52,6 +52,8 @@ export const listDoctors = defineClAction({
         active: profile?.active ?? true,
         hours: (profile?.hours ?? []).map((h) => ({ weekday: h.weekday, startMin: h.startMin, endMin: h.endMin })),
         fees: (profile?.fees ?? []).map((f) => ({ label: f.label, amount: f.amount })),
+        /** How the doctor is paid is the owner's business: the receptionist's list leaves it out. */
+        ...(ctx.member.role === 'OWNER' ? { shareMode: profile?.shareMode ?? ('PERCENT' as const), shareValue: profile?.shareValue ?? 0 } : {}),
       };
     });
   },
@@ -69,6 +71,25 @@ export const saveDoctorProfile = defineClAction({
       entityType: 'ClDoctor',
       entityId: doctor.id,
       changes: { speciality: { before: doctor.speciality, after: speciality }, active: { before: doctor.active, after: active } },
+    });
+    return null;
+  },
+});
+
+export const saveDoctorShare = defineClAction({
+  name: 'clinic.doctors.saveShare',
+  roles: ['OWNER'],
+  input: z
+    .object({ memberId: memberField, mode: z.enum(['PERCENT', 'FIXED', 'RENT']), value: z.number().int().min(0).max(MAX_FEE) })
+    .refine((input) => input.mode !== 'PERCENT' || input.value <= 100, 'A percent is 0 to 100'),
+  run: async (ctx, { memberId, mode, value }) => {
+    const doctor = await doctorOf(ctx, memberId);
+    await ctx.db.clDoctor.update({ where: { id: doctor.id }, data: { shareMode: mode, shareValue: value } });
+    ctx.audit({
+      action: 'clinic.doctor_share_saved',
+      entityType: 'ClDoctor',
+      entityId: doctor.id,
+      changes: { shareMode: { before: doctor.shareMode, after: mode }, shareValue: { before: doctor.shareValue, after: value } },
     });
     return null;
   },

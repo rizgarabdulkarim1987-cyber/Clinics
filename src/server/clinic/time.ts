@@ -6,7 +6,12 @@
 export const CL_OFFSET_MIN = 180;
 const MINUTE = 60_000;
 
-export const isDay = (day: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(`${day}T00:00:00Z`));
+/** A real calendar day written YYYY-MM-DD ("2026-02-30" is not one). */
+export const isDay = (day: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+  const date = new Date(`${day}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === day;
+};
 
 /** The UTC instant a clinic day starts at `minutes` after its local midnight. */
 export function fromLocal(day: string, minutes: number): Date {

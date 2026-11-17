@@ -167,6 +167,7 @@ model Restaurant {
   clBills               ClBill[]
   clBillLines           ClBillLine[]
   clPayments            ClPayment[]
+  clShifts              ClShift[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2783,6 +2784,9 @@ model ClDoctor {
   memberId     String          @unique
   speciality   String          @default("")
   active       Boolean         @default(true)
+  /// How the doctor is paid: PERCENT of what was collected (value 0-100), FIXED sum per visit, or RENT per day worked paid to the clinic.
+  shareMode    ClShareMode     @default(PERCENT)
+  shareValue   Int             @default(0)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
@@ -6479,10 +6483,46 @@ model ClPayment {
   appliedIqd   Int
   changeIqd    Int        @default(0)
   takenById    String
+  /// The till shift that was open when the money was taken, if any.
+  shiftId      String?
   createdAt    DateTime   @default(now())
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   bill         ClBill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  shift        ClShift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@index([billId])
+  @@index([shiftId])
   @@index([restaurantId, createdAt])
+}
+
+enum ClShareMode {
+  PERCENT
+  FIXED
+  RENT
+}
+
+enum ClShiftStatus {
+  OPEN
+  CLOSED
+}
+
+/// A till shift: an opening float, then a count at the close compared with what the payments say the drawer should hold.
+/// Only one is open per clinic (partial unique index in the migration).
+model ClShift {
+  id           String        @id @default(cuid())
+  restaurantId String
+  status       ClShiftStatus @default(OPEN)
+  openedById   String
+  closedById   String?
+  openingIqd   Int           @default(0)
+  expectedIqd  Int?
+  expectedUsd  Int?
+  countedIqd   Int?
+  countedUsd   Int?
+  openedAt     DateTime      @default(now())
+  closedAt     DateTime?
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  payments     ClPayment[]
+
+  @@index([restaurantId, status])
 }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { StudioError } from '@/server/studio/framework/result';
 import { defineClAction, type ClContext } from '../framework';
-import { localDay } from '../time';
+import { isDay, localDay } from '../time';
 
 /**
  * The cashier. A bill is priced when the visit ends; here a line can be added or removed while it is open, money is taken
@@ -132,24 +132,20 @@ export const takePayment = defineClAction({
     const paid = bill.paid + applied;
     const settled = paid >= bill.total;
     const { count } = await ctx.db.clBill.updateMany({
-      where: { id: billId, paid: bill.paid, status: { in: ['OPEN', 'DEBT'] } },
+      // The version covers a line added or removed since the read: `settled` above was worked out from that read's total.
+      where: { id: billId, paid: bill.paid, version: bill.version, status: { in: ['OPEN', 'DEBT'] } },
       data: { paid, version: { increment: 1 }, ...(settled ? { status: 'PAID' as const, closedAt: new Date() } : {}) },
     });
     if (count === 0) throw new StudioError('INVALID', 'This bill changed, check it and try again');
+    const shift = await ctx.db.clShift.findFirst({ where: { status: 'OPEN' }, select: { id: true } });
     await ctx.db.clPayment.create({
-      data: { restaurantId: ctx.restaurantId, billId, currency, tendered: amount, rate, appliedIqd: applied, changeIqd, takenById: ctx.member.memberId },
+      data: { restaurantId: ctx.restaurantId, billId, currency, tendered: amount, rate, appliedIqd: applied, changeIqd, takenById: ctx.member.memberId, shiftId: shift?.id ?? null },
     });
     if (settled) await closeTicket(ctx, bill.ticketId);
     ctx.audit({ action: 'clinic.payment_taken', entityType: 'ClBill', entityId: billId, changes: { paid: { before: bill.paid, after: paid } } });
     return { appliedIqd: applied, changeIqd, balance: bill.total - paid, status: settled ? ('PAID' as const) : bill.status };
   },
 });
-
-const isDay = (value: string) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-};
 
 export const leaveAsDebt = defineClAction({
   name: 'clinic.bills.leaveAsDebt',
@@ -160,7 +156,7 @@ export const leaveAsDebt = defineClAction({
     if (bill.status !== 'OPEN') throw new StudioError('INVALID', 'This bill is not open');
     if (bill.total - bill.paid <= 0) throw new StudioError('INVALID', 'There is nothing left to owe');
     if (dueDay < localDay(new Date())) throw new StudioError('INVALID', 'The due day has passed');
-    const { count } = await ctx.db.clBill.updateMany({ where: { id: billId, status: 'OPEN', paid: bill.paid }, data: { status: 'DEBT', dueDay, closedAt: new Date(), version: { increment: 1 } } });
+    const { count } = await ctx.db.clBill.updateMany({ where: { id: billId, status: 'OPEN', paid: bill.paid, version: bill.version }, data: { status: 'DEBT', dueDay, closedAt: new Date(), version: { increment: 1 } } });
     if (count === 0) throw new StudioError('INVALID', 'This bill changed, check it and try again');
     await closeTicket(ctx, bill.ticketId);
     ctx.audit({ action: 'clinic.bill_debt', entityType: 'ClBill', entityId: billId, changes: { dueDay: { before: null, after: dueDay } } });

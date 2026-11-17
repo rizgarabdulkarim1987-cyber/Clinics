@@ -14,3 +14,7 @@ export async function saveDoctorHours(input: unknown) {
 export async function saveDoctorFees(input: unknown) {
   return invokeCl(doctors.saveDoctorFees, input);
 }
+
+export async function saveDoctorShare(input: unknown) {
+  return invokeCl(doctors.saveDoctorShare, input);
+}

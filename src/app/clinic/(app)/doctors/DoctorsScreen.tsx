@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { saveDoctorFees, saveDoctorHours, saveDoctorProfile } from '@/app/clinic/_actions/doctors';
+import { saveDoctorFees, saveDoctorHours, saveDoctorProfile, saveDoctorShare } from '@/app/clinic/_actions/doctors';
 import { useT } from '@/studio/i18n';
 import { Button } from '@/studio/ui/Button';
 import { Field } from '@/studio/ui/Field';
@@ -24,6 +24,9 @@ interface Doctor {
   active: boolean;
   hours: Block[];
   fees: Fee[];
+  /** Only the owner's list carries how the doctor is paid. */
+  shareMode?: 'PERCENT' | 'FIXED' | 'RENT';
+  shareValue?: number;
 }
 
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
@@ -42,6 +45,8 @@ function DoctorCard({ doctor, canEdit }: { doctor: Doctor; canEdit: boolean }) {
   const [note, setNote] = useState<'saved' | 'failed' | null>(null);
   const [speciality, setSpeciality] = useState(doctor.speciality);
   const [active, setActive] = useState(doctor.active);
+  const [shareMode, setShareMode] = useState<'PERCENT' | 'FIXED' | 'RENT'>(doctor.shareMode ?? 'PERCENT');
+  const [shareValue, setShareValue] = useState(String(doctor.shareValue ?? 0));
   const [blocks, setBlocks] = useState<Block[]>(doctor.hours);
   const [fees, setFees] = useState<{ label: string; amount: string }[]>(doctor.fees.map((f) => ({ label: f.label, amount: String(f.amount) })));
 
@@ -83,6 +88,27 @@ function DoctorCard({ doctor, canEdit }: { doctor: Doctor; canEdit: boolean }) {
           <Button variant="primary" pending={pending} className="sm:self-start" onClick={() => save(() => saveDoctorProfile({ memberId: doctor.memberId, speciality, active }))}>
             {t('clinic.app.doctors.saveProfile')}
           </Button>
+        </div>
+      )}
+
+      {canEdit && doctor.shareMode !== undefined && (
+        <div className="flex flex-col gap-3">
+          <h3 className="font-semibold">{t('clinic.app.doctors.share.title')}</h3>
+          <div className="flex flex-wrap items-end gap-3">
+            <select aria-label={t('clinic.app.doctors.share.title')} className="h-11 rounded-md border border-line bg-bg px-2" value={shareMode} onChange={(event) => setShareMode(event.target.value as 'PERCENT' | 'FIXED' | 'RENT')}>
+              {(['PERCENT', 'FIXED', 'RENT'] as const).map((mode) => (
+                <option key={mode} value={mode}>
+                  {t(`clinic.app.doctors.share.${mode}`)}
+                </option>
+              ))}
+            </select>
+            <Field label={t(`clinic.app.doctors.share.value.${shareMode}`)}>
+              <Input inputMode="numeric" dir="ltr" className="rtl:text-right" value={shareValue} onChange={(event) => setShareValue(event.target.value.replace(/\D/g, ''))} />
+            </Field>
+            <Button variant="primary" pending={pending} onClick={() => save(() => saveDoctorShare({ memberId: doctor.memberId, mode: shareMode, value: Number(shareValue || 0) }))}>
+              {t('clinic.app.doctors.share.save')}
+            </Button>
+          </div>
         </div>
       )}
 

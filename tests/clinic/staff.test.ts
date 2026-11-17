@@ -40,7 +40,7 @@ describe('screens by role', () => {
   });
 
   it('builds the menu from the same table, so a hidden screen is also a refused one', () => {
-    expect(navFor('OWNER').map((item) => item.screen)).toEqual(['home', 'board', 'bookings', 'patients', 'doctors', 'services', 'staff', 'cashier']);
+    expect(navFor('OWNER').map((item) => item.screen)).toEqual(['home', 'board', 'bookings', 'patients', 'doctors', 'services', 'staff', 'cashier', 'reports']);
     expect(navFor('RECEPTION').map((item) => item.screen)).toEqual(['home', 'board', 'bookings', 'patients', 'doctors', 'cashier']);
     expect(navFor('CASHIER').map((item) => item.screen)).toEqual(['home', 'board', 'cashier']);
     expect(navFor('DOCTOR').map((item) => item.screen)).toEqual(['home', 'board']);

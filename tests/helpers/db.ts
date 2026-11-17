@@ -40,6 +40,7 @@ export async function resetTestData(prisma: PrismaClient): Promise<void> {
   await prisma.application.deleteMany();
   // A doctor with bookings cannot be removed, so the bookings go before the accounts whose memberships hold the doctors.
   await prisma.clPayment.deleteMany();
+  await prisma.clShift.deleteMany();
   await prisma.clBillLine.deleteMany();
   await prisma.clBill.deleteMany();
   await prisma.clVisit.deleteMany();
