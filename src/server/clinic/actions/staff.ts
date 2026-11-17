@@ -59,11 +59,12 @@ export const revokeStaffInvitation = defineClAction({
   },
 });
 
-/** The member row of this clinic an id names, never one of another clinic, and never the caller's own. */
+/** The member row of this clinic an id names: never one of another clinic, and never an owner's, the caller's own or a co-owner's (owners are managed by the platform). */
 async function otherMember(ctx: { db: { clMember: { findFirst: (args: { where: { id: string } }) => Promise<{ id: string; role: string; status: string } | null> } }; member: { memberId: string } }, memberId: string) {
   const row = await ctx.db.clMember.findFirst({ where: { id: memberId } });
   if (!row) throw new StudioError('NOT_FOUND');
   if (row.id === ctx.member.memberId) throw new StudioError('FORBIDDEN', 'You cannot change your own place here');
+  if (row.role === 'OWNER') throw new StudioError('FORBIDDEN', 'An owner’s place is managed by the Buzzify team');
   return row;
 }
 

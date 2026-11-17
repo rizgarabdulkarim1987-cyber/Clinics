@@ -114,13 +114,14 @@ describe('changing a person', () => {
     expect((await prisma().clMember.findUniqueOrThrow({ where: { id: stranger.memberId } })).role).toBe('DOCTOR');
   });
 
-  it('never lets the owner change or switch off their own place, and keeps at least one owner', async () => {
+  it('leaves every owner’s place, their own and a co-owner’s, to the platform', async () => {
     const owner = await person('owner@a.test', 'clinic-a', 'OWNER');
     const second = await person('second@a.test', 'clinic-a', 'OWNER');
     expect(code(await runClAction(prisma(), owner, staff.changeStaffRole, { memberId: owner.memberId, role: 'DOCTOR' }))).toBe('FORBIDDEN');
     expect(code(await runClAction(prisma(), owner, staff.setStaffActive, { memberId: owner.memberId, active: false }))).toBe('FORBIDDEN');
-    // With a second owner the first may switch the second off, but then no one may be left alone without an owner.
-    expect((await runClAction(prisma(), owner, staff.setStaffActive, { memberId: second.memberId, active: false })).ok).toBe(true);
-    expect(code(await runClAction(prisma(), second, staff.listStaff, {}))).toBe('NOT_FOUND');
+    expect(code(await runClAction(prisma(), owner, staff.changeStaffRole, { memberId: second.memberId, role: 'DOCTOR' }))).toBe('FORBIDDEN');
+    expect(code(await runClAction(prisma(), owner, staff.setStaffActive, { memberId: second.memberId, active: false }))).toBe('FORBIDDEN');
+    const kept = await prisma().clMember.findUniqueOrThrow({ where: { id: second.memberId } });
+    expect([kept.role, kept.status]).toEqual(['OWNER', 'ACTIVE']);
   });
 });
