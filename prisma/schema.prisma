@@ -2627,6 +2627,8 @@ model ClSettings {
   loyaltyRewardIqd  Int        @default(5000)
   /// Stamps the referrer's household gets when the referred patient's first bill is paid.
   referralStamps    Int        @default(1)
+  /// The reminder message the desk sends, with {name} {clinic} {day} {time}; null means the built-in one.
+  reminderText      String?
   version           Int        @default(1)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
@@ -2903,6 +2905,8 @@ model ClBooking {
   status        ClBookingStatus @default(BOOKED)
   source        ClBookingSource @default(STAFF)
   depositAmount Int             @default(0)
+  /// When the desk marked the WhatsApp reminder as sent; null means not yet.
+  remindedAt    DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   restaurant    Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)

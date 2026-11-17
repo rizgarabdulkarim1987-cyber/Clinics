@@ -10,7 +10,7 @@ export type ClEntry =
   | { kind: 'signIn'; to: string }
   | { kind: 'noClinic' }
   | { kind: 'choose'; clinics: ClMembership[] }
-  | { kind: 'closed'; reason: 'suspended' | 'archived'; member: ClMembership }
+  | { kind: 'closed'; reason: 'suspended' | 'archived' | 'unpaid'; member: ClMembership }
   | { kind: 'open'; member: ClMembership };
 
 /**
@@ -26,6 +26,7 @@ export function clEntry(input: { session: ClSessionView | null; memberships: rea
   if (!current) return { kind: 'choose', clinics: [...memberships] };
   if (current.clinicStatus === 'SUSPENDED') return { kind: 'closed', reason: 'suspended', member: current };
   if (current.clinicStatus === 'ARCHIVED') return { kind: 'closed', reason: 'archived', member: current };
+  if (current.planEnded) return { kind: 'closed', reason: 'unpaid', member: current };
   return { kind: 'open', member: current };
 }
 

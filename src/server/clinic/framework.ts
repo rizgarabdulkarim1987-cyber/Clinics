@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { Prisma, PrismaClient } from '@/generated/prisma/client';
+import { productRuns } from '@/server/domain/billing/subscriptions';
 import { restaurantDb, type RestaurantDb } from '@/server/data/tenant-db';
 import { expectedFailure, failure, invalidInput, type ActionResult } from '@/server/studio/framework/result';
 import type { ClSessionView } from './auth/sign-in';
@@ -20,18 +21,28 @@ export interface ClMembership {
   restaurantId: string;
   clinicName: string;
   clinicStatus: 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED';
+  /** The clinic's own plan has run out, grace days included. A business that never had a plan keeps running. */
+  planEnded: boolean;
   role: ClRole;
   /** Empty means every branch. */
   branchIds: string[];
 }
 
 /** Every clinic the account works in: active memberships only, in businesses that are clinics. */
-export async function loadClMemberships(prisma: PrismaClient, accountId: string, space: ClSpace = 'CLINIC'): Promise<ClMembership[]> {
+export async function loadClMemberships(prisma: PrismaClient, accountId: string, space: ClSpace = 'CLINIC', now: Date = new Date()): Promise<ClMembership[]> {
   // A business with no settings row is a clinic; only a beauty centre says so. An account sees the businesses of its own space.
   const ownKind = space === 'BEAUTY' ? { clSettings: { kind: 'BEAUTY' as const } } : { NOT: { clSettings: { kind: 'BEAUTY' as const } } };
   const rows = await prisma.clMember.findMany({
     where: { accountId, status: 'ACTIVE', restaurant: { sector: 'CLINIC', ...ownKind } },
-    include: { restaurant: { select: { name: true, status: true } } },
+    include: {
+      restaurant: {
+        select: {
+          name: true,
+          status: true,
+          subscriptions: { where: { applicationId: 'clinic' }, select: { status: true, trialEndsAt: true, currentPeriodEnd: true, graceDays: true } },
+        },
+      },
+    },
     orderBy: { createdAt: 'asc' },
   });
   return rows.map((row) => ({
@@ -39,6 +50,7 @@ export async function loadClMemberships(prisma: PrismaClient, accountId: string,
     restaurantId: row.restaurantId,
     clinicName: row.restaurant.name,
     clinicStatus: row.restaurant.status,
+    planEnded: !productRuns(row.restaurant.subscriptions, now),
     role: row.role,
     branchIds: row.branchIds,
   }));
@@ -97,15 +109,17 @@ export async function runClAction<I, O>(
   raw: unknown,
   options: ClRunOptions = {},
   meta: ClRequestMeta = {},
+  now: Date = new Date(),
 ): Promise<ActionResult<O>> {
   if (!session) return failure('UNAUTHENTICATED');
-  const memberships = await loadClMemberships(prisma, session.accountId, session.space);
+  const memberships = await loadClMemberships(prisma, session.accountId, session.space, now);
   let member: ClMembership | undefined;
   if (options.restaurantId !== undefined) member = memberships.find((m) => m.restaurantId === options.restaurantId);
   else if (memberships.length === 1) member = memberships[0];
   else if (memberships.length > 1) return failure('INVALID', 'Choose a clinic');
   if (!member) return failure('NOT_FOUND');
   if (member.clinicStatus !== 'ACTIVE') return failure('FORBIDDEN', 'This clinic is not active');
+  if (member.planEnded) return failure('FORBIDDEN', 'This clinic’s plan has ended');
   if (!def.roles.includes(member.role)) return failure('FORBIDDEN');
 
   const parsed = def.input.safeParse(raw);

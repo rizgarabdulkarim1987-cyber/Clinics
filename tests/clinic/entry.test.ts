@@ -11,6 +11,7 @@ const member = (restaurantId: string, extra: Partial<ClMembership> = {}): ClMemb
   restaurantId,
   clinicName: restaurantId,
   clinicStatus: 'ACTIVE',
+  planEnded: false,
   role: 'DOCTOR',
   branchIds: [],
   ...extra,

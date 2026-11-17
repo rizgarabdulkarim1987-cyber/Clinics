@@ -5,7 +5,7 @@ import type { ClRole } from './framework';
  * checks it for every page (`canSee`) and, through the roles an action lists, for every action: a person who types a
  * screen's address by hand gets the same refusal as one who has no link to it. A later plan adds its screens here.
  */
-export const CL_SCREENS = ['home', 'board', 'bookings', 'patients', 'doctors', 'services', 'staff', 'cashier', 'reports', 'loyalty', 'packages', 'recall', 'debts'] as const;
+export const CL_SCREENS = ['home', 'board', 'bookings', 'patients', 'doctors', 'services', 'staff', 'cashier', 'reports', 'loyalty', 'packages', 'recall', 'debts', 'reminders'] as const;
 export type ClScreen = (typeof CL_SCREENS)[number];
 
 const ALL: readonly ClRole[] = ['OWNER', 'RECEPTION', 'DOCTOR', 'CASHIER'];
@@ -24,6 +24,7 @@ const ACCESS: Record<ClScreen, readonly ClRole[]> = {
   packages: ['OWNER', 'RECEPTION'],
   recall: ['OWNER', 'RECEPTION'],
   debts: ['OWNER', 'RECEPTION', 'CASHIER'],
+  reminders: ['OWNER', 'RECEPTION'],
 };
 
 export const canSee = (role: ClRole, screen: ClScreen): boolean => ACCESS[screen].includes(role);
@@ -49,6 +50,7 @@ const NAV: readonly ClNavItem[] = [
   { screen: 'packages', href: '/clinic/packages', label: 'clinic.app.nav.packages' },
   { screen: 'recall', href: '/clinic/recall', label: 'clinic.app.nav.recall' },
   { screen: 'debts', href: '/clinic/debts', label: 'clinic.app.nav.debts' },
+  { screen: 'reminders', href: '/clinic/reminders', label: 'clinic.app.nav.reminders' },
 ];
 
 /** The menu of a role. `base` is the product's path prefix (`/clinic` or `/beauty`); the screens are the same. */
