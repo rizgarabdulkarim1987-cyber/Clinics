@@ -156,6 +156,9 @@ model Restaurant {
   clSettings            ClSettings?
   clMembers             ClMember[]
   clInvitations         ClInvitation[]
+  clHouseholds          ClHousehold[]
+  clPatients            ClPatient[]
+  clDoctors             ClDoctor[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2654,6 +2657,7 @@ model ClMember {
   updatedAt    DateTime       @updatedAt
   account      ClAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  doctor       ClDoctor?
 
   @@unique([accountId, restaurantId])
   @@index([restaurantId])
@@ -2677,6 +2681,82 @@ model ClInvitation {
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@index([email])
+  @@index([restaurantId])
+}
+
+/// People of one clinic who share a phone number. One household per phone per clinic.
+model ClHousehold {
+  id           String      @id @default(cuid())
+  restaurantId String
+  /// Digits only, the Iraqi country code written as a leading 0.
+  phone        String
+  createdAt    DateTime    @default(now())
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  patients     ClPatient[]
+
+  @@unique([restaurantId, phone])
+}
+
+/// One patient file of one clinic. Contact details only: clinical text lives in visits, never here.
+model ClPatient {
+  id           String      @id @default(cuid())
+  restaurantId String
+  householdId  String
+  name         String
+  phone        String
+  birthYear    Int?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  household    ClHousehold @relation(fields: [householdId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId, name])
+  @@index([restaurantId, phone])
+  @@index([householdId])
+}
+
+/// A doctor's profile: one per ClMember of role DOCTOR.
+model ClDoctor {
+  id           String          @id @default(cuid())
+  restaurantId String
+  memberId     String          @unique
+  speciality   String          @default("")
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  member       ClMember        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  hours        ClDoctorHours[]
+  fees         ClDoctorFee[]
+
+  @@index([restaurantId])
+}
+
+/// One block of a doctor's week. Minutes from midnight; weekday 0 is Sunday.
+model ClDoctorHours {
+  id           String   @id @default(cuid())
+  restaurantId String
+  doctorId     String
+  weekday      Int
+  startMin     Int
+  endMin       Int
+  doctor       ClDoctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([restaurantId])
+}
+
+/// A line of a doctor's fee list, in whole dinars.
+model ClDoctorFee {
+  id           String   @id @default(cuid())
+  restaurantId String
+  doctorId     String
+  label        String
+  amount       Int
+  sortOrder    Int      @default(0)
+  doctor       ClDoctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
   @@index([restaurantId])
 }
 
