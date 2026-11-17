@@ -52,7 +52,9 @@ function exportsNotMatching(source: string, shape: RegExp): string[] {
 const ACTIONS_DIR = 'src/app/studio/_actions/';
 /** The pharmacy's Server Actions, which forward to its definitions the same way. */
 const PHARMACY_ACTIONS_DIR = 'src/app/pharmacy/_actions/';
-const ACTIONS_DIRS = [ACTIONS_DIR, PHARMACY_ACTIONS_DIR];
+/** The clinic app's Server Actions, which forward to its own framework the same way. */
+const CLINIC_ACTIONS_DIR = 'src/app/clinic/_actions/';
+const ACTIONS_DIRS = [ACTIONS_DIR, PHARMACY_ACTIONS_DIR, CLINIC_ACTIONS_DIR];
 
 function containsUseServer(source: string): boolean {
   return source.includes("'use server'") || source.includes('"use server"');
