@@ -30,3 +30,7 @@ export async function takePayment(input: unknown) {
 export async function leaveAsDebt(input: unknown) {
   return invokeCl(bills.leaveAsDebt, input);
 }
+
+export async function rescheduleDebt(input: unknown) {
+  return invokeCl(bills.rescheduleDebt, input);
+}

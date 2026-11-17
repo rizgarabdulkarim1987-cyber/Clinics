@@ -50,3 +50,7 @@ export async function saveDistribution(input: unknown) {
 export async function listTicketFees(input: unknown) {
   return invokeCl(board.listTicketFees, input);
 }
+
+export async function listTicketPackages(input: unknown) {
+  return invokeCl(board.listTicketPackages, input);
+}

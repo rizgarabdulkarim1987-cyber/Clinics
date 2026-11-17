@@ -169,6 +169,8 @@ model Restaurant {
   clPayments            ClPayment[]
   clShifts              ClShift[]
   clLoyaltyEntries      ClLoyaltyEntry[]
+  clPackages            ClPackage[]
+  clPatientPackages     ClPatientPackage[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2773,6 +2775,7 @@ model ClPatient {
   birthYear    Int?
   /// The patient who brought this one in, for the referral bonus.
   referredById String?
+  packages     ClPatientPackage[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
@@ -6558,4 +6561,37 @@ model ClLoyaltyEntry {
 
   @@unique([restaurantId, refKey])
   @@index([restaurantId, householdId])
+}
+
+/// A course the clinic sells: a number of sessions for one price.
+model ClPackage {
+  id           String             @id @default(cuid())
+  restaurantId String
+  name         String
+  sessions     Int
+  price        Int
+  active       Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  restaurant   Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  sold         ClPatientPackage[]
+
+  @@index([restaurantId])
+}
+
+/// A course bought by one patient. Sessions are spent one by one when a visit ends; the money is on its bill.
+model ClPatientPackage {
+  id            String     @id @default(cuid())
+  restaurantId  String
+  packageId     String
+  patientId     String
+  billId        String?
+  name          String
+  sessionsTotal Int
+  sessionsLeft  Int
+  createdAt     DateTime   @default(now())
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  package       ClPackage  @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  patient       ClPatient  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId, patientId])
 }

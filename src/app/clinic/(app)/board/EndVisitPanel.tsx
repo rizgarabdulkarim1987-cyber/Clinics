@@ -14,6 +14,12 @@ export interface TicketFee {
   amount: number;
 }
 
+export interface OwnedPackage {
+  patientPackageId: string;
+  name: string;
+  sessionsLeft: number;
+}
+
 /** Tap-through complaint phrases: a doctor ends a visit in seconds, without a long form. */
 const PHRASES = ['headache', 'fever', 'cough', 'stomach', 'back', 'checkup', 'followup', 'injury'] as const;
 
@@ -22,13 +28,29 @@ const PHRASES = ['headache', 'fever', 'cough', 'stomach', 'back', 'checkup', 'fo
  * to charge from their own list (the first is ticked to save a tap). The server prices the bill from the ids it is sent.
  * The desk can end a visit too, but without clinical text.
  */
-export function EndVisitPanel({ ticketId, fees, canWrite, onDone, onCancel }: { ticketId: string; fees: TicketFee[]; canWrite: boolean; onDone: () => void; onCancel: () => void }) {
+export function EndVisitPanel({
+  ticketId,
+  fees,
+  packages,
+  canWrite,
+  onDone,
+  onCancel,
+}: {
+  ticketId: string;
+  fees: TicketFee[];
+  packages: OwnedPackage[];
+  canWrite: boolean;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
   const t = useT();
   const [pending, start] = useTransition();
   const [failed, setFailed] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
   const [note, setNote] = useState('');
-  const [chosen, setChosen] = useState<string[]>(fees[0] ? [fees[0].feeId] : []);
+  // With a course to spend, the session pays for the visit, so no fee is ticked up front.
+  const [chosen, setChosen] = useState<string[]>(fees[0] && packages.length === 0 ? [fees[0].feeId] : []);
+  const [packageId, setPackageId] = useState('');
 
   const toggle = (list: string[], set: (next: string[]) => void, value: string) => set(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
@@ -36,7 +58,7 @@ export function EndVisitPanel({ ticketId, fees, canWrite, onDone, onCancel }: { 
     start(async () => {
       setFailed(false);
       const complaint = picked.map((key) => t(`clinic.app.visit.phrase.${key}`)).join(', ');
-      const result = await endVisit({ ticketId, ...(canWrite && complaint ? { complaint } : {}), ...(canWrite && note.trim() ? { note } : {}), feeIds: chosen });
+      const result = await endVisit({ ticketId, ...(canWrite && complaint ? { complaint } : {}), ...(canWrite && note.trim() ? { note } : {}), feeIds: chosen, ...(packageId ? { packageId } : {}) });
       if (result.ok) onDone();
       else setFailed(true);
     });
@@ -80,6 +102,18 @@ export function EndVisitPanel({ ticketId, fees, canWrite, onDone, onCancel }: { 
           ))
         )}
       </fieldset>
+      {packages.length > 0 && (
+        <Field label={t('clinic.app.visit.package')}>
+          <select className="h-11 rounded-md border border-line bg-bg px-2" value={packageId} onChange={(event) => setPackageId(event.target.value)}>
+            <option value="">{t('clinic.app.visit.package.none')}</option>
+            {packages.map((p) => (
+              <option key={p.patientPackageId} value={p.patientPackageId}>
+                {t('clinic.app.visit.package.option', { name: p.name, left: p.sessionsLeft })}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       {failed && (
         <p role="alert" className="rounded-md border border-danger px-3 py-2 text-sm text-danger">
           {t('clinic.app.board.failed')}

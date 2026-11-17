@@ -5,7 +5,7 @@ import type { ClRole } from './framework';
  * checks it for every page (`canSee`) and, through the roles an action lists, for every action: a person who types a
  * screen's address by hand gets the same refusal as one who has no link to it. A later plan adds its screens here.
  */
-export const CL_SCREENS = ['home', 'board', 'bookings', 'patients', 'doctors', 'services', 'staff', 'cashier', 'reports', 'loyalty'] as const;
+export const CL_SCREENS = ['home', 'board', 'bookings', 'patients', 'doctors', 'services', 'staff', 'cashier', 'reports', 'loyalty', 'packages', 'recall', 'debts'] as const;
 export type ClScreen = (typeof CL_SCREENS)[number];
 
 const ALL: readonly ClRole[] = ['OWNER', 'RECEPTION', 'DOCTOR', 'CASHIER'];
@@ -21,6 +21,9 @@ const ACCESS: Record<ClScreen, readonly ClRole[]> = {
   cashier: ['OWNER', 'RECEPTION', 'CASHIER'],
   reports: ['OWNER'],
   loyalty: ['OWNER'],
+  packages: ['OWNER', 'RECEPTION'],
+  recall: ['OWNER', 'RECEPTION'],
+  debts: ['OWNER', 'RECEPTION', 'CASHIER'],
 };
 
 export const canSee = (role: ClRole, screen: ClScreen): boolean => ACCESS[screen].includes(role);
@@ -43,6 +46,9 @@ const NAV: readonly ClNavItem[] = [
   { screen: 'cashier', href: '/clinic/cashier', label: 'clinic.app.nav.cashier' },
   { screen: 'reports', href: '/clinic/reports', label: 'clinic.app.nav.reports' },
   { screen: 'loyalty', href: '/clinic/loyalty', label: 'clinic.app.nav.loyalty' },
+  { screen: 'packages', href: '/clinic/packages', label: 'clinic.app.nav.packages' },
+  { screen: 'recall', href: '/clinic/recall', label: 'clinic.app.nav.recall' },
+  { screen: 'debts', href: '/clinic/debts', label: 'clinic.app.nav.debts' },
 ];
 
 export const navFor = (role: ClRole): ClNavItem[] => NAV.filter((item) => canSee(role, item.screen));

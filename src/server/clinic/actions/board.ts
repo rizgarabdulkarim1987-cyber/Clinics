@@ -150,19 +150,37 @@ export const endVisit = defineClAction({
     complaint: z.string().trim().max(300).optional(),
     note: z.string().trim().max(1000).optional(),
     feeIds: z.array(idField).max(20).optional(),
+    /** A course of this patient whose session this visit spends. */
+    packageId: idField.optional(),
   }),
-  run: async (ctx, { ticketId, complaint, note, feeIds }) => {
+  run: async (ctx, { ticketId, complaint, note, feeIds, packageId }) => {
     const ticket = await ticketFor(ctx, ticketId);
     if ((complaint || note) && ctx.member.role !== 'DOCTOR') throw new StudioError('FORBIDDEN');
     const ids = [...new Set(feeIds ?? [])];
     const fees = ids.length > 0 ? await ctx.db.clDoctorFee.findMany({ where: { id: { in: ids }, doctorId: ticket.doctorId }, orderBy: { sortOrder: 'asc' } }) : [];
     if (fees.length !== ids.length) throw new StudioError('NOT_FOUND');
     const total = fees.reduce((sum, fee) => sum + fee.amount, 0);
-    await step(ctx, ticket, ['WITH_DOCTOR'], total === 0 ? 'DONE' : 'TO_PAY', { endedAt: new Date() });
+    // A session is spent first, by a guarded update (only while one is left, only on this patient's course); if the
+    // token turns out to have moved on, the session is given back.
+    let sessionName: string | null = null;
+    if (packageId) {
+      const owned = await ctx.db.clPatientPackage.findFirst({ where: { id: packageId, patientId: ticket.patientId } });
+      if (!owned) throw new StudioError('NOT_FOUND');
+      const { count } = await ctx.db.clPatientPackage.updateMany({ where: { id: packageId, patientId: ticket.patientId, sessionsLeft: { gt: 0 } }, data: { sessionsLeft: { decrement: 1 } } });
+      if (count === 0) throw new StudioError('INVALID', 'No sessions are left on this course');
+      sessionName = owned.name;
+    }
+    try {
+      await step(ctx, ticket, ['WITH_DOCTOR'], total === 0 ? 'DONE' : 'TO_PAY', { endedAt: new Date() });
+    } catch (error) {
+      if (packageId) await ctx.db.clPatientPackage.updateMany({ where: { id: packageId }, data: { sessionsLeft: { increment: 1 } } });
+      throw error;
+    }
     const visit = await ctx.db.clVisit.create({ data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, complaint: complaint ?? '', note: note ?? '' } });
     const bill = await ctx.db.clBill.create({
       data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, total, status: total === 0 ? 'PAID' : 'OPEN', closedAt: total === 0 ? new Date() : null },
     });
+    if (sessionName) await ctx.db.clBillLine.create({ data: { restaurantId: ctx.restaurantId, billId: bill.id, label: sessionName, amount: 0, sortOrder: -1 } });
     for (const [index, fee] of fees.entries()) await ctx.db.clBillLine.create({ data: { restaurantId: ctx.restaurantId, billId: bill.id, label: fee.label, amount: fee.amount, sortOrder: index } });
     if (ticket.bookingId) await ctx.db.clBooking.updateMany({ where: { id: ticket.bookingId }, data: { status: 'DONE' } });
     ctx.audit({ action: 'clinic.visit_recorded', entityType: 'ClVisit', entityId: visit.id, changes: { total: { before: null, after: total } } });
@@ -271,5 +289,17 @@ export const listTicketFees = defineClAction({
     const ticket = await ticketFor(ctx, ticketId);
     const fees = await ctx.db.clDoctorFee.findMany({ where: { doctorId: ticket.doctorId }, orderBy: { sortOrder: 'asc' } });
     return fees.map((fee) => ({ feeId: fee.id, label: fee.label, amount: fee.amount }));
+  },
+});
+
+/** The courses of a ticket's patient that still have sessions, for the end-of-visit panel. Names and counts only. */
+export const listTicketPackages = defineClAction({
+  name: 'clinic.board.packages',
+  roles: [...DESK, 'DOCTOR'],
+  input: z.object({ ticketId: idField }),
+  run: async (ctx, { ticketId }) => {
+    const ticket = await ticketFor(ctx, ticketId);
+    const rows = await ctx.db.clPatientPackage.findMany({ where: { patientId: ticket.patientId, sessionsLeft: { gt: 0 } }, orderBy: { createdAt: 'asc' } });
+    return rows.map((p) => ({ patientPackageId: p.id, name: p.name, sessionsLeft: p.sessionsLeft }));
   },
 });

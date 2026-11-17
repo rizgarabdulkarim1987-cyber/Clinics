@@ -10,3 +10,7 @@ export async function dayReport(input: unknown) {
 export async function doctorShares(input: unknown) {
   return invokeCl(reports.doctorShares, input);
 }
+
+export async function agedDebts(input: unknown) {
+  return invokeCl(reports.agedDebts, input);
+}

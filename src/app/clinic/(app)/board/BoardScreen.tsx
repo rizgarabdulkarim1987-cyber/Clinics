@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { addWalkIn, callTicket, checkIn, handOver, listArrivals, listTicketFees, loadBoard, markLeft, moveTicket } from '@/app/clinic/_actions/board';
+import { addWalkIn, callTicket, checkIn, handOver, listArrivals, listTicketFees, listTicketPackages, loadBoard, markLeft, moveTicket } from '@/app/clinic/_actions/board';
 import { searchPatients } from '@/app/clinic/_actions/patients';
 import { localMinutes } from '@/server/clinic/time';
 import { useT } from '@/studio/i18n';
 import { Button } from '@/studio/ui/Button';
 import { Field } from '@/studio/ui/Field';
 import { Input } from '@/studio/ui/Input';
-import { EndVisitPanel, type TicketFee } from './EndVisitPanel';
+import { EndVisitPanel, type OwnedPackage, type TicketFee } from './EndVisitPanel';
 
 type Status = 'WAITING' | 'WITH_DOCTOR' | 'TO_PAY' | 'DONE' | 'LEFT';
 interface Ticket {
@@ -51,11 +51,13 @@ export function BoardScreen({
   initial,
   initialArrivals,
   doctors,
+  wait,
 }: {
   role: 'OWNER' | 'RECEPTION' | 'DOCTOR' | 'CASHIER';
   initial: BoardData;
   initialArrivals: Arrival[];
   doctors: { doctorId: string; name: string }[];
+  wait: { url: string; qr: string } | null;
 }) {
   const t = useT();
   const desk = role === 'OWNER' || role === 'RECEPTION';
@@ -68,7 +70,7 @@ export function BoardScreen({
   const [found, setFound] = useState<Patient[]>([]);
   const [speciality, setSpeciality] = useState('');
   const [target, setTarget] = useState<Record<string, string>>({});
-  const [ending, setEnding] = useState<{ ticketId: string; fees: TicketFee[] } | null>(null);
+  const [ending, setEnding] = useState<{ ticketId: string; fees: TicketFee[]; packages: OwnedPackage[] } | null>(null);
 
   const refresh = async () => {
     const [board, list] = await Promise.all([loadBoard({}), desk ? listArrivals({}) : Promise.resolve(null)]);
@@ -137,8 +139,11 @@ export function BoardScreen({
               disabled={pending}
               onClick={() =>
                 act(
-                  () => listTicketFees({ ticketId: ticket.ticketId }),
-                  (result: { data: TicketFee[] }) => setEnding({ ticketId: ticket.ticketId, fees: result.data }),
+                  async () => {
+                    const [fees, owned] = await Promise.all([listTicketFees({ ticketId: ticket.ticketId }), listTicketPackages({ ticketId: ticket.ticketId })]);
+                    return { ok: fees.ok, data: { fees: fees.ok ? fees.data : [], packages: owned.ok ? owned.data : [] } };
+                  },
+                  (result: { data: { fees: TicketFee[]; packages: OwnedPackage[] } }) => setEnding({ ticketId: ticket.ticketId, fees: result.data.fees, packages: result.data.packages }),
                 )
               }
             >
@@ -269,6 +274,7 @@ export function BoardScreen({
                         <EndVisitPanel
                           ticketId={ticket.ticketId}
                           fees={ending.fees}
+                          packages={ending.packages}
                           canWrite={role === 'DOCTOR'}
                           onCancel={() => setEnding(null)}
                           onDone={() => {
@@ -285,6 +291,20 @@ export function BoardScreen({
           );
         })}
       </div>
+      {wait && (
+        <div className="flex flex-wrap items-center gap-4 rounded-md bg-surface p-4">
+          {/* A data: URL made on the server; next/image adds nothing for a 220px code. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={wait.qr} alt={t('clinic.app.board.wait.qr')} width={110} height={110} className="rounded-md bg-white" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <h2 className="font-semibold">{t('clinic.app.board.wait.title')}</h2>
+            <p className="text-sm text-muted">{t('clinic.app.board.wait.hint')}</p>
+            <code dir="ltr" className="truncate text-sm">
+              {wait.url}
+            </code>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

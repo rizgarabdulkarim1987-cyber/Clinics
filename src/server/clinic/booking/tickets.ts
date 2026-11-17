@@ -7,12 +7,12 @@ const isUniqueViolation = (error: unknown): boolean => typeof error === 'object'
  * Makes the next token of the clinic's day: number one, two, three. Two desks asking at once both read the same last
  * number; the unique (clinic, day, number) index lets one win, and the other reads again and takes the next.
  */
-export async function createTicket(db: RestaurantDb, input: { restaurantId: string; day: string; patientId: string; doctorId: string; bookingId?: string | null }) {
+export async function createTicket(db: RestaurantDb, input: { restaurantId: string; day: string; patientId: string; doctorId: string; bookingId?: string | null; status?: 'WAITING' | 'TO_PAY' | 'DONE' }) {
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const last = await db.clTicket.findFirst({ where: { day: input.day }, orderBy: { number: 'desc' }, select: { number: true } });
     try {
       return await db.clTicket.create({
-        data: { restaurantId: input.restaurantId, day: input.day, number: (last?.number ?? 0) + 1, patientId: input.patientId, doctorId: input.doctorId, bookingId: input.bookingId ?? null },
+        data: { restaurantId: input.restaurantId, day: input.day, number: (last?.number ?? 0) + 1, patientId: input.patientId, doctorId: input.doctorId, bookingId: input.bookingId ?? null, ...(input.status ? { status: input.status } : {}) },
       });
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;

@@ -69,3 +69,28 @@ export const doctorShares = defineClAction({
     });
   },
 });
+
+const BUCKETS = ['NOT_DUE', 'D1_30', 'D31_60', 'D61_PLUS'] as const;
+const bucketOf = (overdue: number) => (overdue <= 0 ? 'NOT_DUE' : overdue <= 30 ? 'D1_30' : overdue <= 60 ? 'D31_60' : 'D61_PLUS');
+
+/** Debts by how late they are: a debt due today is not late. For the owner, the desk and the till. */
+export const agedDebts = defineClAction({
+  name: 'clinic.reports.agedDebts',
+  roles: ['OWNER', 'RECEPTION', 'CASHIER'],
+  input: z.object({}),
+  run: async (ctx) => {
+    const today = localDay(new Date());
+    const debts = await ctx.db.clBill.findMany({ where: { status: 'DEBT' }, include: { patient: { select: { name: true, phone: true } } }, take: 500 });
+    const rows = debts
+      .map((b) => {
+        const overdue = b.dueDay ? Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${b.dueDay}T00:00:00Z`)) / DAY_MS) : 0;
+        return { billId: b.id, patientName: b.patient.name, patientPhone: b.patient.phone, balance: b.total - b.paid, dueDay: b.dueDay, daysOverdue: Math.max(0, overdue) };
+      })
+      .sort((a, b) => b.daysOverdue - a.daysOverdue);
+    const buckets = BUCKETS.map((key) => {
+      const own = rows.filter((r) => bucketOf(r.daysOverdue) === key);
+      return { key, count: own.length, balance: own.reduce((sum, r) => sum + r.balance, 0) };
+    });
+    return { buckets, rows };
+  },
+});

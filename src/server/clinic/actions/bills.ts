@@ -176,3 +176,19 @@ export const leaveAsDebt = defineClAction({
     return null;
   },
 });
+
+/** A debt's new due day (an instalment is a part payment and a new date). Not into the past, and only a debt can move. */
+export const rescheduleDebt = defineClAction({
+  name: 'clinic.bills.rescheduleDebt',
+  roles: [...BILL_ROLES],
+  input: z.object({ billId: idField, dueDay: z.string().refine(isDay, 'A date as YYYY-MM-DD') }),
+  run: async (ctx, { billId, dueDay }) => {
+    const bill = await billFor(ctx, billId);
+    if (bill.status !== 'DEBT') throw new StudioError('INVALID', 'This bill is not a debt');
+    if (dueDay < localDay(new Date())) throw new StudioError('INVALID', 'The due day has passed');
+    const { count } = await ctx.db.clBill.updateMany({ where: { id: billId, status: 'DEBT' }, data: { dueDay } });
+    if (count === 0) throw new StudioError('INVALID', 'This bill changed, check it and try again');
+    ctx.audit({ action: 'clinic.debt_rescheduled', entityType: 'ClBill', entityId: billId, changes: { dueDay: { before: bill.dueDay, after: dueDay } } });
+    return null;
+  },
+});
