@@ -38,6 +38,8 @@ export async function resetTestData(prisma: PrismaClient): Promise<void> {
   await prisma.planPrice.deleteMany();
   await prisma.serviceClient.deleteMany();
   await prisma.application.deleteMany();
+  // Clinic accounts belong to no restaurant; their sessions and memberships go by cascade.
+  await prisma.clAccount.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.platformSetting.deleteMany();
   await prisma.platformAdvertDaily.deleteMany();

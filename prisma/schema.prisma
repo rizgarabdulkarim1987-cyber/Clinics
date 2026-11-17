@@ -154,6 +154,7 @@ model Restaurant {
   retailLink            RetailLink?
   wholesaleLink         WholesaleLink?
   clSettings            ClSettings?
+  clMembers             ClMember[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2592,6 +2593,69 @@ model ClSettings {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
+/// A person who works in Clinics. Exists only for Clinics: no link to a Studio User, so no other product's account opens a clinic.
+model ClAccount {
+  id            String          @id @default(cuid())
+  name          String
+  /// Lower case and trimmed, unique.
+  email         String          @unique
+  passwordHash  String
+  status        ClAccountStatus @default(ACTIVE)
+  /// Failed sign-ins in a row; five lock the account until `lockedUntil`.
+  failedSignIns Int             @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  members       ClMember[]
+  sessions      ClSession[]
+}
+
+enum ClAccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// A clinic sign-in: only the hash of the cookie's token is stored.
+model ClSession {
+  id        String    @id @default(cuid())
+  accountId String
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  account   ClAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+}
+
+enum ClRole {
+  OWNER
+  RECEPTION
+  DOCTOR
+  CASHIER
+}
+
+enum ClMemberStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// An account's role in one clinic. An empty `branchIds` means every branch.
+model ClMember {
+  id           String         @id @default(cuid())
+  accountId    String
+  restaurantId String
+  role         ClRole
+  branchIds    String[]       @default([])
+  status       ClMemberStatus @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  account      ClAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, restaurantId])
+  @@index([restaurantId])
 }
 
 /// Which Buzzify Retail product a RETAIL business is. Beside the sector, not in it: BusinessSector never grows.

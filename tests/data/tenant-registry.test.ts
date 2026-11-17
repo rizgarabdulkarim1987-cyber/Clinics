@@ -133,6 +133,8 @@ describe('tenant scoping registry', () => {
   it('registers the clinic settings as restaurant-scoped', () => {
     expect(models.has('ClSettings'), 'ClSettings is a model').toBe(true);
     expect(RESTAURANT_SCOPED_MODELS as readonly string[]).toContain('ClSettings');
+    expect(models.has('ClMember'), 'ClMember is a model').toBe(true);
+    expect(RESTAURANT_SCOPED_MODELS as readonly string[]).toContain('ClMember');
   });
 
   it('classifies every model exactly once', () => {
