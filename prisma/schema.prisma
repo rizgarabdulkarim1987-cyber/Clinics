@@ -159,6 +159,9 @@ model Restaurant {
   clHouseholds          ClHousehold[]
   clPatients            ClPatient[]
   clDoctors             ClDoctor[]
+  clServices            ClService[]
+  clBookings            ClBooking[]
+  clWaitlist            ClWaitlistEntry[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2709,6 +2712,8 @@ model ClPatient {
   updatedAt    DateTime    @updatedAt
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   household    ClHousehold @relation(fields: [householdId], references: [id], onDelete: Restrict)
+  bookings     ClBooking[]
+  waitlist     ClWaitlistEntry[]
 
   @@index([restaurantId, name])
   @@index([restaurantId, phone])
@@ -2728,6 +2733,7 @@ model ClDoctor {
   member       ClMember        @relation(fields: [memberId], references: [id], onDelete: Cascade)
   hours        ClDoctorHours[]
   fees         ClDoctorFee[]
+  bookings     ClBooking[]
 
   @@index([restaurantId])
 }
@@ -2758,6 +2764,82 @@ model ClDoctorFee {
 
   @@index([doctorId])
   @@index([restaurantId])
+}
+
+enum ClBookingStatus {
+  BOOKED
+  CHECKED_IN
+  DONE
+  CANCELLED
+  NO_SHOW
+}
+
+enum ClBookingSource {
+  STAFF
+  PUBLIC
+}
+
+enum ClWaitlistStatus {
+  WAITING
+  BOOKED
+  REMOVED
+}
+
+/// A kind of appointment a patient can book, with the time it takes.
+model ClService {
+  id            String      @id @default(cuid())
+  restaurantId  String
+  name          String
+  durationMin   Int         @default(15)
+  /// Whole dinars asked up front; 0 means none. Recorded on the booking; the money is taken at the till.
+  depositAmount Int         @default(0)
+  active        Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  bookings      ClBooking[]
+
+  @@index([restaurantId])
+}
+
+/// One appointment of one patient with one doctor. A partial unique index (see the migration) keeps a doctor's live bookings from sharing a start.
+model ClBooking {
+  id            String          @id @default(cuid())
+  restaurantId  String
+  doctorId      String
+  patientId     String
+  serviceId     String?
+  startsAt      DateTime
+  endsAt        DateTime
+  status        ClBookingStatus @default(BOOKED)
+  source        ClBookingSource @default(STAFF)
+  depositAmount Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  restaurant    Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  doctor        ClDoctor        @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patient       ClPatient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  service       ClService?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, startsAt])
+  @@index([doctorId, startsAt])
+  @@index([patientId])
+}
+
+/// A patient who wants a time on a day, to be offered a slot that frees up. `day` is the clinic's own date, YYYY-MM-DD.
+model ClWaitlistEntry {
+  id           String           @id @default(cuid())
+  restaurantId String
+  patientId    String
+  /// Null means any doctor.
+  doctorId     String?
+  day          String
+  status       ClWaitlistStatus @default(WAITING)
+  createdAt    DateTime         @default(now())
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  patient      ClPatient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, day])
 }
 
 /// Which Buzzify Retail product a RETAIL business is. Beside the sector, not in it: BusinessSector never grows.

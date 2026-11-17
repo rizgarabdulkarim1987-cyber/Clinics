@@ -45,6 +45,8 @@ export const listDoctors = defineClAction({
       const profile = byMember.get(m.id);
       return {
         memberId: m.id,
+        /** The profile's id, which bookings use; null until the owner has saved something for this doctor. */
+        doctorId: profile?.id ?? null,
         name: m.account.name,
         speciality: profile?.speciality ?? '',
         active: profile?.active ?? true,
