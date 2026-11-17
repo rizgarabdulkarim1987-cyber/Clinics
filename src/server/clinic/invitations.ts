@@ -59,6 +59,15 @@ export function queueClOwnerMail(
   (afterCommit ?? ((fn) => fn()))(send);
 }
 
+/** The same mail for a staff member: the link, who sent it and the clinic; the Studio's role names know an owner only, so no role line. */
+export function queueClStaffMail(
+  args: { email: string; url: string; clinicName: string; inviterName: string; locale: string },
+  afterCommit: ((fn: () => void) => void) | undefined,
+): void {
+  const send = () => sendAfterResponse({ email: args.email, name: '', locale: args.locale }, 'invite', { url: args.url, inviter: args.inviterName, restaurant: args.clinicName });
+  (afterCommit ?? ((fn) => fn()))(send);
+}
+
 export async function createClInvitation(
   database: InviteDb,
   args: { email: string; restaurantId: string; role: ClRole; invitedById: string; now: Date; mail?: { inviterName: string; locale: string } },
@@ -77,8 +86,7 @@ export async function createClInvitation(
   const created = await db.clInvitation.create({ data: { ...prepared.data, restaurantId: args.restaurantId }, select: { id: true } });
   const { url } = prepared;
   const { mail } = args;
-  // The invitation mail's text knows an owner only; staff links are handed over by the clinic's owner for now.
-  if (mail && args.role === 'OWNER') queueClOwnerMail({ email, url, clinicName: clinic.name, inviterName: mail.inviterName, locale: mail.locale }, options.afterCommit);
+  if (mail) (args.role === 'OWNER' ? queueClOwnerMail : queueClStaffMail)({ email, url, clinicName: clinic.name, inviterName: mail.inviterName, locale: mail.locale }, options.afterCommit);
   return { invitationId: created.id, url };
 }
 

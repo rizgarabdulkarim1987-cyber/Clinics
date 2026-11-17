@@ -3,6 +3,7 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { StudioError } from '@/server/studio/framework/result';
 import { defineClAction } from '../framework';
 import { createClInvitation } from '../invitations';
+import { requestClinicLocale } from '../request-locale';
 
 /**
  * The owner's staff screen: who works in the clinic, who is invited, and the changes the owner may make. Other owners
@@ -34,13 +35,15 @@ export const inviteStaff = defineClAction({
   roles: ['OWNER'],
   input: z.object({ email: z.string().trim().email('Enter a valid email address').max(254), role: roleField }),
   run: async (ctx, { email, role }) => {
-    // The link is returned once for the owner to send: the invitation mail's text only knows an owner, so no mail goes.
+    // The invitation is mailed in the owner's language, and the link is also returned once so the owner can hand it over.
+    const locale = await requestClinicLocale().catch(() => 'en' as const);
     const { invitationId, url } = await createClInvitation(ctx.db as unknown as PrismaClient, {
       email,
       restaurantId: ctx.restaurantId,
       role,
       invitedById: ctx.account.accountId,
       now: new Date(),
+      mail: { inviterName: ctx.account.name, locale },
     });
     ctx.audit({ action: 'clinic.staff_invited', entityType: 'ClInvitation', entityId: invitationId, changes: { email: { before: null, after: email.trim().toLowerCase() }, role: { before: null, after: role } } });
     return { invitationId, url };

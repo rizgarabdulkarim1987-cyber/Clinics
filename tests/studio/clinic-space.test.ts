@@ -67,6 +67,25 @@ describe('making a clinic', () => {
     expect(JSON.stringify(rows[0]!.changes)).not.toContain('doctor@example.com');
   });
 
+  it('starts a 14-day trial of the cheapest dinar monthly plan when the product is priced, and none when it is not', async () => {
+    const unpriced = dataOf(await newClinic('Plain Clinic'));
+    expect(await prisma().subscription.count({ where: { restaurantId: unpriced.restaurantId } })).toBe(0);
+    await prisma().application.update({ where: { id: 'clinic' }, data: { status: 'ACTIVE' } });
+    await prisma().planPrice.deleteMany({ where: { applicationId: 'clinic', currency: 'IQD', period: 'MONTHLY' } });
+    await prisma().planPrice.createMany({
+      data: [
+        { applicationId: 'clinic', planCode: 'PRO', currency: 'IQD', period: 'MONTHLY', amountMinor: 90000 },
+        { applicationId: 'clinic', planCode: 'STANDARD', currency: 'IQD', period: 'MONTHLY', amountMinor: 50000 },
+      ],
+    });
+    const { restaurantId } = dataOf(await newClinic('Priced Clinic'));
+    const subs = await prisma().subscription.findMany({ where: { restaurantId } });
+    expect(subs).toHaveLength(1);
+    expect(subs[0]).toMatchObject({ applicationId: 'clinic', planCode: 'STANDARD', status: 'TRIAL', priceMinor: 50000, currency: 'IQD', period: 'MONTHLY' });
+    const days = (subs[0]!.trialEndsAt!.getTime() - subs[0]!.currentPeriodStart.getTime()) / 86_400_000;
+    expect(Math.round(days)).toBe(14);
+  });
+
   it('invites the owner to Clinics’ own sign-in: a clinic invitation, and no Studio invitation or user', async () => {
     const { restaurantId } = dataOf(await newClinic('Smile Clinic', { ownerEmail: 'doctor@example.com' }));
     const invitations = await prisma().clInvitation.findMany({ where: { restaurantId } });
