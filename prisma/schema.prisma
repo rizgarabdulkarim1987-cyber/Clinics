@@ -162,6 +162,7 @@ model Restaurant {
   clServices            ClService[]
   clBookings            ClBooking[]
   clWaitlist            ClWaitlistEntry[]
+  clTickets             ClTicket[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2596,10 +2597,54 @@ model ClSettings {
   sharePrivateNotes Boolean    @default(false)
   /// IANA time zone for what is printed; instants stay UTC.
   timeZone          String     @default("Asia/Baghdad")
+  /// How a walk-in is given to a doctor.
+  distribution      ClDistribution @default(SHORTEST_WAIT)
+  /// The doctor the last TURN walk-in went to, so the next one goes to the next doctor.
+  lastTurnDoctorId  String?
   version           Int        @default(1)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
+enum ClDistribution {
+  SHORTEST_WAIT
+  OWN_DOCTOR
+  SPECIALITY
+  TURN
+}
+
+enum ClTicketStatus {
+  WAITING
+  WITH_DOCTOR
+  TO_PAY
+  DONE
+  LEFT
+}
+
+/// One patient's place in the clinic's day: a numbered token that moves across the board.
+model ClTicket {
+  id                 String         @id @default(cuid())
+  restaurantId       String
+  /// The clinic's own date, YYYY-MM-DD.
+  day                String
+  number             Int
+  patientId          String
+  doctorId           String
+  bookingId          String?
+  status             ClTicketStatus @default(WAITING)
+  /// Set when a doctor handed the patient on: who it came from.
+  handedFromDoctorId String?
+  createdAt          DateTime       @default(now())
+  calledAt           DateTime?
+  endedAt            DateTime?
+  restaurant         Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  patient            ClPatient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctor             ClDoctor       @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  @@unique([restaurantId, day, number])
+  @@index([restaurantId, day, status])
+  @@index([doctorId, day])
 }
 
 /// A person who works in Clinics. Exists only for Clinics: no link to a Studio User, so no other product's account opens a clinic.
@@ -2714,6 +2759,7 @@ model ClPatient {
   household    ClHousehold @relation(fields: [householdId], references: [id], onDelete: Restrict)
   bookings     ClBooking[]
   waitlist     ClWaitlistEntry[]
+  tickets      ClTicket[]
 
   @@index([restaurantId, name])
   @@index([restaurantId, phone])
@@ -2734,6 +2780,7 @@ model ClDoctor {
   hours        ClDoctorHours[]
   fees         ClDoctorFee[]
   bookings     ClBooking[]
+  tickets      ClTicket[]
 
   @@index([restaurantId])
 }

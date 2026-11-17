@@ -5,13 +5,14 @@ import type { ClRole } from './framework';
  * checks it for every page (`canSee`) and, through the roles an action lists, for every action: a person who types a
  * screen's address by hand gets the same refusal as one who has no link to it. A later plan adds its screens here.
  */
-export const CL_SCREENS = ['home', 'bookings', 'patients', 'doctors', 'services', 'staff'] as const;
+export const CL_SCREENS = ['home', 'board', 'bookings', 'patients', 'doctors', 'services', 'staff'] as const;
 export type ClScreen = (typeof CL_SCREENS)[number];
 
 const ALL: readonly ClRole[] = ['OWNER', 'RECEPTION', 'DOCTOR', 'CASHIER'];
 
 const ACCESS: Record<ClScreen, readonly ClRole[]> = {
   home: ALL,
+  board: ALL,
   bookings: ['OWNER', 'RECEPTION'],
   patients: ['OWNER', 'RECEPTION'],
   doctors: ['OWNER', 'RECEPTION'],
@@ -30,6 +31,7 @@ export interface ClNavItem {
 
 const NAV: readonly ClNavItem[] = [
   { screen: 'home', href: '/clinic/home', label: 'clinic.app.nav.home' },
+  { screen: 'board', href: '/clinic/board', label: 'clinic.app.nav.board' },
   { screen: 'bookings', href: '/clinic/bookings', label: 'clinic.app.nav.bookings' },
   { screen: 'patients', href: '/clinic/patients', label: 'clinic.app.nav.patients' },
   { screen: 'doctors', href: '/clinic/doctors', label: 'clinic.app.nav.doctors' },
