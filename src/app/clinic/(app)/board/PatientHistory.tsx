@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { getPatientAlert, savePatientAlert } from '@/app/clinic/_actions/patient-file';
 import { listPatientVisits } from '@/app/clinic/_actions/visits';
+import { PatientFiles } from '@/app/clinic/_ui/PatientFiles';
 import { useT } from '@/studio/i18n';
 import { Button } from '@/studio/ui/Button';
 import { Textarea } from '@/studio/ui/Textarea';
@@ -67,6 +68,8 @@ export function PatientHistory({ patientId }: { patientId: string }) {
         </Button>
         {saved ? <span className="text-sm text-muted">{t('clinic.app.alert.saved')}</span> : null}
       </div>
+
+      <PatientFiles patientId={patientId} />
 
       <div className="flex flex-col gap-1">
         <span className="text-sm font-semibold">{t('clinic.app.history.title')}</span>

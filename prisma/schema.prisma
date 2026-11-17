@@ -6485,6 +6485,21 @@ model ClPatientAlert {
   @@index([restaurantId])
 }
 
+/// A photo or a document of one patient (a result, a before and after), kept in the database and served only to signed-in staff who may read it.
+model ClPatientFile {
+  id           String   @id @default(cuid())
+  restaurantId String
+  patientId    String
+  name         String
+  mime         String
+  bytes        Int
+  data         Bytes
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  @@index([restaurantId, patientId])
+}
+
 enum ClBillStatus {
   OPEN
   PAID

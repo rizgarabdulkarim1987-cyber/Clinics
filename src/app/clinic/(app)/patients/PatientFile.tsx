@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getPatientFile } from '@/app/clinic/_actions/patient-file';
+import { PatientFiles } from '@/app/clinic/_ui/PatientFiles';
 import { useT } from '@/studio/i18n';
 
 interface FileData {
@@ -56,6 +57,8 @@ export function PatientFile({ patientId }: { patientId: string }) {
           <dd className="font-medium">{data.packages.length === 0 ? '—' : data.packages.map((p) => `${p.name} (${p.sessionsLeft})`).join(', ')}</dd>
         </div>
       </dl>
+
+      <PatientFiles patientId={patientId} />
 
       <div className="flex flex-col gap-1">
         <h4 className="text-sm font-semibold">{t('clinic.app.file.upcoming')}</h4>
