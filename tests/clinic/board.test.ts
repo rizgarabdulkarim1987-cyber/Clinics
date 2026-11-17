@@ -189,8 +189,13 @@ describe('the ticket’s journey', () => {
     expect((await runClAction(prisma(), a.who, board.callTicket, { ticketId: ticket.id })).ok).toBe(true);
     expect(code(await runClAction(prisma(), a.who, board.callTicket, { ticketId: ticket.id }))).toBe('INVALID');
     expect(code(await runClAction(prisma(), rec, board.moveTicket, { ticketId: ticket.id, doctorId: a.row.id }))).toBe('INVALID');
-    expect((await runClAction(prisma(), a.who, board.endVisit, { ticketId: ticket.id })).ok).toBe(true);
+    const fee = await prisma().clDoctorFee.create({ data: { restaurantId: 'clinic-a', doctorId: a.row.id, label: 'Consultation', amount: 20000 } });
+    expect((await runClAction(prisma(), a.who, board.endVisit, { ticketId: ticket.id, feeIds: [fee.id] })).ok).toBe(true);
     expect((await prisma().clTicket.findUniqueOrThrow({ where: { id: ticket.id } })).status).toBe('TO_PAY');
+    // An open bill is settled at the till, not by closing the token.
+    expect(code(await runClAction(prisma(), cashier, board.finishTicket, { ticketId: ticket.id }))).toBe('INVALID');
+    const bill = await prisma().clBill.findFirstOrThrow({ where: { ticketId: ticket.id } });
+    await prisma().clBill.update({ where: { id: bill.id }, data: { status: 'PAID', paid: bill.total } });
     expect((await runClAction(prisma(), cashier, board.finishTicket, { ticketId: ticket.id })).ok).toBe(true);
     expect((await prisma().clTicket.findUniqueOrThrow({ where: { id: ticket.id } })).status).toBe('DONE');
   });

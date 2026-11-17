@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { addWalkIn, callTicket, checkIn, endVisit, finishTicket, handOver, listArrivals, loadBoard, markLeft, moveTicket } from '@/app/clinic/_actions/board';
+import { addWalkIn, callTicket, checkIn, handOver, listArrivals, listTicketFees, loadBoard, markLeft, moveTicket } from '@/app/clinic/_actions/board';
 import { searchPatients } from '@/app/clinic/_actions/patients';
 import { localMinutes } from '@/server/clinic/time';
 import { useT } from '@/studio/i18n';
 import { Button } from '@/studio/ui/Button';
 import { Field } from '@/studio/ui/Field';
 import { Input } from '@/studio/ui/Input';
+import { EndVisitPanel, type TicketFee } from './EndVisitPanel';
 
 type Status = 'WAITING' | 'WITH_DOCTOR' | 'TO_PAY' | 'DONE' | 'LEFT';
 interface Ticket {
@@ -67,6 +68,7 @@ export function BoardScreen({
   const [found, setFound] = useState<Patient[]>([]);
   const [speciality, setSpeciality] = useState('');
   const [target, setTarget] = useState<Record<string, string>>({});
+  const [ending, setEnding] = useState<{ ticketId: string; fees: TicketFee[] } | null>(null);
 
   const refresh = async () => {
     const [board, list] = await Promise.all([loadBoard({}), desk ? listArrivals({}) : Promise.resolve(null)]);
@@ -130,7 +132,16 @@ export function BoardScreen({
       return (
         <>
           {(desk || role === 'DOCTOR') && (
-            <Button variant="primary" disabled={pending} onClick={() => act(() => endVisit({ ticketId: ticket.ticketId }))}>
+            <Button
+              variant="primary"
+              disabled={pending}
+              onClick={() =>
+                act(
+                  () => listTicketFees({ ticketId: ticket.ticketId }),
+                  (result: { data: TicketFee[] }) => setEnding({ ticketId: ticket.ticketId, fees: result.data }),
+                )
+              }
+            >
               {t('clinic.app.board.end')}
             </Button>
           )}
@@ -143,13 +154,7 @@ export function BoardScreen({
         </>
       );
     }
-    if (ticket.status === 'TO_PAY' && role !== 'DOCTOR') {
-      return (
-        <Button variant="primary" disabled={pending} onClick={() => act(() => finishTicket({ ticketId: ticket.ticketId }))}>
-          {t('clinic.app.board.finish')}
-        </Button>
-      );
-    }
+    if (ticket.status === 'TO_PAY' && role !== 'DOCTOR') return <span className="text-sm text-muted">{t('clinic.app.board.toPayHint')}</span>;
     return null;
   };
 
@@ -260,6 +265,18 @@ export function BoardScreen({
                       <p className="truncate font-medium">{ticket.patientName}</p>
                       {ticket.handedFromName && <p className="text-sm text-muted">{t('clinic.app.board.from', { name: ticket.handedFromName })}</p>}
                       <div className="flex flex-wrap items-center gap-2">{buttons(ticket)}</div>
+                      {ending?.ticketId === ticket.ticketId && (
+                        <EndVisitPanel
+                          ticketId={ticket.ticketId}
+                          fees={ending.fees}
+                          canWrite={role === 'DOCTOR'}
+                          onCancel={() => setEnding(null)}
+                          onDone={() => {
+                            setEnding(null);
+                            void refresh();
+                          }}
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>

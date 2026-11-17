@@ -46,3 +46,7 @@ export async function finishTicket(input: unknown) {
 export async function saveDistribution(input: unknown) {
   return invokeCl(board.saveDistribution, input);
 }
+
+export async function listTicketFees(input: unknown) {
+  return invokeCl(board.listTicketFees, input);
+}

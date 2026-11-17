@@ -137,15 +137,36 @@ export const callTicket = defineClAction({
   },
 });
 
+/**
+ * Ends a visit: the doctor's short complaint and note, and the fees to charge, picked from that doctor's own fee list (the
+ * client sends ids, never amounts). The bill is made here. A visit with nothing to charge closes straight to Done. Only a
+ * doctor writes clinical text; the desk may end a visit without any.
+ */
 export const endVisit = defineClAction({
   name: 'clinic.board.endVisit',
   roles: [...DESK, 'DOCTOR'],
-  input: z.object({ ticketId: idField }),
-  run: async (ctx, { ticketId }) => {
+  input: z.object({
+    ticketId: idField,
+    complaint: z.string().trim().max(300).optional(),
+    note: z.string().trim().max(1000).optional(),
+    feeIds: z.array(idField).max(20).optional(),
+  }),
+  run: async (ctx, { ticketId, complaint, note, feeIds }) => {
     const ticket = await ticketFor(ctx, ticketId);
-    await step(ctx, ticket, ['WITH_DOCTOR'], 'TO_PAY', { endedAt: new Date() });
+    if ((complaint || note) && ctx.member.role !== 'DOCTOR') throw new StudioError('FORBIDDEN');
+    const ids = [...new Set(feeIds ?? [])];
+    const fees = ids.length > 0 ? await ctx.db.clDoctorFee.findMany({ where: { id: { in: ids }, doctorId: ticket.doctorId }, orderBy: { sortOrder: 'asc' } }) : [];
+    if (fees.length !== ids.length) throw new StudioError('NOT_FOUND');
+    const total = fees.reduce((sum, fee) => sum + fee.amount, 0);
+    await step(ctx, ticket, ['WITH_DOCTOR'], total === 0 ? 'DONE' : 'TO_PAY', { endedAt: new Date() });
+    const visit = await ctx.db.clVisit.create({ data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, complaint: complaint ?? '', note: note ?? '' } });
+    const bill = await ctx.db.clBill.create({
+      data: { restaurantId: ctx.restaurantId, ticketId, patientId: ticket.patientId, doctorId: ticket.doctorId, total, status: total === 0 ? 'PAID' : 'OPEN', closedAt: total === 0 ? new Date() : null },
+    });
+    for (const [index, fee] of fees.entries()) await ctx.db.clBillLine.create({ data: { restaurantId: ctx.restaurantId, billId: bill.id, label: fee.label, amount: fee.amount, sortOrder: index } });
     if (ticket.bookingId) await ctx.db.clBooking.updateMany({ where: { id: ticket.bookingId }, data: { status: 'DONE' } });
-    return null;
+    ctx.audit({ action: 'clinic.visit_recorded', entityType: 'ClVisit', entityId: visit.id, changes: { total: { before: null, after: total } } });
+    return { billId: bill.id, total };
   },
 });
 
@@ -179,13 +200,15 @@ export const markLeft = defineClAction({
   },
 });
 
-/** To pay to Done. The bill and the payment arrive with the visit plan; until then the desk or the till closes the token. */
+/** To pay to Done for a token whose bill is already settled or has none; an open bill is settled at the cashier. */
 export const finishTicket = defineClAction({
   name: 'clinic.board.finish',
   roles: [...DESK, 'CASHIER'],
   input: z.object({ ticketId: idField }),
   run: async (ctx, { ticketId }) => {
     const ticket = await ticketFor(ctx, ticketId);
+    const bill = await ctx.db.clBill.findFirst({ where: { ticketId } });
+    if (bill && bill.status === 'OPEN') throw new StudioError('INVALID', 'This bill is not settled');
     await step(ctx, ticket, ['TO_PAY'], 'DONE');
     return null;
   },
@@ -236,5 +259,17 @@ export const listArrivals = defineClAction({
       orderBy: { startsAt: 'asc' },
     });
     return rows.map((b) => ({ bookingId: b.id, patientName: b.patient.name, doctorName: b.doctor.member.account.name, startsAt: b.startsAt.toISOString() }));
+  },
+});
+
+/** The fee list of the doctor a ticket is with, for the end-of-visit panel: a doctor gets their own, the desk any ticket's. */
+export const listTicketFees = defineClAction({
+  name: 'clinic.board.fees',
+  roles: [...DESK, 'DOCTOR'],
+  input: z.object({ ticketId: idField }),
+  run: async (ctx, { ticketId }) => {
+    const ticket = await ticketFor(ctx, ticketId);
+    const fees = await ctx.db.clDoctorFee.findMany({ where: { doctorId: ticket.doctorId }, orderBy: { sortOrder: 'asc' } });
+    return fees.map((fee) => ({ feeId: fee.id, label: fee.label, amount: fee.amount }));
   },
 });

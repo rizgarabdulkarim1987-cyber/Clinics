@@ -163,6 +163,10 @@ model Restaurant {
   clBookings            ClBooking[]
   clWaitlist            ClWaitlistEntry[]
   clTickets             ClTicket[]
+  clVisits              ClVisit[]
+  clBills               ClBill[]
+  clBillLines           ClBillLine[]
+  clPayments            ClPayment[]
   whExchangeRates WhExchangeRate[]
   whLedgerAccounts WhLedgerAccount[]
   whJournalEntrys WhJournalEntry[]
@@ -2601,6 +2605,8 @@ model ClSettings {
   distribution      ClDistribution @default(SHORTEST_WAIT)
   /// The doctor the last TURN walk-in went to, so the next one goes to the next doctor.
   lastTurnDoctorId  String?
+  /// Dinars per dollar, fixed on each payment when it is taken.
+  usdRate           Int        @default(1500)
   version           Int        @default(1)
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
@@ -2641,6 +2647,8 @@ model ClTicket {
   restaurant         Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   patient            ClPatient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
   doctor             ClDoctor       @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  visit              ClVisit?
+  bill               ClBill?
 
   @@unique([restaurantId, day, number])
   @@index([restaurantId, day, status])
@@ -2760,6 +2768,8 @@ model ClPatient {
   bookings     ClBooking[]
   waitlist     ClWaitlistEntry[]
   tickets      ClTicket[]
+  visits       ClVisit[]
+  bills        ClBill[]
 
   @@index([restaurantId, name])
   @@index([restaurantId, phone])
@@ -2781,6 +2791,8 @@ model ClDoctor {
   fees         ClDoctorFee[]
   bookings     ClBooking[]
   tickets      ClTicket[]
+  visits       ClVisit[]
+  bills        ClBill[]
 
   @@index([restaurantId])
 }
@@ -6390,4 +6402,87 @@ model AccountAccess {
   userId      String   @id
   createdById String?
   createdAt   DateTime @default(now())
+}
+
+/// What the doctor wrote for one visit: a short complaint and a note. Private to the doctor who wrote it (see ClSettings.sharePrivateNotes).
+model ClVisit {
+  id           String     @id @default(cuid())
+  restaurantId String
+  ticketId     String     @unique
+  patientId    String
+  doctorId     String
+  complaint    String     @default("")
+  note         String     @default("")
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  ticket       ClTicket   @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  patient      ClPatient  @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctor       ClDoctor   @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+
+  @@index([restaurantId, patientId])
+  @@index([doctorId])
+}
+
+enum ClBillStatus {
+  OPEN
+  PAID
+  DEBT
+}
+
+/// One bill per visit. Whole dinars. `paid` is what has been applied (never more than `total`).
+model ClBill {
+  id           String       @id @default(cuid())
+  restaurantId String
+  ticketId     String       @unique
+  patientId    String
+  doctorId     String
+  status       ClBillStatus @default(OPEN)
+  total        Int          @default(0)
+  paid         Int          @default(0)
+  /// The clinic's own date, YYYY-MM-DD, set when a balance is left as a debt.
+  dueDay       String?
+  version      Int          @default(1)
+  createdAt    DateTime     @default(now())
+  closedAt     DateTime?
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  ticket       ClTicket     @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  patient      ClPatient    @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctor       ClDoctor     @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  lines        ClBillLine[]
+  payments     ClPayment[]
+
+  @@index([restaurantId, status])
+  @@index([patientId])
+}
+
+model ClBillLine {
+  id           String     @id @default(cuid())
+  restaurantId String
+  billId       String
+  label        String
+  amount       Int
+  sortOrder    Int        @default(0)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  bill         ClBill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+}
+
+/// Money taken on a bill. `tendered` is in the currency handed over (dinars, or US cents); `rate` is the clinic's dinars per dollar at that moment.
+model ClPayment {
+  id           String     @id @default(cuid())
+  restaurantId String
+  billId       String
+  currency     Currency
+  tendered     Int
+  rate         Int
+  appliedIqd   Int
+  changeIqd    Int        @default(0)
+  takenById    String
+  createdAt    DateTime   @default(now())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  bill         ClBill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+  @@index([restaurantId, createdAt])
 }
