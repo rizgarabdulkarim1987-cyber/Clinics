@@ -9,6 +9,14 @@ import { requireTestDb, resetTestData } from '../helpers/db';
 
 /** Who sees which screen of the clinic app, and the owner's staff screen: invite, change a role, switch a person off. */
 
+const sent: Array<{ to: { email: string }; template: string; params: Record<string, unknown> }> = [];
+vi.mock('@/server/studio/auth/auth', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/studio/auth/auth')>()),
+  sendAfterResponse: (to: { email: string }, template: string, params: Record<string, unknown>) => {
+    sent.push({ to, template, params });
+  },
+}));
+
 const prisma = () => getPrisma();
 const PASSWORD = 'correct horse battery staple';
 type Role = 'OWNER' | 'RECEPTION' | 'DOCTOR' | 'CASHIER';
@@ -67,6 +75,16 @@ describe('the staff list', () => {
 });
 
 describe('inviting', () => {
+  it('mails the invitation to a staff member with the link, the clinic and who sent it, and no role line', async () => {
+    const owner = await person('owner@a.test', 'clinic-a', 'OWNER');
+    sent.length = 0;
+    const result = await runClAction(prisma(), owner, staff.inviteStaff, { email: 'New@A.test', role: 'RECEPTION' });
+    if (!result.ok) throw new Error('expected an invitation');
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ to: { email: 'new@a.test' }, template: 'invite', params: { url: result.data.url, restaurant: 'Smile Clinic', inviter: 'owner@a.test' } });
+    expect(sent[0]!.params).not.toHaveProperty('role');
+  });
+
   it('returns the link once, for the owner to send, and audits the address and role but never the link', async () => {
     const owner = await person('owner@a.test', 'clinic-a', 'OWNER');
     const result = await runClAction(prisma(), owner, staff.inviteStaff, { email: 'New@A.test', role: 'DOCTOR' });
